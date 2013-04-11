@@ -130,6 +130,7 @@ MPEGTPENC_SRC = \
     libMpegTPEnc/src/tpenc_adif.cpp \
     libMpegTPEnc/src/tpenc_adts.cpp \
     libMpegTPEnc/src/tpenc_asc.cpp \
+    libMpegTPEnc/src/tpenc_dab.cpp \
     libMpegTPEnc/src/tpenc_latm.cpp \
     libMpegTPEnc/src/tpenc_lib.cpp
 

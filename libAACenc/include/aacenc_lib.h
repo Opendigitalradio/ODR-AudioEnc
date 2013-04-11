@@ -1023,8 +1023,9 @@ typedef enum
                                                    For AAC-ELD, the SBR information is transmitted in the ELDSpecific Config, which is part of the
                                                    AudioSpecificConfig. Therefore, the settings here will have no effect on AAC-ELD.*/
 
-  AACENC_TPSUBFRAMES              = 0x0303,  /*!< Number of sub frames in a transport frame for LOAS/LATM or ADTS (default 1).
+  AACENC_TPSUBFRAMES              = 0x0303,  /*!< Number of sub frames in a transport frame for LOAS/LATM, DAB+ or ADTS (default 1).
                                                   - ADTS: Maximum number of sub frames restricted to 4.
+                                                  - DAB+: Maximum number of sub frames restricted to 6.
                                                   - LOAS/LATM: Maximum number of sub frames restricted to 2.*/
 
   AACENC_PROTECTION               = 0x0306,  /*!< Configure protection in tranpsort layer:

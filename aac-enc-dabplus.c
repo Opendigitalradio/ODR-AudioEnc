@@ -44,8 +44,8 @@ void usage(const char* name) {
 //"	  -V, --version                        Print version and exit.\n"
 //"	  --mi=[ 0, ... ]                      Set AAC frame messages interval in milliseconds.\n"
 //"	  --ma=[ 0, ... ]                      Set AAC frame messages attack time in milliseconds.\n"
-"	  -t, --adts                           Set ADTS output format (for debugging).\n"
-"	  -l, --lp                             Set frame size to 1024 instead of 960.\n"
+//"	  -t, --adts                           Set ADTS output format (for debugging).\n"
+//"	  -l, --lp                             Set frame size to 1024 instead of 960.\n"
 
 );
 
@@ -55,15 +55,6 @@ void usage(const char* name) {
 #define no_argument 0
 #define required_argument 1
 #define optional_argument 2
-
-const int bitrate_table[4][24] = {
-// kbps     8      16    24      32     40     48     56     64     72     80     88     96    104     112     120     128     136     144     152     160     168     176     184     192
-/*16kHz*/ {6733, 14067, 21400, 28733, 36067, 43400, 50733, 58067, 65400, 72733, 80067, 87400, 94733, 102067, 109400, 116733, 124067, 131400, 138733, 146067, 153400, 160733, 168067, 175400},
-/*24kHz*/ {6533, 13867, 21200, 28533, 35867, 43200, 50533, 57867, 65200, 72533, 79867, 87200, 94533, 101867, 109200, 116533, 123867, 131200, 138533, 145867, 153200, 160533, 167867, 175200},
-/*32kHz*/ {6267, 13600, 20933, 28267, 35600, 42933, 50267, 57600, 64933, 72267, 79600, 86933, 94267, 101600, 108933, 116267, 123600, 130933, 138267, 145600, 152933, 160267, 167600, 174933},
-/*48kHz*/ {5800, 13133, 20467, 27800, 35133, 42467, 49800, 57133, 64467, 71800, 79133, 86467, 93800, 101133, 108467, 115800, 123133, 130467, 137800, 145133, 152467, 159800, 167133, 174467}
-};
-
 
 #define ADTS_HEADER_SIZE 7
 #define ADTS_MPEG_ID 1 /* 0: MPEG-4, 1: MPEG-2 */
@@ -105,11 +96,11 @@ int main(int argc, char *argv[]) {
 	const char *infile, *outfile;
 	FILE *in_fh, *out_fh;
 	void *wav;
-	int wav_format, bits_per_sample, sample_rate=48000, channels=2, lp=0;
+	int wav_format, bits_per_sample, sample_rate=48000, channels=2;
 	uint8_t* input_buf;
 	int16_t* convert_buf;
 	int aot = AOT_DABPLUS_AAC_LC;
-	int afterburner = 0, adts_output=0, raw_input=0;
+	int afterburner = 0, raw_input=0;
 	HANDLE_AACENCODER handle;
 	CHANNEL_MODE mode;
 	AACENC_InfoStruct info = { 0 };
@@ -121,8 +112,8 @@ int main(int argc, char *argv[]) {
 	    {"format",      required_argument,  0, 'f'},
 	    {"rate",        required_argument,  0, 'r'},
 	    {"channels",    required_argument,  0, 'c'},
-	    {"lp",          no_argument,        0, 'l'},
-	    {"adts",        no_argument,        0, 't'},
+	    //{"lp",          no_argument,        0, 'l'},
+	    //{"adts",        no_argument,        0, 't'},
 	    {"afterburner", no_argument,        0, 'a'},
 	    {"help",        no_argument,        0, 'h'},
 	    {0,0,0,0},
@@ -132,9 +123,6 @@ int main(int argc, char *argv[]) {
 	while(ch != -1) {
 		ch = getopt_long(argc, argv, "tlhab:c:i:o:r:f:", longopts, &index);
 		switch (ch) {
-		case 't':
-			adts_output = 1;
-			break;
 		case 'f':
 			if(strcmp(optarg, "raw")==0) {
 				raw_input = 1;
@@ -155,9 +143,6 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'i':
 			infile = optarg;
-			break;
-		case 'l':
-			lp = 1;
 			break;
 		case 'o':
 			outfile = optarg;
@@ -233,36 +218,18 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	int sr_idx = 3;
-	switch (sample_rate) {
-	case 16000:
-		sr_idx=0;
-		break;
-	case 24000:
-		sr_idx=1;
-		break;
-	case 32000:
-		sr_idx=2;
-		break;
-	case 48000:
-		sr_idx=3;
-		break;
-	}
-	int bitrate = bitrate_table[sr_idx][subchannel_index];
 
-	if(channels == 2 && bitrate <= 44000)
+	if(channels == 2 && subchannel_index <= 6)
 		aot = AOT_DABPLUS_PS;
-	else if((channels == 1 && bitrate <= 64000) || bitrate <= 96000)
+	else if((channels == 1 && subchannel_index <= 8) || subchannel_index <= 10)
 		aot = AOT_DABPLUS_SBR;
 
-	fprintf(stderr, "Using %d subchannels. AAC type: %s%s%s\n",
+	fprintf(stderr, "Using %d subchannels. AAC type: %s%s%s. channels=%d, sample_rate=%d\n",
 			subchannel_index,
 			aot == AOT_DABPLUS_PS ? "HE-AAC v2" : "",
 			aot == AOT_DABPLUS_SBR ? "HE-AAC" : "",
-			aot == AOT_DABPLUS_AAC_LC ? "AAC-LC" : "");
-
-	if(lp)
-		aot = AOT_MP2_AAC_LC;
+			aot == AOT_DABPLUS_AAC_LC ? "AAC-LC" : "",
+			channels, sample_rate);
 
 	if (aacEncoder_SetParam(handle, AACENC_AOT, aot) != AACENC_OK) {
 		fprintf(stderr, "Unable to set the AOT\n");
@@ -280,24 +247,13 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Unable to set the wav channel order\n");
 		return 1;
 	}
-	if (aacEncoder_SetParam(handle, AACENC_GRANULE_LENGTH, (lp ? 1024 : 960)) != AACENC_OK) {
-		fprintf(stderr, "Unable to set the GRANULE\n");
-		return 1;
-	}
-//	if (vbr) {
-//		if (aacEncoder_SetParam(handle, AACENC_BITRATEMODE, vbr) != AACENC_OK) {
-//			fprintf(stderr, "Unable to set the VBR bitrate mode\n");
-//			return 1;
-//		}
-//	} else {
-
-	fprintf(stderr, "AAC bitrate set to: %d\n", bitrate);
-	if (aacEncoder_SetParam(handle, AACENC_BITRATE, bitrate) != AACENC_OK) {
-		fprintf(stderr, "Unable to set the bitrate\n");
-		return 1;
-	}
-	if (aacEncoder_SetParam(handle, AACENC_TRANSMUX, TT_MP4_RAW) != AACENC_OK) {
+	if (aacEncoder_SetParam(handle, AACENC_TRANSMUX, TT_DABPLUS) != AACENC_OK) {
 		fprintf(stderr, "Unable to set the RAW transmux\n");
+		return 1;
+	}
+	fprintf(stderr, "AAC bitrate set to: %d\n", subchannel_index*8000);
+	if (aacEncoder_SetParam(handle, AACENC_BITRATE, subchannel_index*8000) != AACENC_OK) {
+		fprintf(stderr, "Unable to set the bitrate\n");
 		return 1;
 	}
 	if (aacEncoder_SetParam(handle, AACENC_AFTERBURNER, afterburner) != AACENC_OK) {
@@ -313,36 +269,17 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	fprintf(stderr, "AAC frame length: %d\n", info.frameLength);
+	fprintf(stderr, "DAB+ Encoding: framelen=%d\n", info.frameLength);
 
 	int input_size = channels*2*info.frameLength;
 	input_buf = (uint8_t*) malloc(input_size);
 	convert_buf = (int16_t*) malloc(input_size);
 
-	unsigned char adtsbuf[ADTS_HEADER_SIZE];
-	if(adts_output) {
-		int mpeg_id = ADTS_MPEG_ID;
-		int profile = ADTS_MPEG_PROFILE;
-		int srate_idx = 0;
-
-		if(aot == AOT_DABPLUS_PS || aot == AOT_DABPLUS_SBR) {
-			 srate_idx = FindSRIndex(sample_rate/2);
-		} else {
-			 srate_idx = FindSRIndex(sample_rate);
-		}
-		adtsbuf[0] = 0xFF; /* 8bits: syncword */
-		adtsbuf[1] = 0xF0; /* 4bits: syncword */
-		adtsbuf[1] |= mpeg_id << 3; /* 1bit:  mpeg id = 0 */
-				/* 2bits: layer = 00 */
-		adtsbuf[1] |= 1;   /* 1bit:  protection absent (1 - means "no protection")*/
-		adtsbuf[2] = ((profile << 6) & 0xC0);      /* 2bits: profile */
-		adtsbuf[2] |= ((srate_idx << 2) & 0x3C);   /* 4b: sampling_frequency_index */
-			/* 1b: private = 0 */
-		adtsbuf[2] |= ((channels >> 2) & 0x1); /* 1b: channel_configuration */
-		adtsbuf[3] = ((channels << 6) & 0xC0); /* 2b: channel_configuration */
-	}
-
     int loops = 0;
+    int outbuf_size = subchannel_index*110;
+	uint8_t outbuf[20480];
+
+	int frame=0;
 	while (1) {
 		AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
 		AACENC_InArgs in_args = { 0 };
@@ -353,7 +290,6 @@ int main(int argc, char *argv[]) {
 		int out_size, out_elem_size;
 		int read=0, i;
 		void *in_ptr, *out_ptr;
-		uint8_t outbuf[20480];
 		AACENC_ERROR err;
 
 		if(raw_input) {
@@ -403,16 +339,30 @@ int main(int argc, char *argv[]) {
 		}
 		if (out_args.numOutBytes == 0)
 			continue;
-		if(adts_output) {
-			adts_hdr_up(adtsbuf, out_args.numOutBytes);
-			fwrite(adtsbuf, 1, 7, out_fh);
-		}
-		fwrite(outbuf, 1, out_args.numOutBytes, out_fh);
-		fprintf(stderr, "Written %d bytes!\n", out_args.numOutBytes);
+
+		unsigned char au_start[6];
+		unsigned char* sfbuf = outbuf;
+		au_start[0] = 6;
+		au_start[1] = (*(sfbuf + 3) << 4) + ((*(sfbuf + 4)) >> 4);
+		au_start[2] = ((*(sfbuf + 4) & 0x0f) << 8) + *(sfbuf + 5);
+		fprintf (stderr, "au_start[0] = %d\n", au_start[0]);
+		fprintf (stderr, "au_start[1] = %d\n", au_start[1]);
+		fprintf (stderr, "au_start[2] = %d\n", au_start[2]);
+
+		fwrite(outbuf, 1, /*out_args.numOutBytes*/ outbuf_size, out_fh);
+		fprintf(stderr, "Written %d/%d bytes!\n", out_args.numOutBytes, outbuf_size);
+
+		if(frame > 10)
+			break;
+		frame++;
 	}
 	free(input_buf);
 	free(convert_buf);
-	fclose(in_fh);
+	if(raw_input) {
+		fclose(in_fh);
+	} else {
+		wav_read_close(wav);
+	}
 	fclose(out_fh);
 
 	aacEncClose(&handle);

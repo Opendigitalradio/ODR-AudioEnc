@@ -87,7 +87,7 @@ amm-info@iis.fraunhofer.de
    contents/description: Quantizing & coding
 
 ******************************************************************************/
-
+#include <stdio.h>
 #include "qc_main.h"
 #include "quantize.h"
 #include "interface.h"
@@ -491,19 +491,23 @@ AAC_ENCODER_ERROR FDKaacEnc_AdjustBitrate(QC_STATE        *RESTRICT hQC,
                                           INT              sampleRate,    /* output sampling rate */
                                           INT              granuleLength) /* frame length */
 {
-  INT paddingOn;
+  INT paddingOn=0;
   INT frameLen;
+  fprintf(stderr, "hQC->padding.paddingRest=%d bytes! (before)\n", hQC->padding.paddingRest);
 
   /* Do we need an extra padding byte? */
   paddingOn = FDKaacEnc_framePadding(bitRate,
                            sampleRate,
                            granuleLength,
                           &hQC->padding.paddingRest);
+  fprintf(stderr, "hQC->padding.paddingRest=%d bytes! (after)\n", hQC->padding.paddingRest);
 
   frameLen = paddingOn + FDKaacEnc_calcFrameLen(bitRate,
                                       sampleRate,
                                       granuleLength,
                                       FRAME_LEN_BYTES_INT);
+
+  fprintf(stderr, "frameLen=%d bytes!\n", frameLen);
 
   *avgTotalBits = frameLen<<3;
 
