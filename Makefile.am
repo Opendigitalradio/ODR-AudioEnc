@@ -39,7 +39,7 @@ bin_PROGRAMS = aac-enc$(EXEEXT)  aac-enc-dabplus$(EXEEXT)
 aac_enc_LDADD = libfdk-aac.la
 aac_enc_SOURCES = aac-enc.c wavreader.c
 
-aac_enc_dabplus_LDADD = libfdk-aac.la
+aac_enc_dabplus_LDADD = libfdk-aac.la -lfec
 aac_enc_dabplus_SOURCES = aac-enc-dabplus.c wavreader.c
 
 

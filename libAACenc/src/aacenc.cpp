@@ -914,13 +914,13 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
 
             /* adjust super frame bitrate */
             avgTotalBits *= hAacEnc->config->nSubFrames;
-            fprintf(stderr, "avgTotalBits=%d x %d\n", avgTotalBits, hAacEnc->config->nSubFrames);
+            //fprintf(stderr, "avgTotalBits=%d x %d\n", avgTotalBits, hAacEnc->config->nSubFrames);
         }
 
         /* Make first estimate of transport header overhead.
            Take maximum possible frame size into account to prevent bitreservoir underrun. */
 
-        fprintf(stderr, "avgTotalBits=%d, bitResTot=%d\n", avgTotalBits, hAacEnc->qcKernel->bitResTot);
+        //fprintf(stderr, "avgTotalBits=%d, bitResTot=%d\n", avgTotalBits, hAacEnc->qcKernel->bitResTot);
         hAacEnc->qcKernel->globHdrBits = transportEnc_GetStaticBits(hTpEnc, avgTotalBits + hAacEnc->qcKernel->bitResTot);
 
 

@@ -145,7 +145,7 @@ int dabWrite_GetHeaderBits( HANDLE_DAB hDab )
 
 int dabWrite_CountTotalBitDemandHeader( HANDLE_DAB hDab, unsigned int streamDataLength )
 {
-	fprintf(stderr, "streamDataLength=%d (%d bytes)\n", streamDataLength, streamDataLength >> 3);
+	//fprintf(stderr, "streamDataLength=%d (%d bytes)\n", streamDataLength, streamDataLength >> 3);
 	return dabWrite_GetHeaderBits(hDab);
 }
 
@@ -271,7 +271,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
 	INT crcIndex = 0;
 	USHORT crcData;
 	INT frameLen = (FDKgetValidBits(hBs) - hDab->subFrameStartBit) >> 3;
-	fprintf(stderr, "frame=%d\n", frameLen);
+	//fprintf(stderr, "frame=%d\n", frameLen);
 	FDK_ASSERT(FDKgetValidBits(hBs) % 8 == 0); //only aligned au's
     FDK_ASSERT(hDab->subchannels_num*110*8 > FDKgetValidBits(hBs)+2*8); //don't overlap superframe
 
@@ -282,7 +282,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
 #if 1
     if (hDab->currentBlock == hDab->num_raw_blocks) {
 		INT offset_size = hDab->subchannels_num*110*8 - 2*8 - FDKgetValidBits(hBs);
-		fprintf(stderr, "offset_size=%d\n", offset_size >> 3);
+		//fprintf(stderr, "offset_size=%d\n", offset_size >> 3);
 		FDKpushFor(hBs, offset_size);
     }
 #endif
@@ -290,7 +290,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
     FDKpushFor(&bsWriter, FDKgetValidBits(hBs) - hDab->subFrameStartBit);
 	FDKcrcEndReg(&hDab->crcInfo,  &bsWriter, hDab->crcIndex);
 	crcData = FDKcrcGetCRC(&hDab->crcInfo);
-	fprintf(stderr, "crcData = %04x\n", crcData);
+	//fprintf(stderr, "crcData = %04x\n", crcData);
     /* Write inverted CRC of current raw data block */
     FDKwriteBits(hBs, crcData ^ 0xffff, 16);
 	FDKsyncCache(hBs);
@@ -300,7 +300,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
 	if(hDab->currentBlock) {
 		FDKinitBitStream(&bsWriter, hBs->hBitBuf.Buffer, hBs->hBitBuf.bufSize, 0, BS_WRITER);
 	    FDKpushFor(&bsWriter, 24 + (hDab->currentBlock-1)*12);
-		fprintf(stderr, "FDKwriteBits() = %d\n", hDab->subFrameStartBit>>3);
+		//fprintf(stderr, "FDKwriteBits() = %d\n", hDab->subFrameStartBit>>3);
 		FDKwriteBits(&bsWriter, (hDab->subFrameStartBit>>3), 12);
 		FDKsyncCache(&bsWriter);
 	}
@@ -316,7 +316,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
 		FDKcrcEndReg(&hDab->crcFire, &bsWriter, crcIndex);
 
 		crcData = FDKcrcGetCRC(&hDab->crcFire);
-		fprintf(stderr, "Firecode: %04x\n", crcData);
+		//fprintf(stderr, "Firecode: %04x\n", crcData);
 
 		FDKinitBitStream(&bsWriter, hBs->hBitBuf.Buffer, hBs->hBitBuf.bufSize, 0, BS_WRITER);
 		FDKwriteBits(&bsWriter, crcData, 16);
@@ -334,6 +334,6 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
     /* Fixup CRC bits, since they come after each raw data block */
 
     hDab->currentBlock++;
-    fprintf(stderr, "dabWrite_EndRawDataBlock() *pBits=%d (%d)\n", *pBits, *pBits >> 3);
+    //fprintf(stderr, "dabWrite_EndRawDataBlock() *pBits=%d (%d)\n", *pBits, *pBits >> 3);
 }
 

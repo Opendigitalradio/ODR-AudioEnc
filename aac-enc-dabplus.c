@@ -25,6 +25,8 @@
 #include "libAACenc/include/aacenc_lib.h"
 #include "wavreader.h"
 
+#include <fec.h>
+
 void usage(const char* name) {
 	fprintf(stderr, "%s [OPTION...]\n", name);
 	fprintf(stderr,
@@ -99,6 +101,8 @@ int main(int argc, char *argv[]) {
 	int wav_format, bits_per_sample, sample_rate=48000, channels=2;
 	uint8_t* input_buf;
 	int16_t* convert_buf;
+	uint8_t* rs_encoded_buf;
+	void *rs_handler = NULL;
 	int aot = AOT_DABPLUS_AAC_LC;
 	int afterburner = 0, raw_input=0;
 	HANDLE_AACENCODER handle;
@@ -274,10 +278,22 @@ int main(int argc, char *argv[]) {
 	int input_size = channels*2*info.frameLength;
 	input_buf = (uint8_t*) malloc(input_size);
 	convert_buf = (int16_t*) malloc(input_size);
+	rs_encoded_buf = (uint8_t*) malloc(120*subchannel_index);
+
+	/* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
+	rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
+	if (rs_handler == NULL) {
+		perror("init_rs_char failed");
+		return 0;
+	}
 
     int loops = 0;
-    int outbuf_size = subchannel_index*110;
+    int outbuf_size = subchannel_index*120;
 	uint8_t outbuf[20480];
+
+	if(outbuf_size % 5 != 0) {
+		fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
+	}
 
 	int frame=0;
 	while (1) {
@@ -339,7 +355,7 @@ int main(int argc, char *argv[]) {
 		}
 		if (out_args.numOutBytes == 0)
 			continue;
-
+#if 0
 		unsigned char au_start[6];
 		unsigned char* sfbuf = outbuf;
 		au_start[0] = 6;
@@ -348,12 +364,31 @@ int main(int argc, char *argv[]) {
 		fprintf (stderr, "au_start[0] = %d\n", au_start[0]);
 		fprintf (stderr, "au_start[1] = %d\n", au_start[1]);
 		fprintf (stderr, "au_start[2] = %d\n", au_start[2]);
+#endif
+
+		int row, col;
+		char buf_to_rs_enc[110];
+		char rs_enc[10];
+		for(row=0; row < subchannel_index; row++) {
+			for(col=0;col < 110; col++) {
+				buf_to_rs_enc[col] = outbuf[subchannel_index * col + row];
+			}
+
+			encode_rs_char(rs_handler, buf_to_rs_enc, rs_enc);
+
+			for(col=110; col<120; col++) {
+				outbuf[subchannel_index * col + row] = rs_enc[col-110];
+				assert(subchannel_index * col + row < outbuf_size);
+			}
+		}
 
 		fwrite(outbuf, 1, /*out_args.numOutBytes*/ outbuf_size, out_fh);
-		fprintf(stderr, "Written %d/%d bytes!\n", out_args.numOutBytes, outbuf_size);
+		//fprintf(stderr, "Written %d/%d bytes!\n", out_args.numOutBytes + row*10, outbuf_size);
+		if(out_args.numOutBytes + row*10 == outbuf_size)
+			fprintf(stderr, ".");
 
-		if(frame > 10)
-			break;
+//		if(frame > 10)
+//			break;
 		frame++;
 	}
 	free(input_buf);
@@ -364,6 +399,7 @@ int main(int argc, char *argv[]) {
 		wav_read_close(wav);
 	}
 	fclose(out_fh);
+	free_rs_char(rs_handler);
 
 	aacEncClose(&handle);
 

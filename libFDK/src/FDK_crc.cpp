@@ -467,7 +467,7 @@ static inline INT calcCrc_Bytes(
   }
 
   *pCrc = crc; /* update crc value */
-  fprintf(stderr, "\n\n crc[%d]=%04x\n", i, crc);
+  //fprintf(stderr, "\n\n crc[%d]=%04x\n", i, crc);
 
   return (i);
 }
@@ -537,7 +537,7 @@ static void crcCalc(
     }
   }
 
-  fprintf(stderr, "\n\n crc=%04x\n", crc);
+  //fprintf(stderr, "\n\n crc=%04x\n", crc);
   hCrcInfo->crcValue = crc;
 }
 
