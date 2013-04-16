@@ -250,6 +250,10 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Unable to set the wav channel order\n");
 		return 1;
 	}
+	if (aacEncoder_SetParam(handle, AACENC_GRANULE_LENGTH, 960) != AACENC_OK) {
+		fprintf(stderr, "Unable to set the AOT\n");
+		return 1;
+	}
 	if (aacEncoder_SetParam(handle, AACENC_TRANSMUX, TT_DABPLUS) != AACENC_OK) {
 		fprintf(stderr, "Unable to set the RAW transmux\n");
 		return 1;

@@ -1479,7 +1479,7 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
     return AAC_ENC_WRITTEN_BITS_ERROR;
   }
 
-  fprintf(stderr, "ErrorStatus=%d", ErrorStatus);
+  //fprintf(stderr, "ErrorStatus=%d", ErrorStatus);
   return ErrorStatus;
 }
 

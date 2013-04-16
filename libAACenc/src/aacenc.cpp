@@ -973,7 +973,7 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
         /*-------------------------------------------- */
 
         /* for ( all sub frames ) ... */
-        fprintf(stderr, "totalBits=%d, qcOut->totalBits=%d, qcOut->totFillBits=%d\n", totalBits, qcOut->totalBits, qcOut->totFillBits);
+        //fprintf(stderr, "totalBits=%d, qcOut->totalBits=%d, qcOut->totFillBits=%d\n", totalBits, qcOut->totalBits, qcOut->totFillBits);
               /* write bitstream header */
               transportEnc_WriteAccessUnit(
                     hTpEnc,

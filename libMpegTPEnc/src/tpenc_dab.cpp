@@ -379,7 +379,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
     	writeBitsLastBlock = offset_end - FDKgetValidBits(hBs);
         dabWrite_FillRawDataBlock(hBs, writeBitsLastBlock);
 		FDKsyncCache(hBs);
-		fprintf(stderr, "FIL-element written=%d\n", writeBitsLastBlock);
+		//fprintf(stderr, "FIL-element written=%d\n", writeBitsLastBlock);
 		writeBitsLastBlock=writeBits;
     }
 #endif
@@ -397,7 +397,8 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
 		writeBits=writeBitsLastBlock;
 
 	INT frameLen = (FDKgetValidBits(hBs) - hDab->subFrameStartBit) >> 3;
-	fprintf(stderr, "frame=%d, offset writeBits=%d\n", frameLen, writeBits);
+	//fprintf(stderr, "frame=%d, offset writeBits=%d\n", frameLen, writeBits);
+
 	FDK_ASSERT(FDKgetValidBits(hBs) % 8 == 0); //only aligned au's
     FDK_ASSERT(hDab->subchannels_num*110*8 >= FDKgetValidBits(hBs)+2*8); //don't overlap superframe
 
@@ -405,7 +406,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
     FDKpushFor(&bsWriter, hDab->subFrameStartBit);
     FDKcrcReset(&hDab->crcInfo);
     hDab->crcIndex = FDKcrcStartReg(&hDab->crcInfo, &bsWriter, 0);
-#if 1
+#if 0
     if (hDab->currentBlock == hDab->num_raw_blocks) {
 		INT offset_size = hDab->subchannels_num*110*8 - 2*8 - FDKgetValidBits(hBs);
 		//fprintf(stderr, "offset_size=%d\n", offset_size >> 3);
