@@ -1378,7 +1378,7 @@ AAC_ENCODER_ERROR FDKaacEnc_FinalizeBitConsumption(CHANNEL_MAPPING *cm,
   /* Get total consumed bits in AU */
   qcOut->totalBits = qcOut->staticBits + qcOut->usedDynBits  + qcOut->totFillBits +
                      qcOut->elementExtBits + qcOut->globalExtBits;
-
+#if 1
   if (qcKernel->bitrateMode==QCDATA_BR_MODE_CBR) {
 
     /* Now we can get the exact transport bit amount, and hopefully it is equal to the estimated value */
@@ -1420,7 +1420,7 @@ AAC_ENCODER_ERROR FDKaacEnc_FinalizeBitConsumption(CHANNEL_MAPPING *cm,
     }
 
   } /* MODE_CBR */
-
+#endif
   /* Update exact number of consumed header bits. */
   qcKernel->globHdrBits = transportEnc_GetStaticBits(hTpEnc, qcOut->totalBits);
 
@@ -1440,6 +1440,8 @@ AAC_ENCODER_ERROR FDKaacEnc_FinalizeBitConsumption(CHANNEL_MAPPING *cm,
                                                      syntaxFlags,
                                                      aot,
                                                      epConfig );
+
+  //fprintf(stderr, "FinalizeBitConsumption():  totFillBits=%d, qcOut->totFillBits=%d \n", totFillBits, qcOut->totFillBits);
 
   /* now distribute extra fillbits and alignbits */
   alignBits = 7 - (qcOut->staticBits + qcOut->usedDynBits + qcOut->elementExtBits

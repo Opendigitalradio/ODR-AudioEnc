@@ -1893,6 +1893,7 @@ AACENC_ERROR aacEncoder_SetParam(
               case 3:
               case 4:
               case 5:
+              case 7:
               case 8:
                 settings->userBitrateMode = value;
                 hAacEncoder->InitFlags |= AACENC_INIT_CONFIG | AACENC_INIT_TRANSPORT;

@@ -95,6 +95,7 @@ amm-info@iis.fraunhofer.de
 #include "tpenc_lib.h"
 #include "tpenc_asc.h"
 
+#include "common_fix.h"
 
 int dabWrite_CrcStartReg(
                                  HANDLE_DAB pDab,          /*!< pointer to dab stucture */
@@ -103,7 +104,7 @@ int dabWrite_CrcStartReg(
                                 )
 {
   //fprintf(stderr, "dabWrite_CrcStartReg(%p): bits in crc region=%d\n", hBs, mBits);
-  //return ( FDKcrcStartReg(&pDab->crcInfo, hBs, mBits) );
+  return ( FDKcrcStartReg(&pDab->crcInfo2, hBs, mBits) );
 }
 
 void dabWrite_CrcEndReg(
@@ -113,7 +114,7 @@ void dabWrite_CrcEndReg(
                                )
 {
     //fprintf(stderr, "dabWrite_CrcEndReg(%p): crc region=%d\n", hBs, reg);
-    //FDKcrcEndReg(&pDab->crcInfo, hBs, reg);
+    FDKcrcEndReg(&pDab->crcInfo2, hBs, reg);
 }
 
 int dabWrite_GetHeaderBits( HANDLE_DAB hDab )
@@ -198,6 +199,7 @@ INT dabWrite_Init(HANDLE_DAB hDab, CODER_CONFIG *config)
 
   FDKcrcInit(&hDab->crcInfo, 0x1021, 0xFFFF, 16);
   FDKcrcInit(&hDab->crcFire, 0x782d, 0, 16);
+  FDKcrcInit(&hDab->crcInfo2, 0x8005, 0xFFFF, 16);
 
   hDab->currentBlock = 0;
   hDab->headerBits = dabWrite_GetHeaderBits(hDab);
@@ -263,6 +265,99 @@ int dabWrite_EncodeHeader(HANDLE_DAB hDab,
   return 0;
 }
 
+int dabWrite_writeExtensionFillPayload(HANDLE_FDK_BITSTREAM  hBitStream, int extPayloadBits)
+{
+#define EXT_TYPE_BITS         ( 4 )
+#define DATA_EL_VERSION_BITS  ( 4 )
+#define FILL_NIBBLE_BITS      ( 4 )
+
+#define EXT_TYPE_BITS         ( 4 )
+#define DATA_EL_VERSION_BITS  ( 4 )
+#define FILL_NIBBLE_BITS      ( 4 )
+
+	INT  extBitsUsed = 0;
+	INT extPayloadType = EXT_FIL;
+	//fprintf(stderr, "FDKaacEnc_writeExtensionPayload() extPayloadType=%d\n", extPayloadType);
+	if (extPayloadBits >= EXT_TYPE_BITS)
+	{
+	  UCHAR  fillByte = 0x00;  /* for EXT_FIL and EXT_FILL_DATA */
+
+	  if (hBitStream != NULL) {
+		FDKwriteBits(hBitStream, extPayloadType, EXT_TYPE_BITS);
+	  }
+	  extBitsUsed += EXT_TYPE_BITS;
+
+	  switch (extPayloadType) {
+		case EXT_FILL_DATA:
+		  fillByte = 0xA5;
+		case EXT_FIL:
+		default:
+		  if (hBitStream != NULL) {
+			int writeBits = extPayloadBits;
+			FDKwriteBits(hBitStream, 0x00, FILL_NIBBLE_BITS);
+			writeBits -= 8;  /* acount for the extension type and the fill nibble */
+			while (writeBits >= 8) {
+			  FDKwriteBits(hBitStream, fillByte, 8);
+			  writeBits -= 8;
+			}
+		  }
+		  extBitsUsed += FILL_NIBBLE_BITS + (extPayloadBits & ~0x7) - 8;
+		  break;
+	  }
+	}
+
+	return (extBitsUsed);
+}
+
+void dabWrite_FillRawDataBlock(HANDLE_FDK_BITSTREAM  hBitStream, int payloadBits)
+{
+	INT extBitsUsed = 0;
+#define EL_ID_BITS              ( 3 )
+#define FILL_EL_COUNT_BITS      ( 4 )
+#define FILL_EL_ESC_COUNT_BITS  ( 8 )
+#define MAX_FILL_DATA_BYTES     ( 269 )
+    while (payloadBits >= (EL_ID_BITS + FILL_EL_COUNT_BITS)) {
+      INT cnt, esc_count=-1, alignBits=7;
+
+      payloadBits -= EL_ID_BITS + FILL_EL_COUNT_BITS;
+      if (payloadBits >= 15*8) {
+        payloadBits -= FILL_EL_ESC_COUNT_BITS;
+        esc_count = 0;  /* write esc_count even if cnt becomes smaller 15 */
+      }
+      alignBits = 0;
+
+      cnt = fixMin(MAX_FILL_DATA_BYTES, (payloadBits+alignBits)>>3);
+
+      if (cnt >= 15) {
+        esc_count = cnt - 15 + 1;
+      }
+
+      if (hBitStream != NULL) {
+        /* write bitstream */
+        FDKwriteBits(hBitStream, ID_FIL, EL_ID_BITS);
+        if (esc_count >= 0) {
+          FDKwriteBits(hBitStream, 15, FILL_EL_COUNT_BITS);
+          FDKwriteBits(hBitStream, esc_count, FILL_EL_ESC_COUNT_BITS);
+        } else {
+          FDKwriteBits(hBitStream, cnt, FILL_EL_COUNT_BITS);
+        }
+      }
+
+      extBitsUsed += EL_ID_BITS + FILL_EL_COUNT_BITS + ((esc_count>=0) ? FILL_EL_ESC_COUNT_BITS : 0);
+
+      cnt = fixMin(cnt*8, payloadBits);  /* convert back to bits */
+#if 0
+      extBitsUsed += FDKaacEnc_writeExtensionPayload( hBitStream,
+                                                      pExtension->type,
+                                                      pExtension->pPayload,
+                                                      cnt );
+#else
+      extBitsUsed += dabWrite_writeExtensionFillPayload(hBitStream, cnt);
+#endif
+      payloadBits -= cnt;
+    }
+}
+
 void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
                           HANDLE_FDK_BITSTREAM hBs,
                           int *pBits)
@@ -270,10 +365,41 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
     FDK_BITSTREAM bsWriter;
 	INT crcIndex = 0;
 	USHORT crcData;
+	INT writeBits=0;
+	INT writeBitsNonLastBlock=0;
+	INT writeBitsLastBlock=0;
+#if 1
+    if (hDab->currentBlock == hDab->num_raw_blocks) {
+    	//calculate byte-alignment before writing ID_FIL
+    	if((FDKgetValidBits(hBs)+3) % 8){
+    		writeBits = 8 - ((FDKgetValidBits(hBs)+3) % 8);
+    	}
+
+    	INT offset_end = hDab->subchannels_num*110*8 - 2*8 - 3;
+    	writeBitsLastBlock = offset_end - FDKgetValidBits(hBs);
+        dabWrite_FillRawDataBlock(hBs, writeBitsLastBlock);
+		FDKsyncCache(hBs);
+		fprintf(stderr, "FIL-element written=%d\n", writeBitsLastBlock);
+		writeBitsLastBlock=writeBits;
+    }
+#endif
+	FDKwriteBits(hBs, 7, 3); //finalize AU: ID_END
+	FDKsyncCache(hBs);
+	//byte-align (if ID_FIL doesn't align it).
+	if(FDKgetValidBits(hBs) % 8){
+		writeBits = 8 - (FDKgetValidBits(hBs) % 8);
+        FDKwriteBits(hBs, 0x00, writeBits);
+		FDKsyncCache(hBs);
+	}
+
+	//fake-written bits alignment for last AU
+	if (hDab->currentBlock == hDab->num_raw_blocks)
+		writeBits=writeBitsLastBlock;
+
 	INT frameLen = (FDKgetValidBits(hBs) - hDab->subFrameStartBit) >> 3;
-	//fprintf(stderr, "frame=%d\n", frameLen);
+	fprintf(stderr, "frame=%d, offset writeBits=%d\n", frameLen, writeBits);
 	FDK_ASSERT(FDKgetValidBits(hBs) % 8 == 0); //only aligned au's
-    FDK_ASSERT(hDab->subchannels_num*110*8 > FDKgetValidBits(hBs)+2*8); //don't overlap superframe
+    FDK_ASSERT(hDab->subchannels_num*110*8 >= FDKgetValidBits(hBs)+2*8); //don't overlap superframe
 
     FDKinitBitStream(&bsWriter, hBs->hBitBuf.Buffer, hBs->hBitBuf.bufSize, 0, BS_WRITER);
     FDKpushFor(&bsWriter, hDab->subFrameStartBit);
@@ -328,6 +454,7 @@ void dabWrite_EndRawDataBlock(HANDLE_DAB hDab,
     else
         *pBits += 16;
 
+    *pBits += writeBits + 3; //size: ID_END + alignment
 
     /* Correct *pBits to reflect the amount of bits of the current subframe */
     *pBits -= hDab->subFrameStartBit;

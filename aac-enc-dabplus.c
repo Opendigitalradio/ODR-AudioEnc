@@ -101,7 +101,6 @@ int main(int argc, char *argv[]) {
 	int wav_format, bits_per_sample, sample_rate=48000, channels=2;
 	uint8_t* input_buf;
 	int16_t* convert_buf;
-	uint8_t* rs_encoded_buf;
 	void *rs_handler = NULL;
 	int aot = AOT_DABPLUS_AAC_LC;
 	int afterburner = 0, raw_input=0;
@@ -255,6 +254,13 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Unable to set the RAW transmux\n");
 		return 1;
 	}
+
+	/*if (aacEncoder_SetParam(handle, AACENC_BITRATEMODE, 7 *AACENC_BR_MODE_SFR*) != AACENC_OK) {
+		fprintf(stderr, "Unable to set the bitrate mode\n");
+		return 1;
+	}*/
+
+
 	fprintf(stderr, "AAC bitrate set to: %d\n", subchannel_index*8000);
 	if (aacEncoder_SetParam(handle, AACENC_BITRATE, subchannel_index*8000) != AACENC_OK) {
 		fprintf(stderr, "Unable to set the bitrate\n");
@@ -278,7 +284,6 @@ int main(int argc, char *argv[]) {
 	int input_size = channels*2*info.frameLength;
 	input_buf = (uint8_t*) malloc(input_size);
 	convert_buf = (int16_t*) malloc(input_size);
-	rs_encoded_buf = (uint8_t*) malloc(120*subchannel_index);
 
 	/* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
 	rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
@@ -295,8 +300,14 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
 	}
 
+	fprintf(stderr, "outbuf_size: %d\n", outbuf_size);
+	//outbuf_size += (4 * subchannel_index * (8*8)/8) - outbuf_size/5;
+	fprintf(stderr, "outbuf_size: %d\n", outbuf_size);
+
 	int frame=0;
 	while (1) {
+		memset(outbuf, 0x00, outbuf_size);
+
 		AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
 		AACENC_InArgs in_args = { 0 };
 		AACENC_OutArgs out_args = { 0 };

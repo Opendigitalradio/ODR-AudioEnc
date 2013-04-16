@@ -87,7 +87,7 @@ amm-info@iis.fraunhofer.de
    contents/description: Bitstream encoder
 
 ******************************************************************************/
-
+#include <stdio.h>
 #include "bitenc.h"
 #include "bit_cnt.h"
 #include "dyn_bits.h"
@@ -645,7 +645,7 @@ static INT FDKaacEnc_writeExtensionPayload( HANDLE_FDK_BITSTREAM  hBitStream,
   #define FILL_NIBBLE_BITS      ( 4 )
 
   INT  extBitsUsed = 0;
-
+  //fprintf(stderr, "FDKaacEnc_writeExtensionPayload() extPayloadType=%d\n", extPayloadType);
   if (extPayloadBits >= EXT_TYPE_BITS)
   {
     UCHAR  fillByte = 0x00;  /* for EXT_FIL and EXT_FILL_DATA */
@@ -749,7 +749,7 @@ static INT FDKaacEnc_writeDataStreamElement( HANDLE_TRANSPORTENC  hTpEnc,
   #define MAX_DSE_DATA_BYTES        ( 510 )
 
   INT  dseBitsUsed = 0;
-
+  fprintf(stderr, "FDKaacEnc_writeDataStreamElement() dataPayloadBytes=%d\n", dataPayloadBytes);
   while (dataPayloadBytes > 0)
   {
     int esc_count = -1;
@@ -840,6 +840,7 @@ INT FDKaacEnc_writeExtensionData( HANDLE_TRANSPORTENC  hTpEnc,
     hBitStream = transportEnc_GetBitstream(hTpEnc);
   }
 
+  //fprintf(stderr, "FDKaacEnc_writeExtensionData() pExtension->type=%d\n", pExtension->type);
   if (syntaxFlags & (AC_SCALABLE|AC_ER))
   {
     if ( syntaxFlags & AC_DRM )
@@ -1393,7 +1394,7 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
 
         if (channelElementExtensionWritten[i][n]==0)
         {
-          /* Write all ramaining extension payloads in element */
+          /* Write all remaining extension payloads in element */
           FDKaacEnc_writeExtensionData( hTpEnc,
                                        &qcOut->qcElement[i]->extension[n],
                                         0,
@@ -1430,9 +1431,16 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
 
   /* Add fill data / stuffing bits */
   n = qcOut->nExtensions;
-  qcOut->extension[n].type = EXT_FILL_DATA;
-  qcOut->extension[n].nPayloadBits = qcOut->totFillBits;
-  qcOut->nExtensions++;
+
+//  if (!(syntaxFlags & AC_DAB)) {
+	  qcOut->extension[n].type = EXT_FILL_DATA;
+	  qcOut->extension[n].nPayloadBits = qcOut->totFillBits;
+	  qcOut->nExtensions++;
+//  } else {
+//	  doByteAlign = 0;
+//  }
+  if (syntaxFlags & AC_DAB)
+	  doByteAlign = 0;
 
   /* Write global extension payload and fill data */
   for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
@@ -1448,7 +1456,7 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
     /* For EXT_FIL or EXT_FILL_DATA we could do an additional sanity check here */
   }
 
-  if (!(syntaxFlags & (AC_SCALABLE|AC_ER))) {
+  if (!(syntaxFlags & (AC_SCALABLE|AC_ER|AC_DAB))) {
     FDKwriteBits(hBs, ID_END, EL_ID_BITS);
   }
 
@@ -1467,9 +1475,11 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
   transportEnc_EndAccessUnit(hTpEnc, &frameBits);
 
   if (frameBits != qcOut->totalBits + qcKernel->globHdrBits){
+    fprintf(stderr, "frameBits != qcOut->totalBits + qcKernel->globHdrBits: %d != %d + %d", frameBits, qcOut->totalBits, qcKernel->globHdrBits);
     return AAC_ENC_WRITTEN_BITS_ERROR;
   }
 
+  fprintf(stderr, "ErrorStatus=%d", ErrorStatus);
   return ErrorStatus;
 }
 

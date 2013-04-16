@@ -114,6 +114,7 @@ typedef struct {
   int crcIndex;
   FDK_CRCINFO crcInfo;
   FDK_CRCINFO crcFire;
+  FDK_CRCINFO crcInfo2;
   USHORT tab[256];
 } STRUCT_DAB;
 

@@ -754,6 +754,7 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
     /* advance psychoacoustics */
     for (el=0; el<cm->nElements; el++) {
         ELEMENT_INFO elInfo = cm->elInfo[el];
+        //fprintf(stderr, "elInfo.elType=%d\n", elInfo.elType);
 
         if ( (elInfo.elType == ID_SCE)
           || (elInfo.elType == ID_CPE)
@@ -972,6 +973,7 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
         /*-------------------------------------------- */
 
         /* for ( all sub frames ) ... */
+        fprintf(stderr, "totalBits=%d, qcOut->totalBits=%d, qcOut->totFillBits=%d\n", totalBits, qcOut->totalBits, qcOut->totFillBits);
               /* write bitstream header */
               transportEnc_WriteAccessUnit(
                     hTpEnc,
