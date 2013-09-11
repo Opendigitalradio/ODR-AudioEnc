@@ -19,6 +19,7 @@ AM_CONDITIONAL(EXAMPLE, test x$example = xyes)
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_LIBTOOL
 LT_INIT
 
 AC_CHECK_LIB([m], [sin])
