@@ -451,6 +451,7 @@ AAC_ENCODER_ERROR FDKaacEnc_Initialize(HANDLE_AAC_ENC      hAacEnc,
   switch (config->framelength)
   {
     case 1024:
+    case 960: //TODO: DRM
       if ( config->audioObjectType == AOT_ER_AAC_LD
         || config->audioObjectType == AOT_ER_AAC_ELD )
       {
