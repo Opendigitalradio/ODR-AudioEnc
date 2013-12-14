@@ -879,21 +879,6 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
           break;
     }
 
-    /* We need the frame length to call aacEncoder_LimitBitrate() */
-    fprintf(stderr, "##### WARNING ##### REMOVE ME");
-    fprintf(stderr, "config->userBitrate=%d\n", config->userBitrate);
-    hAacConfig->bitRate = aacEncoder_LimitBitrate(
-              NULL,
-              hAacConfig->sampleRate,
-              hAacConfig->framelength,
-              hAacConfig->nChannels,
-              hAacConfig->channelMode,
-              config->userBitrate,
-              hAacConfig->nSubFrames,
-              isSbrActive(hAacConfig),
-              hAacConfig->audioObjectType
-              );
-    fprintf(stderr, "hAacConfig->bitRate=%d\n", hAacConfig->bitRate);
 
     switch ( hAacConfig->audioObjectType ) {
       case AOT_ER_AAC_LD:
@@ -995,6 +980,7 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
 
 
 
+    fprintf(stderr, "config->userBitrate=%d\n", config->userBitrate);
     /* We need the frame length to call aacEncoder_LimitBitrate() */
     hAacConfig->bitRate = aacEncoder_LimitBitrate(
               NULL,
@@ -1008,6 +994,7 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
               hAacConfig->sbrRatio,
               hAacConfig->audioObjectType
               );
+    fprintf(stderr, "hAacConfig->bitRate=%d\n", hAacConfig->bitRate);
 
     /* Configure PNS */
     if ( ((hAacConfig->bitrateMode>=1) && (hAacConfig->bitrateMode<=5)) /* VBR without PNS. */
