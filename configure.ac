@@ -24,6 +24,16 @@ LT_INIT
 
 AC_CHECK_LIB([m], [sin])
 
+# fdk-aac-dabplus-zmq needs ZeroMQ
+AC_ARG_ENABLE([zmq],
+        [AS_HELP_STRING([--enable-zmq], [Enable fdk-aac-dabplus-zmq with ZeroMQ output])]
+		)
+
+AS_IF(test "x$enable_zmq" = "xyes",
+        AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required)))
+
+AM_CONDITIONAL(HAVE_ZEROMQ_TEST, test "x$enable_zmq" = "xyes")
+
 dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as
 dnl current.age.revision
