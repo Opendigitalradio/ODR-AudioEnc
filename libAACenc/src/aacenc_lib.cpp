@@ -369,7 +369,8 @@ static SBR_PS_SIGNALING getSbrSignalingMode(
   }
 
   if ((audioObjectType==AOT_AAC_LC)     || (audioObjectType==AOT_SBR)     || (audioObjectType==AOT_PS)    ||
-      (audioObjectType==AOT_MP2_AAC_LC) || (audioObjectType==AOT_MP2_SBR) || (audioObjectType==AOT_MP2_PS) ) {
+      (audioObjectType==AOT_MP2_AAC_LC) || (audioObjectType==AOT_MP2_SBR) || (audioObjectType==AOT_MP2_PS) ||
+      (audioObjectType==AOT_DABPLUS_SBR) || (audioObjectType==AOT_DABPLUS_PS) ) {
     switch (transportType) {
       case TT_MP4_ADIF:
       case TT_MP4_ADTS:
@@ -769,7 +770,7 @@ INT aacEncoder_LimitBitrate(
 
   FDK_ASSERT(bitRate > 0);
 
-  fprintf(stderr, "aacEncoder_LimitBitrate(): bitRate=%d", bitRate);
+  fprintf(stderr, "aacEncoder_LimitBitrate(): bitRate=%d\n", bitRate);
   return bitRate;
 }
 
@@ -1039,7 +1040,7 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
         hAacEncoder->metaDataAllowed = 0;
     }
 
-    fprintf(stderr, "hAacEncoder->metaDataAllowed=%d", hAacEncoder->metaDataAllowed);
+    fprintf(stderr, "hAacEncoder->metaDataAllowed=%d\n", hAacEncoder->metaDataAllowed);
     return err;
 }
 
