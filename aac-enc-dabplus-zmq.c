@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <zmq.h>
+#include <assert.h>
 #include "libAACenc/include/aacenc_lib.h"
 #include "wavreader.h"
 
