@@ -211,8 +211,8 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "Error occurred during zmq_socket: %s\n", zmq_strerror(errno));
 			return 2;
 		}
-		if (zmq_bind(zmq_sock, outuri) != 0) {
-			fprintf(stderr, "Error occurred during zmq_bind: %s\n", zmq_strerror(errno));
+		if (zmq_connect(zmq_sock, outuri) != 0) {
+			fprintf(stderr, "Error occurred during zmq_connect: %s\n", zmq_strerror(errno));
 			return 2;
 		}
 	} else {
