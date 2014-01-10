@@ -49,7 +49,6 @@ void usage(const char* name) {
 //"	  -V, --version                        Print version and exit.\n"
 //"	  --mi=[ 0, ... ]                      Set AAC frame messages interval in milliseconds.\n"
 //"	  --ma=[ 0, ... ]                      Set AAC frame messages attack time in milliseconds.\n"
-//"	  -t, --adts                           Set ADTS output format (for debugging).\n"
 //"	  -l, --lp                             Set frame size to 1024 instead of 960.\n"
 "\n"
 "Only the tcp:// zeromq transport has been tested until now.\n"
@@ -62,40 +61,6 @@ void usage(const char* name) {
 #define no_argument 0
 #define required_argument 1
 #define optional_argument 2
-
-#define ADTS_HEADER_SIZE 7
-#define ADTS_MPEG_ID 1 /* 0: MPEG-4, 1: MPEG-2 */
-#define ADTS_MPEG_PROFILE 1
-const int mpeg4audio_sample_rates[16] = {
-    96000, 88200, 64000, 48000, 44100, 32000,
-    24000, 22050, 16000, 12000, 11025, 8000, 7350
-};
-
-int FindSRIndex(int sr)
-{
-    int i;
-    for (i = 0; i < 16; i++) {
-	if (sr == mpeg4audio_sample_rates[i])
-	    return i;
-    }
-    return 16 - 1;
-}
-
-void adts_hdr_up(char *buff, int size)
-{
-    unsigned short len = size + ADTS_HEADER_SIZE;
-    unsigned short buffer_fullness = 0x07FF;
-
-    /* frame length, 13 bits */
-    buff[3] &= 0xFC;
-    buff[3] |= ((len >> 11) & 0x03);	/* 2b: aac_frame_length */
-    buff[4] = len >> 3;			/* 8b: aac_frame_length */
-    buff[5] = (len << 5) & 0xE0;	/* 3b: aac_frame_length */
-    /* buffer fullness, 11 bits */
-    buff[5] |= ((buffer_fullness >> 6) & 0x1F);	/* 5b: adts_buffer_fullness */
-    buff[6] = (buffer_fullness << 2) & 0xFC;	/* 6b: adts_buffer_fullness */
-						/* 2b: num_raw_data_blocks */
-}
 
 int main(int argc, char *argv[]) {
 	int subchannel_index = 8; //64kbps subchannel
@@ -125,7 +90,6 @@ int main(int argc, char *argv[]) {
 	    {"rate",        required_argument,  0, 'r'},
 	    {"channels",    required_argument,  0, 'c'},
 	    //{"lp",          no_argument,        0, 'l'},
-	    //{"adts",        no_argument,        0, 't'},
 	    {"afterburner", no_argument,        0, 'a'},
 	    {"help",        no_argument,        0, 'h'},
 	    {0,0,0,0},
