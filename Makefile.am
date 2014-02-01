@@ -45,7 +45,10 @@ if HAVE_ZEROMQ_TEST
 aac_enc_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq
 aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c
 
-bin_PROGRAMS = aac-enc$(EXEEXT) aac-enc-dabplus$(EXEEXT) aac-enc-dabplus-zmq$(EXEEXT)
+alsa_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
+alsa_dabplus_zmq_SOURCES = alsa-dabplus-zmq.c
+
+bin_PROGRAMS = aac-enc$(EXEEXT) aac-enc-dabplus$(EXEEXT) aac-enc-dabplus-zmq$(EXEEXT) alsa-dabplus-zmq$(EXEEXT)
 else
 bin_PROGRAMS = aac-enc$(EXEEXT) aac-enc-dabplus$(EXEEXT)
 endif

@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013 Matthias P. Braendli
+ * Copyright (C) 2013,2014 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,24 +69,113 @@ void usage(const char* name) {
 
 }
 
-static int in_aborting = 0;
 static snd_pcm_t *alsa_handle = NULL;
 
 static void prg_exit(int code)
 {
-	if (alsa_handle)
-		snd_pcm_close(alsa_handle);
+	if (alsa_handle) {
+		//snd_pcm_close(alsa_handle);
+	}
 	exit(code);
+}
+
+static void alsa_prepare(const char* alsa_dev, unsigned int rate, unsigned int channels)
+{
+	int err;
+	snd_pcm_hw_params_t *hw_params;
+
+	fprintf(stderr, "Initialising ALSA...\n");
+
+	const int open_mode = 0; //|= SND_PCM_NONBLOCK;
+
+	if ((err = snd_pcm_open(&alsa_handle, alsa_dev, SND_PCM_STREAM_CAPTURE, open_mode)) < 0) {
+		fprintf (stderr, "cannot open audio device %s (%s)\n",
+				alsa_dev, snd_strerror(err));
+		prg_exit(1);
+	}
+
+	const int nonblock = 0; //TODO remove dead code
+	if (nonblock) {
+		err = snd_pcm_nonblock(alsa_handle, 1);
+		if (err < 0) {
+			fprintf(stderr, "nonblock setting error: %s", snd_strerror(err));
+			prg_exit(1);
+		}
+	}
+
+	if ((err = snd_pcm_hw_params_malloc(&hw_params)) < 0) {
+		fprintf (stderr, "cannot allocate hardware parameter structure (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	if ((err = snd_pcm_hw_params_any(alsa_handle, hw_params)) < 0) {
+		fprintf (stderr, "cannot initialize hardware parameter structure (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	if ((err = snd_pcm_hw_params_set_access(alsa_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+		fprintf (stderr, "cannot set access type (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	if ((err = snd_pcm_hw_params_set_format(alsa_handle, hw_params, SND_PCM_FORMAT_S16_LE)) < 0) {
+		fprintf (stderr, "cannot set sample format (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	if ((err = snd_pcm_hw_params_set_rate_near(alsa_handle, hw_params, &rate, 0)) < 0) {
+		fprintf (stderr, "cannot set sample rate (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	if ((err = snd_pcm_hw_params_set_channels(alsa_handle, hw_params, channels)) < 0) {
+		fprintf (stderr, "cannot set channel count (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	if ((err = snd_pcm_hw_params(alsa_handle, hw_params)) < 0) {
+		fprintf (stderr, "cannot set parameters (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	snd_pcm_hw_params_free (hw_params);
+
+	if ((err = snd_pcm_prepare(alsa_handle)) < 0) {
+		fprintf (stderr, "cannot prepare audio interface for use (%s)\n",
+				snd_strerror(err));
+		prg_exit(1);
+	}
+
+	fprintf(stderr, "ALSA init done.\n");
+}
+
+static size_t alsa_read(uint8_t* buf, snd_pcm_uframes_t length)
+{
+	int i;
+	int err;
+
+	if ((err = snd_pcm_readi(alsa_handle, buf, length)) != length) {
+		fprintf (stderr, "read from audio interface failed (%s)\n",
+				snd_strerror(err));
+	}
+
+	return err;
 }
 
 static void signal_handler(int sig)
 {
-	if (in_aborting)
-		return;
-
-	in_aborting = 1;
-	if (alsa_handle)
+	fprintf(stderr, "Caught signal %d\n", sig);
+	if (alsa_handle) {
 		snd_pcm_abort(alsa_handle);
+		alsa_handle = NULL;
+	}
 
 	if (sig == SIGABRT) {
 		/* do not call snd_pcm_close() and abort immediately */
@@ -96,194 +185,7 @@ static void signal_handler(int sig)
 	signal(sig, signal_handler);
 }
 
-const static int dump_hw_params = 0;
 
-// Set Alsa hardware parameters
-static void set_params(void)
-{
-	snd_pcm_hw_params_t *params;
-	snd_pcm_sw_params_t *swparams;
-	snd_pcm_uframes_t buffer_size;
-	int err;
-	size_t n;
-	unsigned int rate;
-	snd_pcm_uframes_t start_threshold, stop_threshold;
-	snd_pcm_hw_params_alloca(&params);
-	snd_pcm_sw_params_alloca(&swparams);
-	err = snd_pcm_hw_params_any(alsa_handle, params);
-	if (err < 0) {
-		fprintf(stderr, "Broken configuration for this PCM: no configurations available");
-		prg_exit(EXIT_FAILURE);
-	}
-	if (dump_hw_params) {
-		fprintf(stderr, "HW Params of device \"%s\":\n",
-			snd_pcm_name(alsa_handle));
-		fprintf(stderr, "--------------------\n");
-		// TODO log should be a snd_output_t *log;
-		snd_pcm_hw_params_dump(params, log);
-		fprintf(stderr, "--------------------\n");
-	}
-	err = snd_pcm_hw_params_set_access(alsa_handle, params,
-			SND_PCM_ACCESS_RW_INTERLEAVED);
-	if (err < 0) {
-		fprintf(stderr, "Access type not available");
-		prg_exit(EXIT_FAILURE);
-	}
-	err = snd_pcm_hw_params_set_format(alsa_handle, params, hwparams.format);
-	if (err < 0) {
-		fprintf(stderr, "Sample format non available");
-		snd_pcm_format_t format;
-
-		fprintf(stderr, "Available formats:\n");
-		for (format = 0; format <= SND_PCM_FORMAT_LAST; format++) {
-			if (snd_pcm_hw_params_test_format(alsa_handle, params, format) == 0)
-				fprintf(stderr, "- %s\n", snd_pcm_format_name(format));
-		}
-		prg_exit(EXIT_FAILURE);
-	}
-	err = snd_pcm_hw_params_set_channels(alsa_handle, params, hwparams.channels);
-	if (err < 0) {
-		fprintf(stderr, "Channels count non available");
-		prg_exit(EXIT_FAILURE);
-	}
-
-#if 0
-	err = snd_pcm_hw_params_set_periods_min(alsa_handle, params, 2);
-	assert(err >= 0);
-#endif
-	rate = hwparams.rate;
-	err = snd_pcm_hw_params_set_rate_near(alsa_handle, params, &hwparams.rate, 0);
-	assert(err >= 0);
-	if ((float)rate * 1.05 < hwparams.rate || (float)rate * 0.95 > hwparams.rate) {
-		char plugex[64];
-		const char *pcmname = snd_pcm_name(alsa_handle);
-		fprintf(stderr, "Warning: rate is not accurate (requested = %iHz, got = %iHz)\n", rate, hwparams.rate);
-		if (! pcmname || strchr(snd_pcm_name(alsa_handle), ':')) {
-			*plugex = 0;
-		}
-		else {
-			snprintf(plugex, sizeof(plugex), "(-Dplug:%s)",
-					snd_pcm_name(alsa_handle));
-		}
-		fprintf(stderr, "         please, try the plug plugin %s\n",
-				plugex);
-	}
-	rate = hwparams.rate;
-	if (buffer_time == 0 && buffer_frames == 0) {
-		err = snd_pcm_hw_params_get_buffer_time_max(params,
-							    &buffer_time, 0);
-		assert(err >= 0);
-		if (buffer_time > 500000)
-			buffer_time = 500000;
-	}
-	if (period_time == 0 && period_frames == 0) {
-		if (buffer_time > 0)
-			period_time = buffer_time / 4;
-		else
-			period_frames = buffer_frames / 4;
-	}
-	if (period_time > 0)
-		err = snd_pcm_hw_params_set_period_time_near(alsa_handle, params,
-							     &period_time, 0);
-	else
-		err = snd_pcm_hw_params_set_period_size_near(alsa_handle, params,
-							     &period_frames, 0);
-	assert(err >= 0);
-	if (buffer_time > 0) {
-		err = snd_pcm_hw_params_set_buffer_time_near(alsa_handle, params,
-							     &buffer_time, 0);
-	} else {
-		err = snd_pcm_hw_params_set_buffer_size_near(alsa_handle, params,
-							     &buffer_frames);
-	}
-	assert(err >= 0);
-	monotonic = snd_pcm_hw_params_is_monotonic(params);
-	can_pause = snd_pcm_hw_params_can_pause(params);
-	err = snd_pcm_hw_params(alsa_handle, params);
-	if (err < 0) {
-		fprintf(stderr, "Unable to install hw params:");
-		snd_pcm_hw_params_dump(params, log);
-		prg_exit(EXIT_FAILURE);
-	}
-	snd_pcm_hw_params_get_period_size(params, &chunk_size, 0);
-	snd_pcm_hw_params_get_buffer_size(params, &buffer_size);
-	if (chunk_size == buffer_size) {
-		fprintf(stderr, "Can't use period equal to buffer size (%lu == %lu)",
-		      chunk_size, buffer_size);
-		prg_exit(EXIT_FAILURE);
-	}
-	snd_pcm_sw_params_current(alsa_handle, swparams);
-	if (avail_min < 0)
-		n = chunk_size;
-	else
-		n = (double) rate * avail_min / 1000000;
-	err = snd_pcm_sw_params_set_avail_min(alsa_handle, swparams, n);
-
-	/* round up to closest transfer boundary */
-	n = buffer_size;
-	if (start_delay <= 0) {
-		start_threshold = n + (double) rate * start_delay / 1000000;
-	} else
-		start_threshold = (double) rate * start_delay / 1000000;
-	if (start_threshold < 1)
-		start_threshold = 1;
-	if (start_threshold > n)
-		start_threshold = n;
-	err = snd_pcm_sw_params_set_start_threshold(alsa_handle, swparams, start_threshold);
-	assert(err >= 0);
-	if (stop_delay <= 0) 
-		stop_threshold = buffer_size + (double) rate * stop_delay / 1000000;
-	else
-		stop_threshold = (double) rate * stop_delay / 1000000;
-	err = snd_pcm_sw_params_set_stop_threshold(alsa_handle, swparams, stop_threshold);
-	assert(err >= 0);
-
-	if (snd_pcm_sw_params(alsa_handle, swparams) < 0) {
-		fprintf(stderr, "unable to install sw params:");
-		snd_pcm_sw_params_dump(swparams, log);
-		prg_exit(EXIT_FAILURE);
-	}
-
-	if (setup_chmap())
-		prg_exit(EXIT_FAILURE);
-
-	if (verbose)
-		snd_pcm_dump(alsa_handle, log);
-
-	bits_per_sample = snd_pcm_format_physical_width(hwparams.format);
-	bits_per_frame = bits_per_sample * hwparams.channels;
-	chunk_bytes = chunk_size * bits_per_frame / 8;
-	audiobuf = realloc(audiobuf, chunk_bytes);
-	if (audiobuf == NULL) {
-		fprintf(stderr, "not enough memory");
-		prg_exit(EXIT_FAILURE);
-	}
-	// fprintf(stderr, "real chunk_size = %i, frags = %i, total = %i\n", chunk_size, setup.buf.block.frags, setup.buf.block.frags * chunk_size);
-
-	/* stereo VU-meter isn't always available... */
-	if (vumeter == VUMETER_STEREO) {
-		if (hwparams.channels != 2 || !interleaved || verbose > 2)
-			vumeter = VUMETER_MONO;
-	}
-
-	/* show mmap buffer arragment */
-	if (mmap_flag && verbose) {
-		const snd_pcm_channel_area_t *areas;
-		snd_pcm_uframes_t offset, size = chunk_size;
-		int i;
-		err = snd_pcm_mmap_begin(alsa_handle, &areas, &offset, &size);
-		if (err < 0) {
-			fprintf(stderr, "snd_pcm_mmap_begin problem: %s", snd_strerror(err));
-			prg_exit(EXIT_FAILURE);
-		}
-		for (i = 0; i < hwparams.channels; i++)
-			fprintf(stderr, "mmap_area[%i] = %p,%u,%u (%u)\n", i, areas[i].addr, areas[i].first, areas[i].step, snd_pcm_format_physical_width(hwparams.format));
-		/* not required, but for sure */
-		snd_pcm_mmap_commit(alsa_handle, offset, 0);
-	}
-
-	buffer_frames = buffer_size;	/* for position test */
-}
 
 #define no_argument 0
 #define required_argument 1
@@ -296,7 +198,7 @@ int main(int argc, char *argv[]) {
 	const char *alsa_device = "default";
 	const char *outuri = NULL;
 	int sample_rate=48000, channels=2;
-	const int bits_per_sample = 16;
+	const int bytes_per_sample = 2;
 	uint8_t* input_buf;
 	int16_t* convert_buf;
 	void *rs_handler = NULL;
@@ -355,6 +257,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	fprintf(stderr, "Setting up ZeroMQ socket\n");
 	if (outuri) {
 		zmq_sock = zmq_socket(zmq_context, ZMQ_PUB);
 		if (zmq_sock == NULL) {
@@ -370,30 +273,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-
-	const int open_mode = 0; //|= SND_PCM_NONBLOCK;
-	const snd_pcm_stream_t stream = SND_PCM_STREAM_CAPTURE;
-	const int nonblock = 0;
-	snd_pcm_info_t *alsa_info;
-
-	err = snd_pcm_open(&alsa_handle, alsa_device, stream, open_mode);
-	if (err < 0) {
-		fprintf(stderr, "audio open error: %s", snd_strerror(err));
-		return 1;
-	}
-
-	if ((err = snd_pcm_info(alsa_handle, alsa_info)) < 0) {
-		fprintf(stderr, "info error: %s", snd_strerror(err));
-		prg_exit(1);
-	}
-
-	if (nonblock) {
-		err = snd_pcm_nonblock(alsa_handle, 1);
-		if (err < 0) {
-			fprintf(stderr, "nonblock setting error: %s", snd_strerror(err));
-			prg_exit(1);
-		}
-	}
+	alsa_prepare(alsa_device, sample_rate, channels);
 
 	signal(SIGINT, signal_handler);
 	signal(SIGTERM, signal_handler);
@@ -498,7 +378,7 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr, "outbuf_size: %d\n", outbuf_size);
 	//outbuf_size += (4 * subchannel_index * (8*8)/8) - outbuf_size/5;
-	fprintf(stderr, "outbuf_size: %d\n", outbuf_size);
+	//fprintf(stderr, "outbuf_size: %d\n", outbuf_size);
 
 	int frame=0;
 	int send_error_count = 0;
@@ -517,10 +397,8 @@ int main(int argc, char *argv[]) {
 		void *in_ptr, *out_ptr;
 		AACENC_ERROR err;
 
-		// raw input
-		if(fread(input_buf, input_size, 1, in_fh) == 1) {
-			read = input_size;
-		} else {
+		read = alsa_read(input_buf, input_size/bytes_per_sample) * bytes_per_sample;
+		if (read != input_size) {
 			fprintf(stderr, "Unable to read from input!\n");
 			break;
 		}
@@ -608,8 +486,6 @@ int main(int argc, char *argv[]) {
 //			break;
 		frame++;
 	}
-	free(input_buf);
-	free(convert_buf);
 
 	zmq_close(zmq_sock);
 	free_rs_char(rs_handler);
