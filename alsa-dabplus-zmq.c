@@ -74,7 +74,7 @@ static snd_pcm_t *alsa_handle = NULL;
 static void prg_exit(int code)
 {
 	if (alsa_handle) {
-		//snd_pcm_close(alsa_handle);
+		snd_pcm_close(alsa_handle);
 	}
 	exit(code);
 }
@@ -161,9 +161,16 @@ static size_t alsa_read(uint8_t* buf, snd_pcm_uframes_t length)
 	int i;
 	int err;
 
-	if ((err = snd_pcm_readi(alsa_handle, buf, length)) != length) {
-		fprintf (stderr, "read from audio interface failed (%s)\n",
-				snd_strerror(err));
+	err = snd_pcm_readi(alsa_handle, buf, length);
+
+	if (err != length) {
+		if (err < 0) {
+			fprintf (stderr, "read from audio interface failed (%s)\n",
+					snd_strerror(err));
+		}
+		else {
+			fprintf(stderr, "short alsa read: %d\n", err);
+		}
 	}
 
 	return err;
@@ -357,7 +364,7 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr, "DAB+ Encoding: framelen=%d\n", info.frameLength);
 
-	int input_size = channels*2*info.frameLength;
+	int input_size = channels * bytes_per_sample * info.frameLength;
 	input_buf = (uint8_t*) malloc(input_size);
 	convert_buf = (int16_t*) malloc(input_size);
 
@@ -397,9 +404,9 @@ int main(int argc, char *argv[]) {
 		void *in_ptr, *out_ptr;
 		AACENC_ERROR err;
 
-		read = alsa_read(input_buf, input_size/bytes_per_sample) * bytes_per_sample;
-		if (read != input_size) {
-			fprintf(stderr, "Unable to read from input!\n");
+		read = alsa_read(input_buf, info.frameLength);
+		if (read != info.frameLength) {
+			fprintf(stderr, "Unable to read enough data from input!\n");
 			break;
 		}
 
