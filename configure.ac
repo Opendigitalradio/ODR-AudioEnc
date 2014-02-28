@@ -7,15 +7,6 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([tar-ustar foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
-dnl Various options for configure
-AC_ARG_ENABLE([example],
-            [AS_HELP_STRING([--enable-example],
-                [enable example encoding program (default is no)])],
-            [example=$enableval], [example=no])
-
-dnl Automake conditionals to set
-AM_CONDITIONAL(EXAMPLE, test x$example = xyes)
-
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CXX
@@ -24,15 +15,16 @@ LT_INIT
 
 AC_CHECK_LIB([m], [sin])
 
-# fdk-aac-dabplus-zmq needs ZeroMQ
-AC_ARG_ENABLE([zmq],
-        [AS_HELP_STRING([--enable-zmq], [Enable fdk-aac-dabplus-zmq with ZeroMQ output])]
-		)
+AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
 
-AS_IF(test "x$enable_zmq" = "xyes",
-        AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required)))
-
-AM_CONDITIONAL(HAVE_ZEROMQ_TEST, test "x$enable_zmq" = "xyes")
+if pkg-config MagickWand; then
+    MAGICKWAND_CFLAGS=`pkg-config MagickWand --cflags`
+    MAGICKWAND_LDADD=`pkg-config MagickWand --libs`
+    AC_SUBST(MAGICKWAND_CPPFLAGS)
+    AC_SUBST(MAGICKWAND_LDADD)
+else
+    AC_MSG_ERROR(MagickWand not found)
+fi
 
 dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as

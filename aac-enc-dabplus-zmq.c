@@ -1,19 +1,20 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013 Matthias P. Braendli
+ * Copyright (C) 2013,2014 Matthias P. Braendli
+ * Copyright (C) 2014 CSP Innovazione nelle ICT s.c.a r.l. (http://www.csp.it/)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *	  http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied.
- * See the License for the specific language governing permissions
- * and limitations under the License.
+ * You should have received a copy of the GNU General Public License
+ * along with this program  If not, see <http://www.gnu.org/licenses/>.
  * -------------------------------------------------------------------
  */
 
@@ -29,8 +30,23 @@
 #include "wavreader.h"
 
 #include <fec.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+
+#include "contrib/lib_crc.h"
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 void usage(const char* name) {
+	fprintf(stderr, "fdk-aac-dabplus HE-AACv2 encoder for DAB+\n\n");
+	fprintf(stderr, "With ZeroMQ output for ODR-DabMux\n");
+	fprintf(stderr, "and PAD (DLS and MOT Slideshow) by http://www.csp.it\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "http://opendigitalradio.org\n");
+	fprintf(stderr, "\nUsage:\n");
 	fprintf(stderr, "%s [OPTION...]\n", name);
 	fprintf(stderr,
 "	  -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
@@ -40,7 +56,7 @@ void usage(const char* name) {
 "	  -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
 "	  -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
 //"	  -m, --message                        Turn on AAC frame messages.\n"
-//"	  -p, --pad=BYTES                      Set PAD size in bytes.\n"
+"	  -p, --pad=BYTES                      Set PAD size in bytes.\n"
 "	  -f, --format={ wav, raw }            Set input file format (default: wav).\n"
 "	  -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
 "	  -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
@@ -79,25 +95,35 @@ int main(int argc, char *argv[]) {
 	CHANNEL_MODE mode;
 	AACENC_InfoStruct info = { 0 };
 
+	int pad_fd;
+	unsigned char pad_buf[128];
+	int padlen;
+
 	void *zmq_context = zmq_ctx_new();
 	void *zmq_sock = NULL;
 
 	const struct option longopts[] = {
 		{"bitrate",     required_argument,  0, 'b'},
-	    {"input",       required_argument,  0, 'i'},
-	    {"output",      required_argument,  0, 'o'},
-	    {"format",      required_argument,  0, 'f'},
-	    {"rate",        required_argument,  0, 'r'},
-	    {"channels",    required_argument,  0, 'c'},
-	    //{"lp",          no_argument,        0, 'l'},
-	    {"afterburner", no_argument,        0, 'a'},
-	    {"help",        no_argument,        0, 'h'},
-	    {0,0,0,0},
+		{"input",       required_argument,  0, 'i'},
+		{"output",      required_argument,  0, 'o'},
+		{"format",      required_argument,  0, 'f'},
+		{"rate",        required_argument,  0, 'r'},
+		{"channels",    required_argument,  0, 'c'},
+		{"pad",         required_argument,  0, 'p'},
+		//{"lp",          no_argument,        0, 'l'},
+		{"afterburner", no_argument,        0, 'a'},
+		{"help",        no_argument,        0, 'h'},
+		{0,0,0,0},
 	};
+
+	if (argc == 1) {
+		usage(argv[0]);
+		return 0;
+	}
 
 	int index;
 	while(ch != -1) {
-		ch = getopt_long(argc, argv, "tlhab:c:i:o:r:f:", longopts, &index);
+		ch = getopt_long(argc, argv, "tlhab:c:i:o:r:f:p:", longopts, &index);
 		switch (ch) {
 		case 'f':
 			if(strcmp(optarg, "raw")==0) {
@@ -123,6 +149,9 @@ int main(int argc, char *argv[]) {
 		case 'o':
 			outuri = optarg;
 			break;
+		case 'p':
+			padlen = atoi(optarg);
+			break;
 		case '?':
 		case 'h':
 			usage(argv[0]);
@@ -131,8 +160,28 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(subchannel_index < 1 || subchannel_index > 24) {
-		fprintf(stderr, "Bad subchannels number: %d, try other bitrate.\n", subchannel_index);
+		fprintf(stderr, "Bad subchannels number: %d, try other bitrate.\n",
+				subchannel_index);
 		return 1;
+	}
+	if(padlen != 0) {
+		int flags;
+		if (mkfifo("/tmp/pad.fifo", S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH) != 0) {
+			if (errno != EEXIST) {
+				fprintf(stderr, "Can't create pad file: %d!\n", errno);
+				return 1;
+			}
+		}
+		pad_fd = open("/tmp/pad.fifo", O_RDONLY | O_NONBLOCK);
+		if (pad_fd == -1) {
+			fprintf(stderr, "Can't open pad file!\n");
+			return 1;
+		}
+		flags = fcntl(pad_fd, F_GETFL, 0);
+		if (fcntl(pad_fd, F_SETFL, flags | O_NONBLOCK)) {
+			fprintf(stderr, "Can't set non-blocking mode in pad file!\n");
+			return 1;
+		}
 	}
 
 	if(raw_input) {
@@ -217,7 +266,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	if (aacEncoder_SetParam(handle, AACENC_SAMPLERATE, sample_rate) != AACENC_OK) {
-		fprintf(stderr, "Unable to set the AOT\n");
+		fprintf(stderr, "Unable to set the samplerate\n");
 		return 1;
 	}
 	if (aacEncoder_SetParam(handle, AACENC_CHANNELMODE, mode) != AACENC_OK) {
@@ -229,7 +278,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	if (aacEncoder_SetParam(handle, AACENC_GRANULE_LENGTH, 960) != AACENC_OK) {
-		fprintf(stderr, "Unable to set the AOT\n");
+		fprintf(stderr, "Unable to set the granule length\n");
 		return 1;
 	}
 	if (aacEncoder_SetParam(handle, AACENC_TRANSMUX, TT_DABPLUS) != AACENC_OK) {
@@ -250,6 +299,10 @@ int main(int argc, char *argv[]) {
 	}
 	if (aacEncoder_SetParam(handle, AACENC_AFTERBURNER, afterburner) != AACENC_OK) {
 		fprintf(stderr, "Unable to set the afterburner mode\n");
+		return 1;
+	}
+	if (aacEncoder_SetParam(handle, AACENC_ANCILLARY_BITRATE, 0) != AACENC_OK) {
+		fprintf(stderr, "Unable to set the ancillary bitrate\n");
 		return 1;
 	}
 	if (aacEncEncode(handle, NULL, NULL, NULL, NULL) != AACENC_OK) {
@@ -294,44 +347,74 @@ int main(int argc, char *argv[]) {
 		AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
 		AACENC_InArgs in_args = { 0 };
 		AACENC_OutArgs out_args = { 0 };
-		int in_identifier = IN_AUDIO_DATA;
-		int in_size, in_elem_size;
+		int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
+		int in_size[2], in_elem_size[2];
 		int out_identifier = OUT_BITSTREAM_DATA;
 		int out_size, out_elem_size;
-		int read=0, i;
+		int pcmread=0, i, ret;
 		int send_error;
-		void *in_ptr, *out_ptr;
+		void *in_ptr[2], *out_ptr;
 		AACENC_ERROR err;
+
+		// Read data from the PAD fifo
+		if (padlen != 0) {
+			ret = read(pad_fd, pad_buf, padlen);
+		}
+		else {
+			ret = 0;
+		}
+
+		if(ret < 0 && errno == EAGAIN) {
+			// If this condition passes, there is no data to be read
+			in_buf.numBufs = 1;    // Samples;
+		}
+		else if(ret >= 0) {
+			// Otherwise, you're good to go and buffer should contain "count" bytes.
+			in_buf.numBufs = 2;    // Samples + Data;
+		}
+		else {
+			// Some other error occurred during read.
+			fprintf(stderr, "Unable to read from PAD!\n");
+                        break;
+		}
 
 		if(raw_input) {
 			if(fread(input_buf, input_size, 1, in_fh) == 1) {
-				read = input_size;
+				pcmread = input_size;
 			} else {
 				fprintf(stderr, "Unable to read from input!\n");
 				break;
 			}
 		} else {
-			read = wav_read_data(wav, input_buf, input_size);
+			pcmread = wav_read_data(wav, input_buf, input_size);
 		}
 
-		for (i = 0; i < read/2; i++) {
+		for (i = 0; i < pcmread/2; i++) {
 			const uint8_t* in = &input_buf[2*i];
 			convert_buf[i] = in[0] | (in[1] << 8);
 		}
 
-		if (read <= 0) {
+		if (pcmread <= 0) {
 			in_args.numInSamples = -1;
 		} else {
-			in_ptr = convert_buf;
-			in_size = read;
-			in_elem_size = 2;
+			in_ptr[0] = convert_buf;
+			in_ptr[1] = pad_buf;
+			in_size[0] = pcmread;
+			in_size[1] = padlen;
 
-			in_args.numInSamples = read/2;
-			in_buf.numBufs = 1;
-			in_buf.bufs = &in_ptr;
-			in_buf.bufferIdentifiers = &in_identifier;
-			in_buf.bufSizes = &in_size;
-			in_buf.bufElSizes = &in_elem_size;
+			in_elem_size[0] = 2;
+			in_elem_size[1] = sizeof(UCHAR);
+
+			in_args.numInSamples = pcmread/2;
+			in_args.numAncBytes = padlen;
+
+			//in_buf.numBufs = 2;    // Samples + Data
+
+			in_buf.bufs = (void**)&in_ptr;
+			in_buf.bufferIdentifiers = in_identifier;
+			in_buf.bufSizes = in_size;
+			in_buf.bufElSizes = in_elem_size;
+
 		}
 		out_ptr = outbuf;
 		out_size = sizeof(outbuf);
