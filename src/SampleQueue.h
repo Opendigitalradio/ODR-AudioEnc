@@ -52,10 +52,10 @@ public:
         return new_size;
     }
 
-    bool empty() const
+    size_t size() const
     {
         boost::mutex::scoped_lock lock(m_mutex);
-        return m_queue.empty();
+        return m_queue.size();
     }
 
     /* Get len elements, place them into the buf array
@@ -89,7 +89,7 @@ public:
 
             ret = len;
 
-            m_queue.erase(m_queue.front(), m_queue.front() + len);
+            m_queue.erase(m_queue.begin(), m_queue.begin() + len);
         }
 
         return ret;

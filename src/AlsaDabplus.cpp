@@ -25,8 +25,14 @@
 #include <getopt.h>
 #include <cstdio>
 #include <stdint.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "libAACenc/include/aacenc_lib.h"
+
+extern "C" {
+#include <fec.h>
+}
 
 using namespace std;
 
@@ -160,7 +166,6 @@ int main(int argc, char *argv[]) {
     const int bytes_per_sample = 2;
     void *rs_handler = NULL;
     int afterburner = 0;
-    HANDLE_AACENCODER handle;
     AACENC_InfoStruct info = { 0 };
 
     const struct option longopts[] = {
@@ -227,7 +232,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    if (aacEncInfo(handle, &info) != AACENC_OK) {
+    if (aacEncInfo(encoder, &info) != AACENC_OK) {
         fprintf(stderr, "Unable to get the encoder info\n");
         return 1;
     }
@@ -249,4 +254,121 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    fprintf(stderr, "Start ALSA capture thread\n");
+    alsa_in.start();
+
+    fprintf(stderr, "Starting queue preroll\n");
+    // Preroll until queue full
+    while (queue.size() < input_size) {
+        usleep(1000);
+    }
+
+    int outbuf_size = subchannel_index*120;
+    uint8_t outbuf[20480];
+
+    if(outbuf_size % 5 != 0) {
+        fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
+    }
+
+    fprintf(stderr, "Starting encoding\n");
+
+    int send_error_count = 0;
+    struct timespec tp;
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+
+    while (1) {
+        int in_identifier = IN_AUDIO_DATA;
+        int out_identifier = OUT_BITSTREAM_DATA;
+
+        AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
+        AACENC_InArgs in_args = { 0 };
+        AACENC_OutArgs out_args = { 0 };
+        void *in_ptr, *out_ptr;
+        int in_size, in_elem_size;
+        int out_size, out_elem_size;
+
+        memset(outbuf, 0x00, outbuf_size);
+
+        int read = queue.pop(input_buf, input_size);
+
+        if (read != input_size) {
+            fprintf(stderr, "Short read\n");
+        }
+
+        // -------------- AAC Encoding
+
+        in_ptr = input_buf;
+        in_size = input_size;
+        in_elem_size = BYTES_PER_SAMPLE;
+        in_args.numInSamples = input_size;
+        in_buf.numBufs = 1;
+        in_buf.bufs = &in_ptr;
+        in_buf.bufferIdentifiers = &in_identifier;
+        in_buf.bufSizes = &in_size;
+        in_buf.bufElSizes = &in_elem_size;
+
+        out_ptr = outbuf;
+        out_size = sizeof(outbuf);
+        out_elem_size = 1;
+        out_buf.numBufs = 1;
+        out_buf.bufs = &out_ptr;
+        out_buf.bufferIdentifiers = &out_identifier;
+        out_buf.bufSizes = &out_size;
+        out_buf.bufElSizes = &out_elem_size;
+
+        if ((err = aacEncEncode(encoder, &in_buf, &out_buf, &in_args, &out_args))
+                != AACENC_OK) {
+            if (err == AACENC_ENCODE_EOF)
+                break;
+            fprintf(stderr, "Encoding failed\n");
+            break;
+        }
+        if (out_args.numOutBytes == 0)
+            continue;
+
+        // ----------- RS encoding
+        int row, col;
+        unsigned char buf_to_rs_enc[110];
+        unsigned char rs_enc[10];
+        for(row=0; row < subchannel_index; row++) {
+            for(col=0;col < 110; col++) {
+                buf_to_rs_enc[col] = outbuf[subchannel_index * col + row];
+            }
+
+            encode_rs_char(rs_handler, buf_to_rs_enc, rs_enc);
+
+            for(col=110; col<120; col++) {
+                outbuf[subchannel_index * col + row] = rs_enc[col-110];
+                assert(subchannel_index * col + row < outbuf_size);
+            }
+        }
+
+        // ------------ ZeroMQ transmit
+        try {
+            zmq_sock.send(outbuf, outbuf_size, ZMQ_DONTWAIT);
+        }
+        catch (zmq::error_t& e) {
+            fprintf(stderr, "ZeroMQ send error !\n");
+            send_error_count ++;
+        }
+
+        if (send_error_count > 10)
+        {
+            fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
+            break;
+        }
+
+        if (out_args.numOutBytes + row*10 == outbuf_size)
+            fprintf(stderr, ".");
+
+        // -------------- wait 120ms (one DAB+ superframe)
+
+    }
+
+    zmq_sock.close();
+    free_rs_char(rs_handler);
+
+    aacEncClose(&encoder);
+
+}
 

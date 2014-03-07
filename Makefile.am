@@ -48,7 +48,9 @@ aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c
 alsa_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
 alsa_dabplus_zmq_SOURCES = alsa-dabplus-zmq.c
 
-dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
+dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound \
+					-lrt -lboost_thread
+
 dabplus_zmq_SOURCES = src/AlsaDabplus.cpp \
 					  src/AlsaInput.cpp \
 					  src/AlsaInput.h \

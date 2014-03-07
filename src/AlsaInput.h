@@ -20,7 +20,6 @@
 #ifndef __ALSA_H_
 #define __ALSA_H_
 #include <cstdio>
-#include <stdint.h>
 #include <string>
 
 #include <alsa/asoundlib.h>
@@ -66,7 +65,7 @@ class AlsaInput
 
         int prepare();
 
-        int start();
+        void start();
 
     private:
         AlsaInput(const AlsaInput& other) : m_queue(other.m_queue) {}

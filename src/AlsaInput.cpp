@@ -18,12 +18,12 @@
  */
 
 #include <cstdio>
-#include <cstdint>
 #include <string>
 
 #include <alsa/asoundlib.h>
 
 #include "AlsaInput.h"
+#include <sys/time.h>
 
 using namespace std;
 
@@ -36,10 +36,10 @@ int AlsaInput::prepare()
 
     const int open_mode = 0; //|= SND_PCM_NONBLOCK;
 
-    if ((err = snd_pcm_open(&m_alsa_handle, alsa_dev,
+    if ((err = snd_pcm_open(&m_alsa_handle, m_alsa_dev.c_str(),
                     SND_PCM_STREAM_CAPTURE, open_mode)) < 0) {
         fprintf (stderr, "cannot open audio device %s (%s)\n",
-                alsa_dev, snd_strerror(err));
+                m_alsa_dev.c_str(), snd_strerror(err));
         return 1;
     }
 
@@ -121,7 +121,7 @@ size_t AlsaInput::read(uint8_t* buf, snd_pcm_uframes_t length)
     return err;
 }
 
-int AlsaInput::start()
+void AlsaInput::start()
 {
     m_running = true;
     m_thread = boost::thread(&AlsaInput::process, this);
