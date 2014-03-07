@@ -749,7 +749,7 @@ static INT FDKaacEnc_writeDataStreamElement( HANDLE_TRANSPORTENC  hTpEnc,
   #define MAX_DSE_DATA_BYTES        ( 510 )
 
   INT  dseBitsUsed = 0;
-  fprintf(stderr, "FDKaacEnc_writeDataStreamElement() dataPayloadBytes=%d\n", dataPayloadBytes);
+  //fprintf(stderr, "FDKaacEnc_writeDataStreamElement() dataPayloadBytes=%d\n", dataPayloadBytes);
   while (dataPayloadBytes > 0)
   {
     int esc_count = -1;
