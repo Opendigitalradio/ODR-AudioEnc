@@ -90,6 +90,7 @@ int prepare_aac_encoder(
         return 1;
     }
 
+    *encoder = handle;
 
     if(channels == 2 && subchannel_index <= 6)
         aot = AOT_DABPLUS_PS;
@@ -362,6 +363,19 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, ".");
 
         // -------------- wait 120ms (one DAB+ superframe)
+        tp.tv_nsec += 120000000;
+        if (tp.tv_nsec >  1000000000L) {
+            tp.tv_nsec -= 1000000000L;
+            tp.tv_sec  += 1;
+        }
+
+        struct timespec tp_now;
+        do {
+            usleep(10000);
+            clock_gettime(CLOCK_MONOTONIC, &tp);
+        } while (tp_now.tv_sec < tp.tv_sec ||
+                ( tp_now.tv_sec == tp.tv_sec &&
+                  tp_now.tv_nsec < tp.tv_nsec) );
 
     }
 
