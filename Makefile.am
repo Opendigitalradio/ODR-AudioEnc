@@ -33,17 +33,19 @@ libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti
 libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
     -export-symbols $(top_srcdir)/fdk-aac.sym
 
-if EXAMPLE
-
 aac_enc_LDADD = libfdk-aac.la
 aac_enc_SOURCES = aac-enc.c wavreader.c
 
 aac_enc_dabplus_LDADD = libfdk-aac.la -lfec
 aac_enc_dabplus_SOURCES = aac-enc-dabplus.c wavreader.c
 
-if HAVE_ZEROMQ_TEST
 aac_enc_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq
-aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c
+aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c \
+							  contrib/lib_crc.c
+
+mot_encoder_CFLAGS = @MAGICKWAND_CPPFLAGS@ -Icontrib
+mot_encoder_LDADD    = @MAGICKWAND_LDADD@
+mot_encoder_SOURCES  = mot-encoder.c contrib/lib_crc.c
 
 alsa_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
 alsa_dabplus_zmq_SOURCES = alsa-dabplus-zmq.c
@@ -61,14 +63,10 @@ bin_PROGRAMS = aac-enc$(EXEEXT) \
 			   aac-enc-dabplus$(EXEEXT) \
 			   aac-enc-dabplus-zmq$(EXEEXT) \
 			   alsa-dabplus-zmq$(EXEEXT) \
-			   dabplus-zmq$(EXEEXT)
-
-else
-bin_PROGRAMS = aac-enc$(EXEEXT) aac-enc-dabplus$(EXEEXT)
-endif
+			   dabplus-zmq$(EXEEXT) \
+			   mot-encoder$(EXEEXT)
 
 noinst_HEADERS = wavreader.h
-endif
 
 AACDEC_SRC = \
     libAACdec/src/aacdec_drc.cpp \
