@@ -20,7 +20,7 @@ AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
 if pkg-config MagickWand; then
     MAGICKWAND_CFLAGS=`pkg-config MagickWand --cflags`
     MAGICKWAND_LDADD=`pkg-config MagickWand --libs`
-    AC_SUBST(MAGICKWAND_CPPFLAGS)
+    AC_SUBST(MAGICKWAND_CFLAGS)
     AC_SUBST(MAGICKWAND_LDADD)
 else
     AC_MSG_ERROR(MagickWand not found)
