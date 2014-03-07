@@ -43,7 +43,7 @@ aac_enc_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq
 aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c \
 							  contrib/lib_crc.c
 
-mot_encoder_CFLAGS = @MAGICKWAND_CPPFLAGS@ -Icontrib
+mot_encoder_CFLAGS   = @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
 mot_encoder_SOURCES  = mot-encoder.c contrib/lib_crc.c
 
