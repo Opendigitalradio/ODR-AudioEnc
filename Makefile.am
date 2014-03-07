@@ -12,7 +12,6 @@ AM_CPPFLAGS = \
     -I$(top_srcdir)/libFDK/include \
     -I$(top_srcdir)/libPCMutils/include
 
-AM_CXXFLAGS = -fno-exceptions -fno-rtti
 libfdk_aac_la_LINK = $(LINK) $(libfdk_aac_la_LDFLAGS)
 # Mention a dummy pure C file to trigger generation of the $(LINK) variable
 nodist_EXTRA_libfdk_aac_la_SOURCES = dummy.c
@@ -30,6 +29,7 @@ pkgconfig_DATA = fdk-aac.pc
 
 lib_LTLIBRARIES = libfdk-aac.la
 
+libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti
 libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
     -export-symbols $(top_srcdir)/fdk-aac.sym
 
@@ -48,7 +48,19 @@ aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c
 alsa_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
 alsa_dabplus_zmq_SOURCES = alsa-dabplus-zmq.c
 
-bin_PROGRAMS = aac-enc$(EXEEXT) aac-enc-dabplus$(EXEEXT) aac-enc-dabplus-zmq$(EXEEXT) alsa-dabplus-zmq$(EXEEXT)
+dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
+dabplus_zmq_SOURCES = src/AlsaDabplus.cpp \
+					  src/AlsaInput.cpp \
+					  src/AlsaInput.h \
+					  src/SampleQueue.h \
+					  src/zmq.hpp
+
+bin_PROGRAMS = aac-enc$(EXEEXT) \
+			   aac-enc-dabplus$(EXEEXT) \
+			   aac-enc-dabplus-zmq$(EXEEXT) \
+			   alsa-dabplus-zmq$(EXEEXT) \
+			   dabplus-zmq$(EXEEXT)
+
 else
 bin_PROGRAMS = aac-enc$(EXEEXT) aac-enc-dabplus$(EXEEXT)
 endif
