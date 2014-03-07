@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2014 CSP Innovazione nelle ICT s.c.a r.l. (http://www.csp.it/)
+    Copyright (C) 2014 CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ void usage(char* name)
 {
 	fprintf(stderr, "DAB MOT encoder\n"
 					"for slideshow and DLS\n\n"
-					"By CSP Innovazione nelle ICT s.c.a r.l. (http://www.csp.it/)\n\n"
+					"By CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/)\n\n"
 					"Reads image data from the specified directory, and outputs PAD data\n"
 					"on standard output\n"
 					"Reads DLS from /tmp/dls.file\n");

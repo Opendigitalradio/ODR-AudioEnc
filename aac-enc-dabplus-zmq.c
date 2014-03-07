@@ -1,7 +1,10 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
  * Copyright (C) 2013,2014 Matthias P. Braendli
- * Copyright (C) 2014 CSP Innovazione nelle ICT s.c.a r.l. (http://www.csp.it/)
+ * Copyright (C) 2014 CSP Innovazione nelle ICT s.c.a r.l.
+ *      http://rd.csp.it/
+ *
+ * http://opendigitalradio.org
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -43,7 +46,7 @@
 void usage(const char* name) {
 	fprintf(stderr, "fdk-aac-dabplus HE-AACv2 encoder for DAB+\n\n");
 	fprintf(stderr, "With ZeroMQ output for ODR-DabMux\n");
-	fprintf(stderr, "and PAD (DLS and MOT Slideshow) by http://www.csp.it\n");
+	fprintf(stderr, "and PAD (DLS and MOT Slideshow) by http://rd.csp.it\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "http://opendigitalradio.org\n");
 	fprintf(stderr, "\nUsage:\n");
