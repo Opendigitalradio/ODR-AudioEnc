@@ -133,7 +133,7 @@ void AlsaInput::process()
     while (m_running) {
         size_t n = read(samplebuf, NUM_SAMPLES_PER_CALL);
 
-        m_queue.push(samplebuf, n);
+        m_queue.push(samplebuf, BYTES_PER_SAMPLE*m_channels*n);
     }
 }
 

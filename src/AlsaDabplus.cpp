@@ -160,7 +160,6 @@ int prepare_aac_encoder(
 int main(int argc, char *argv[]) {
     int subchannel_index = 8; //64kbps subchannel
     int ch=0;
-    int err;
     const char *alsa_device = "default";
     const char *outuri = NULL;
     int sample_rate=48000, channels=2;
@@ -238,15 +237,24 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    fprintf(stderr, "DAB+ Encoding: framelen=%d\n", info.frameLength);
-
     // Each DAB+ frame will need input_size audio bytes
-    int input_size = channels * bytes_per_sample * info.frameLength;
+    const int input_size = channels * bytes_per_sample * info.frameLength;
+    fprintf(stderr, "DAB+ Encoding: framelen=%d (%dB)\n",
+            info.frameLength,
+            input_size);
+
     uint8_t input_buf[input_size];
 
     int max_size = input_size + NUM_SAMPLES_PER_CALL;
 
     SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, channels, max_size);
+
+    /* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
+    rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
+    if (rs_handler == NULL) {
+        perror("init_rs_char failed");
+        return 1;
+    }
 
     AlsaInput alsa_in(alsa_device, channels, sample_rate, queue);
 
@@ -277,6 +285,7 @@ int main(int argc, char *argv[]) {
     struct timespec tp;
     clock_gettime(CLOCK_MONOTONIC, &tp);
 
+    int calls;
     while (1) {
         int in_identifier = IN_AUDIO_DATA;
         int out_identifier = OUT_BITSTREAM_DATA;
@@ -299,7 +308,7 @@ int main(int argc, char *argv[]) {
         // -------------- AAC Encoding
 
         in_ptr = input_buf;
-        in_size = input_size;
+        in_size = read;
         in_elem_size = BYTES_PER_SAMPLE;
         in_args.numInSamples = input_size;
         in_buf.numBufs = 1;
@@ -317,6 +326,7 @@ int main(int argc, char *argv[]) {
         out_buf.bufSizes = &out_size;
         out_buf.bufElSizes = &out_elem_size;
 
+        AACENC_ERROR err;
         if ((err = aacEncEncode(encoder, &in_buf, &out_buf, &in_args, &out_args))
                 != AACENC_OK) {
             if (err == AACENC_ENCODE_EOF)
@@ -324,58 +334,68 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Encoding failed\n");
             break;
         }
-        if (out_args.numOutBytes == 0)
-            continue;
 
-        // ----------- RS encoding
-        int row, col;
-        unsigned char buf_to_rs_enc[110];
-        unsigned char rs_enc[10];
-        for(row=0; row < subchannel_index; row++) {
-            for(col=0;col < 110; col++) {
-                buf_to_rs_enc[col] = outbuf[subchannel_index * col + row];
-            }
+        calls++;
 
-            encode_rs_char(rs_handler, buf_to_rs_enc, rs_enc);
-
-            for(col=110; col<120; col++) {
-                outbuf[subchannel_index * col + row] = rs_enc[col-110];
-                assert(subchannel_index * col + row < outbuf_size);
-            }
-        }
-
-        // ------------ ZeroMQ transmit
-        try {
-            zmq_sock.send(outbuf, outbuf_size, ZMQ_DONTWAIT);
-        }
-        catch (zmq::error_t& e) {
-            fprintf(stderr, "ZeroMQ send error !\n");
-            send_error_count ++;
-        }
-
-        if (send_error_count > 10)
+        /* Check if the encoder has generated output data */
+        if (out_args.numOutBytes != 0)
         {
-            fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
-            break;
+            fprintf(stderr, "data out after %d calls\n", calls);
+            calls = 0;
+            // ----------- RS encoding
+            int row, col;
+            unsigned char buf_to_rs_enc[110];
+            unsigned char rs_enc[10];
+            for(row=0; row < subchannel_index; row++) {
+                for(col=0;col < 110; col++) {
+                    buf_to_rs_enc[col] = outbuf[subchannel_index * col + row];
+                }
+
+                encode_rs_char(rs_handler, buf_to_rs_enc, rs_enc);
+
+                for(col=110; col<120; col++) {
+                    outbuf[subchannel_index * col + row] = rs_enc[col-110];
+                    assert(subchannel_index * col + row < outbuf_size);
+                }
+            }
+
+            // ------------ ZeroMQ transmit
+            try {
+                zmq_sock.send(outbuf, outbuf_size, ZMQ_DONTWAIT);
+            }
+            catch (zmq::error_t& e) {
+                fprintf(stderr, "ZeroMQ send error !\n");
+                send_error_count ++;
+            }
+
+            if (send_error_count > 10)
+            {
+                fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
+                break;
+            }
+
+            if (out_args.numOutBytes + row*10 == outbuf_size)
+                fprintf(stderr, ".");
         }
 
-        if (out_args.numOutBytes + row*10 == outbuf_size)
-            fprintf(stderr, ".");
-
-        // -------------- wait 120ms (one DAB+ superframe)
-        tp.tv_nsec += 120000000;
+        // -------------- wait the right amount of time
+        tp.tv_nsec += 60000000;
         if (tp.tv_nsec >  1000000000L) {
             tp.tv_nsec -= 1000000000L;
             tp.tv_sec  += 1;
         }
 
+        fprintf(stderr, "sleep %ld.%ld\n", tp.tv_sec, tp.tv_nsec);
         struct timespec tp_now;
         do {
-            usleep(10000);
-            clock_gettime(CLOCK_MONOTONIC, &tp);
+            usleep(1000);
+            clock_gettime(CLOCK_MONOTONIC, &tp_now);
         } while (tp_now.tv_sec < tp.tv_sec ||
                 ( tp_now.tv_sec == tp.tv_sec &&
                   tp_now.tv_nsec < tp.tv_nsec) );
+
+        tp.tv_sec = tp_now.tv_sec;
+        tp.tv_nsec = tp_now.tv_nsec;
 
     }
 

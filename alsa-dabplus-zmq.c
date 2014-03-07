@@ -399,30 +399,33 @@ int main(int argc, char *argv[]) {
         int in_size, in_elem_size;
         int out_identifier = OUT_BITSTREAM_DATA;
         int out_size, out_elem_size;
-        int read=0, i;
+        int i;
         int send_error;
         void *in_ptr, *out_ptr;
         AACENC_ERROR err;
 
-        read = alsa_read(input_buf, info.frameLength);
-        if (read != info.frameLength) {
+        int readframes = alsa_read(input_buf, info.frameLength);
+        if (readframes != info.frameLength) {
             fprintf(stderr, "Unable to read enough data from input!\n");
             break;
         }
 
-        for (i = 0; i < read/2; i++) {
+        readframes*=2;
+#if 1
+        for (i = 0; i < readframes; i++) {
             const uint8_t* in = &input_buf[2*i];
             convert_buf[i] = in[0] | (in[1] << 8);
         }
+#endif
 
-        if (read <= 0) {
+        if (readframes <= 0) {
             in_args.numInSamples = -1;
         } else {
-            in_ptr = convert_buf;
-            in_size = read;
+            in_ptr = input_buf;
+            in_size = readframes*2;
             in_elem_size = 2;
 
-            in_args.numInSamples = read/2;
+            in_args.numInSamples = readframes;
             in_buf.numBufs = 1;
             in_buf.bufs = &in_ptr;
             in_buf.bufferIdentifiers = &in_identifier;

@@ -50,6 +50,7 @@ mot_encoder_SOURCES  = mot-encoder.c contrib/lib_crc.c
 alsa_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound
 alsa_dabplus_zmq_SOURCES = alsa-dabplus-zmq.c
 
+dabplus_zmq_LDFLAGS = -no-install
 dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound \
 					-lrt -lboost_thread
 

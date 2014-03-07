@@ -12,6 +12,8 @@
 #include <boost/thread.hpp>
 #include <queue>
 
+#include <stdio.h>
+
 /* This queue is meant to be used by two threads. One producer
  * that pushes elements into the queue, and one consumer that
  * retrieves the elements.
@@ -37,6 +39,9 @@ public:
         boost::mutex::scoped_lock lock(m_mutex);
 
         if (m_queue.size() >= m_max_size) {
+            /*fprintf(stderr, "######## push overrun %zu, %zu\n",
+                    len,
+                    m_queue.size()); // */
             return 0;
         }
 
@@ -65,6 +70,9 @@ public:
     size_t pop(T* buf, size_t len)
     {
         boost::mutex::scoped_lock lock(m_mutex);
+        fprintf(stderr, "######## pop %zu (%zu)\n",
+                len,
+                m_queue.size());
 
         size_t ret = 0;
 
