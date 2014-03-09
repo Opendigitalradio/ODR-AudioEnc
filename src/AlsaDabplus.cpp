@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
 
     uint8_t input_buf[input_size];
 
-    int max_size = input_size + NUM_SAMPLES_PER_CALL;
+    int max_size = 2*input_size + NUM_SAMPLES_PER_CALL;
 
     SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, channels, max_size);
 
@@ -266,12 +266,6 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Start ALSA capture thread\n");
     alsa_in.start();
 
-    fprintf(stderr, "Starting queue preroll\n");
-    // Preroll until queue full
-    while (queue.size() < input_size) {
-        usleep(1000);
-    }
-
     int outbuf_size = subchannel_index*120;
     uint8_t outbuf[20480];
 
@@ -282,10 +276,10 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Starting encoding\n");
 
     int send_error_count = 0;
-    struct timespec tp;
-    clock_gettime(CLOCK_MONOTONIC, &tp);
+    struct timespec tp_next;
+    clock_gettime(CLOCK_MONOTONIC, &tp_next);
 
-    int calls;
+    int calls = 0; // for checking
     while (1) {
         int in_identifier = IN_AUDIO_DATA;
         int out_identifier = OUT_BITSTREAM_DATA;
@@ -297,20 +291,53 @@ int main(int argc, char *argv[]) {
         int in_size, in_elem_size;
         int out_size, out_elem_size;
 
+
+        // -------------- wait the right amount of time
+        struct timespec tp_now;
+        clock_gettime(CLOCK_MONOTONIC, &tp_now);
+
+        unsigned long time_now  = (1000000000ul * tp_now.tv_sec) +
+            tp_now.tv_nsec;
+        unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
+            tp_next.tv_nsec;
+
+        const unsigned long wait_time = 120000000ul / 2;
+
+        unsigned long waiting = wait_time - (time_now - time_next);
+        if ((time_now - time_next) < wait_time) {
+            //printf("Sleep %zuus\n", waiting / 1000);
+            usleep(waiting / 1000);
+        }
+
+        // Move our time_counter 60ms into the future.
+        // The encoder needs two calls for one frame
+        tp_next.tv_nsec += wait_time;
+        if (tp_next.tv_nsec >  1000000000L) {
+            tp_next.tv_nsec -= 1000000000L;
+            tp_next.tv_sec  += 1;
+        }
+
+
+        // -------------- Read Data
         memset(outbuf, 0x00, outbuf_size);
 
-        int read = queue.pop(input_buf, input_size);
+        size_t overruns;
+        size_t read = queue.pop(input_buf, input_size, &overruns); // returns bytes
 
         if (read != input_size) {
-            fprintf(stderr, "Short read\n");
+            fprintf(stderr, "U");
+        }
+
+        if (overruns) {
+            fprintf(stderr, "O%zu", overruns);
         }
 
         // -------------- AAC Encoding
 
         in_ptr = input_buf;
-        in_size = read;
+        in_size = (int)read;
         in_elem_size = BYTES_PER_SAMPLE;
-        in_args.numInSamples = input_size;
+        in_args.numInSamples = input_size/BYTES_PER_SAMPLE;
         in_buf.numBufs = 1;
         in_buf.bufs = &in_ptr;
         in_buf.bufferIdentifiers = &in_identifier;
@@ -334,14 +361,15 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Encoding failed\n");
             break;
         }
-
         calls++;
 
         /* Check if the encoder has generated output data */
         if (out_args.numOutBytes != 0)
         {
-            fprintf(stderr, "data out after %d calls\n", calls);
+            // Our timing code depends on this
+            assert (calls == 2);
             calls = 0;
+
             // ----------- RS encoding
             int row, col;
             unsigned char buf_to_rs_enc[110];
@@ -377,26 +405,6 @@ int main(int argc, char *argv[]) {
             if (out_args.numOutBytes + row*10 == outbuf_size)
                 fprintf(stderr, ".");
         }
-
-        // -------------- wait the right amount of time
-        tp.tv_nsec += 60000000;
-        if (tp.tv_nsec >  1000000000L) {
-            tp.tv_nsec -= 1000000000L;
-            tp.tv_sec  += 1;
-        }
-
-        fprintf(stderr, "sleep %ld.%ld\n", tp.tv_sec, tp.tv_nsec);
-        struct timespec tp_now;
-        do {
-            usleep(1000);
-            clock_gettime(CLOCK_MONOTONIC, &tp_now);
-        } while (tp_now.tv_sec < tp.tv_sec ||
-                ( tp_now.tv_sec == tp.tv_sec &&
-                  tp_now.tv_nsec < tp.tv_nsec) );
-
-        tp.tv_sec = tp_now.tv_sec;
-        tp.tv_nsec = tp_now.tv_nsec;
-
     }
 
     zmq_sock.close();
