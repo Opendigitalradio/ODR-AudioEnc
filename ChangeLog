@@ -1,3 +1,11 @@
+2014-03-09: Matthias P. Braendli <matthias@mpb.li>
+	(v0.2.0):
+		Rename all tools in a consistent way and tidy
+		them up.
+		Add the alsa input with optional drift compensation
+		Add MOT Slideshow and PAD code from CSP.it
+		Add new descriptions and scenarios to the README
+
 2014-02-11: Matthias P. Braendli <matthias@mpb.li>
 	(v0.1.0):
 		Initial release of fdk-aac-dabplus, based on

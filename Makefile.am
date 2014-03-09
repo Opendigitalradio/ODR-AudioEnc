@@ -44,6 +44,7 @@ dabplus_enc_file_SOURCES =  src/dabplus-enc-file.c \
 dabplus_enc_file_zmq_LDADD   =  libfdk-aac.la -lfec -lzmq
 dabplus_enc_file_zmq_SOURCES =  src/dabplus-enc-file-zmq.c \
 								src/wavreader.c \
+								contrib/lib_crc.h \
 								contrib/lib_crc.c
 
 dabplus_enc_alsa_zmq_LDFLAGS  =  -no-install
@@ -59,6 +60,7 @@ dabplus_enc_alsa_zmq_SOURCES  = src/AlsaDabplus.cpp \
 mot_encoder_CFLAGS   = @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
 mot_encoder_SOURCES  = src/mot-encoder.c \
+					   contrib/lib_crc.h \
 					   contrib/lib_crc.c
 
 bin_PROGRAMS =  dabplus-enc-file$(EXEEXT) \
