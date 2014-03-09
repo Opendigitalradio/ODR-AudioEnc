@@ -38,7 +38,7 @@ libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
 #				  src/wavreader.c
 
 dabplus_enc_file_LDADD   =  libfdk-aac.la -lfec
-dabplus_enc_file_SOURCES =  src/aac-enc-dabplus.c \
+dabplus_enc_file_SOURCES =  src/dabplus-enc-file.c \
 							src/wavreader.c
 
 dabplus_enc_file_zmq_LDADD   =  libfdk-aac.la -lfec -lzmq

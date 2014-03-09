@@ -1,5 +1,8 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
+ * Copyright (C) 2014 Matthias P. Braendli
+ *
+ * http://opendigitalradio.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,31 +32,24 @@
 #include <fec.h>
 
 void usage(const char* name) {
-    fprintf(stderr, "%s [OPTION...]\n", name);
     fprintf(stderr,
-"     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
-//"   -d, --data=FILENAME                  Set data filename.\n"
-//"   -g, --fs-bug                         Turn on FS bug mitigation.\n"
-"     -i, --input=FILENAME                 Input filename (default: stdin).\n"
-"     -o, --output=FILENAME                Output filename (default: stdout).\n"
-"     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
-//"   -m, --message                        Turn on AAC frame messages.\n"
-//"   -p, --pad=BYTES                      Set PAD size in bytes.\n"
-"     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
-"     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
-"     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
-//"   -t, --type=TYPE                      Set data type (dls|pad|packet|dg).\n"
-//"   -v, --verbose=LEVEL                  Set verbosity level.\n"
-//"   -V, --version                        Print version and exit.\n"
-//"   --mi=[ 0, ... ]                      Set AAC frame messages interval in milliseconds.\n"
-//"   --ma=[ 0, ... ]                      Set AAC frame messages attack time in milliseconds.\n"
-//"   -t, --adts                           Set ADTS output format (for debugging).\n"
-//"   -l, --lp                             Set frame size to 1024 instead of 960.\n"
-
-);
+    "%s is a HE-AACv2 encoder for DAB+ based on fdk-aac-dabplus\n"
+    "that can encode from a file or pipe source, and encode\n"
+    "into a file or pipe. There is no PAD support.\n\n"
+    "Usage:\n"
+    "%s [OPTION...]\n\n"
+    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
+    "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
+    "     -o, --output=FILENAME                Output filename (default: stdout).\n"
+    "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
+    //"   -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
+    "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
+    "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
+    //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
+    , name, name);
 
 }
-
 
 #define no_argument 0
 #define required_argument 1
@@ -122,6 +118,11 @@ int main(int argc, char *argv[]) {
         {"help",        no_argument,        0, 'h'},
         {0,0,0,0},
     };
+
+    if (argc == 1) {
+        usage(argv[0]);
+        return 1;
+    }
 
     int index;
     while(ch != -1) {
