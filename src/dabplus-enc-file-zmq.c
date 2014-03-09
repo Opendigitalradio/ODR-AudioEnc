@@ -58,11 +58,11 @@ void usage(const char* name) {
 
     fprintf(stderr,
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
-    //"   -d, --data=FILENAME                  Set data filename.\n"
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
     "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name (default: /tmp/pad.fifo).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
@@ -97,6 +97,7 @@ int main(int argc, char *argv[]) {
     CHANNEL_MODE mode;
     AACENC_InfoStruct info = { 0 };
 
+    char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
     unsigned char pad_buf[128];
     int padlen;
@@ -112,6 +113,7 @@ int main(int argc, char *argv[]) {
         {"rate",        required_argument,  0, 'r'},
         {"channels",    required_argument,  0, 'c'},
         {"pad",         required_argument,  0, 'p'},
+        {"pad-fifo",    required_argument,  0, 'P'},
         {"afterburner", no_argument,        0, 'a'},
         {"help",        no_argument,        0, 'h'},
         {0,0,0,0},
@@ -124,7 +126,7 @@ int main(int argc, char *argv[]) {
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "tlhab:c:i:o:r:f:p:", longopts, &index);
+        ch = getopt_long(argc, argv, "tlhab:c:i:o:r:f:p:P:", longopts, &index);
         switch (ch) {
         case 'f':
             if(strcmp(optarg, "raw")==0) {
@@ -153,6 +155,9 @@ int main(int argc, char *argv[]) {
         case 'p':
             padlen = atoi(optarg);
             break;
+        case 'P':
+            pad_fifo = optarg;
+            break;
         case '?':
         case 'h':
             usage(argv[0]);
@@ -167,13 +172,13 @@ int main(int argc, char *argv[]) {
     }
     if(padlen != 0) {
         int flags;
-        if (mkfifo("/tmp/pad.fifo", S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH) != 0) {
+        if (mkfifo(pad_fifo, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH) != 0) {
             if (errno != EEXIST) {
                 fprintf(stderr, "Can't create pad file: %d!\n", errno);
                 return 1;
             }
         }
-        pad_fd = open("/tmp/pad.fifo", O_RDONLY | O_NONBLOCK);
+        pad_fd = open(pad_fifo, O_RDONLY | O_NONBLOCK);
         if (pad_fd == -1) {
             fprintf(stderr, "Can't open pad file!\n");
             return 1;
