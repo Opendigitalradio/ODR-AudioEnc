@@ -410,22 +410,14 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        readframes*=2;
-#if 1
-        for (i = 0; i < readframes; i++) {
-            const uint8_t* in = &input_buf[2*i];
-            convert_buf[i] = in[0] | (in[1] << 8);
-        }
-#endif
-
         if (readframes <= 0) {
             in_args.numInSamples = -1;
         } else {
             in_ptr = input_buf;
-            in_size = readframes*2;
-            in_elem_size = 2;
+            in_size = readframes*bytes_per_sample*channels;
+            in_elem_size = bytes_per_sample;
 
-            in_args.numInSamples = readframes;
+            in_args.numInSamples = readframes*bytes_per_sample;
             in_buf.numBufs = 1;
             in_buf.bufs = &in_ptr;
             in_buf.bufferIdentifiers = &in_identifier;

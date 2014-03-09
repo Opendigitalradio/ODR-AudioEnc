@@ -333,6 +333,7 @@ int main(int argc, char *argv[]) {
             }
         } else {
             read = wav_read_data(wav, input_buf, input_size);
+            // returns bytes read
         }
 
         for (i = 0; i < read/2; i++) {
