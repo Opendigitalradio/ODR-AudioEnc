@@ -42,7 +42,7 @@ dabplus_enc_file_SOURCES =  src/dabplus-enc-file.c \
 							src/wavreader.c
 
 dabplus_enc_file_zmq_LDADD   =  libfdk-aac.la -lfec -lzmq
-dabplus_enc_file_zmq_SOURCES =  src/aac-enc-dabplus-zmq.c \
+dabplus_enc_file_zmq_SOURCES =  src/dabplus-enc-file-zmq.c \
 								src/wavreader.c \
 								contrib/lib_crc.c
 

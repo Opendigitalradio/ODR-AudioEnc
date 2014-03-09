@@ -44,35 +44,34 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 void usage(const char* name) {
-    fprintf(stderr, "fdk-aac-dabplus HE-AACv2 encoder for DAB+\n\n");
-    fprintf(stderr, "With ZeroMQ output for ODR-DabMux\n");
-    fprintf(stderr, "and PAD (DLS and MOT Slideshow) by http://rd.csp.it\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "http://opendigitalradio.org\n");
-    fprintf(stderr, "\nUsage:\n");
-    fprintf(stderr, "%s [OPTION...]\n", name);
     fprintf(stderr,
-"     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
-//"   -d, --data=FILENAME                  Set data filename.\n"
-//"   -g, --fs-bug                         Turn on FS bug mitigation.\n"
-"     -i, --input=FILENAME                 Input filename (default: stdin).\n"
-"     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
-"     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
-//"   -m, --message                        Turn on AAC frame messages.\n"
-"     -p, --pad=BYTES                      Set PAD size in bytes.\n"
-"     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
-"     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
-"     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
-//"   -t, --type=TYPE                      Set data type (dls|pad|packet|dg).\n"
-//"   -v, --verbose=LEVEL                  Set verbosity level.\n"
-//"   -V, --version                        Print version and exit.\n"
-//"   --mi=[ 0, ... ]                      Set AAC frame messages interval in milliseconds.\n"
-//"   --ma=[ 0, ... ]                      Set AAC frame messages attack time in milliseconds.\n"
-//"   -l, --lp                             Set frame size to 1024 instead of 960.\n"
-"\n"
-"Only the tcp:// zeromq transport has been tested until now.\n"
+    "%s is a HE-AACv2 encoder for DAB+ based on fdk-aac-dabplus\n"
+    "that can encode from a file or pipe source, and encode\n"
+    "to a ZeroMQ output for ODR-DabMux.\n"
+    "\n"
+    "It includes PAD (DLS and MOT Slideshow) support by http://rd.csp.it\n"
+    "to be used with mot-encoder\n"
+    "\n"
+    "  http://opendigitalradio.org\n"
+    "\nUsage:\n"
+    "%s [OPTION...]\n", name, name);
 
-);
+    fprintf(stderr,
+    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
+    //"   -d, --data=FILENAME                  Set data filename.\n"
+    "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
+    "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
+    "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
+    "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
+    "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
+    "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
+    //"   -t, --type=TYPE                      Set data type (dls|pad|packet|dg).\n"
+    //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
+    "\n"
+    "Only the tcp:// zeromq transport has been tested until now.\n"
+
+    );
 
 }
 
@@ -113,7 +112,6 @@ int main(int argc, char *argv[]) {
         {"rate",        required_argument,  0, 'r'},
         {"channels",    required_argument,  0, 'c'},
         {"pad",         required_argument,  0, 'p'},
-        //{"lp",          no_argument,        0, 'l'},
         {"afterburner", no_argument,        0, 'a'},
         {"help",        no_argument,        0, 'h'},
         {0,0,0,0},
