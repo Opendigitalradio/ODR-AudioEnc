@@ -57,8 +57,7 @@ dabplus_enc_SOURCES = src/AlsaDabplus.cpp \
 					  src/SampleQueue.h \
 					  src/zmq.hpp
 
-bin_PROGRAMS = aac-enc$(EXEEXT) \
-			   aac-enc-dabplus$(EXEEXT) \
+bin_PROGRAMS = aac-enc-dabplus$(EXEEXT) \
 			   aac-enc-dabplus-zmq$(EXEEXT) \
 			   dabplus-enc$(EXEEXT) \
 			   mot-encoder$(EXEEXT)
