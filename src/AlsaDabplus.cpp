@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "libAACenc/include/aacenc_lib.h"
 
@@ -37,14 +39,38 @@ extern "C" {
 using namespace std;
 
 void usage(const char* name) {
-    fprintf(stderr, "%s [OPTION...]\n", name);
+    fprintf(stderr,
+    "%s is a HE-AACv2 encoder for DAB+ based on fdk-aac-dabplus\n"
+    "that can encode from a ALSA source, and encode\n"
+    "to a ZeroMQ output for ODR-DabMux.\n"
+    "\n"
+    "The -D option enables experimental sound card clock drift compensation.\n"
+    "A consumer sound card has a clock that is always a bit imprecise, and\n"
+    "would drift off after some time. ODR-DabMux cannot handle such drift\n"
+    "because it would have to throw away or insert a full DAB+ superframe,\n"
+    "which would create audible artifacts. This drift compensation can\n"
+    "make sure that the encoding rate is correct by inserting or deleting\n"
+    "audio samples.\n"
+    "\n"
+    "When this option is enabled, you will see U and O<number> printed in\n"
+    "the console. These correspond to audio underruns and overruns caused\n"
+    "by sound card clock drift. When sparse, they should not create audible\n"
+    "artifacts.\n"
+    "\n"
+    "This encoder includes PAD (DLS and MOT Slideshow) support by\n"
+    "http://rd.csp.it to be used with mot-encoder\n"
+    "\n"
+    "  http://opendigitalradio.org\n"
+    "\nUsage:\n"
+    "%s [OPTION...]\n", name, name);
     fprintf(stderr,
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
     "     -D, --drift-comp                     Enable ALSA sound card drift compensation.\n"
     //"   -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
-    //"   -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name (default: /tmp/pad.fifo).\n"
     "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
@@ -161,12 +187,19 @@ int main(int argc, char *argv[]) {
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
 
+    char* pad_fifo = "/tmp/pad.fifo";
+    int pad_fd;
+    unsigned char pad_buf[128];
+    int padlen;
+
     const struct option longopts[] = {
         {"bitrate",     required_argument,  0, 'b'},
         {"output",      required_argument,  0, 'o'},
         {"device",      required_argument,  0, 'd'},
         {"rate",        required_argument,  0, 'r'},
         {"channels",    required_argument,  0, 'c'},
+        {"pad",         required_argument,  0, 'p'},
+        {"pad-fifo",    required_argument,  0, 'P'},
         {"drift-comp",  no_argument,        0, 'D'},
         {"afterburner", no_argument,        0, 'a'},
         {"help",        no_argument,        0, 'h'},
@@ -175,7 +208,7 @@ int main(int argc, char *argv[]) {
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hab:c:o:r:d:D", longopts, &index);
+        ch = getopt_long(argc, argv, "hab:c:o:r:d:Dp:P:", longopts, &index);
         switch (ch) {
         case 'd':
             alsa_device = optarg;
@@ -198,6 +231,12 @@ int main(int argc, char *argv[]) {
         case 'D':
             drift_compensation = true;
             break;
+        case 'p':
+            padlen = atoi(optarg);
+            break;
+        case 'P':
+            pad_fifo = optarg;
+            break;
         case '?':
         case 'h':
             usage(argv[0]);
@@ -215,6 +254,26 @@ int main(int argc, char *argv[]) {
     if (!outuri) {
         fprintf(stderr, "ZeroMQ output URI not defined\n");
         return 1;
+    }
+
+    if (padlen != 0) {
+        int flags;
+        if (mkfifo(pad_fifo, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH) != 0) {
+            if (errno != EEXIST) {
+                fprintf(stderr, "Can't create pad file: %d!\n", errno);
+                return 1;
+            }
+        }
+        pad_fd = open(pad_fifo, O_RDONLY | O_NONBLOCK);
+        if (pad_fd == -1) {
+            fprintf(stderr, "Can't open pad file!\n");
+            return 1;
+        }
+        flags = fcntl(pad_fd, F_GETFL, 0);
+        if (fcntl(pad_fd, F_SETFL, flags | O_NONBLOCK)) {
+            fprintf(stderr, "Can't set non-blocking mode in pad file!\n");
+            return 1;
+        }
     }
 
     zmq::context_t zmq_ctx;
@@ -288,14 +347,14 @@ int main(int argc, char *argv[]) {
 
     int calls = 0; // for checking
     while (1) {
-        int in_identifier = IN_AUDIO_DATA;
+        int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
         int out_identifier = OUT_BITSTREAM_DATA;
 
         AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
         AACENC_InArgs in_args = { 0 };
         AACENC_OutArgs out_args = { 0 };
-        void *in_ptr, *out_ptr;
-        int in_size, in_elem_size;
+        void *in_ptr[2], *out_ptr;
+        int in_size[2], in_elem_size[2];
         int out_size, out_elem_size;
 
 
@@ -326,6 +385,30 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        // --------------- Read data from the PAD fifo
+        int ret;
+        if (padlen != 0) {
+            ret = read(pad_fd, pad_buf, padlen);
+        }
+        else {
+            ret = 0;
+        }
+
+
+        if(ret < 0 && errno == EAGAIN) {
+            // If this condition passes, there is no data to be read
+            in_buf.numBufs = 1;    // Samples;
+        }
+        else if(ret >= 0) {
+            // Otherwise, you're good to go and buffer should contain "count" bytes.
+            in_buf.numBufs = 2;    // Samples + Data;
+        }
+        else {
+            // Some other error occurred during read.
+            fprintf(stderr, "Unable to read from PAD!\n");
+                        break;
+        }
+
         // -------------- Read Data
         memset(outbuf, 0x00, outbuf_size);
 
@@ -351,15 +434,19 @@ int main(int argc, char *argv[]) {
 
         // -------------- AAC Encoding
 
-        in_ptr = input_buf;
-        in_size = read;
-        in_elem_size = BYTES_PER_SAMPLE;
+        in_ptr[0] = input_buf;
+        in_ptr[1] = pad_buf;
+        in_size[0] = read;
+        in_size[1] = padlen;
+        in_elem_size[0] = BYTES_PER_SAMPLE;
+        in_elem_size[1] = sizeof(uint8_t);
         in_args.numInSamples = input_size/BYTES_PER_SAMPLE;
-        in_buf.numBufs = 1;
-        in_buf.bufs = &in_ptr;
-        in_buf.bufferIdentifiers = &in_identifier;
-        in_buf.bufSizes = &in_size;
-        in_buf.bufElSizes = &in_elem_size;
+        in_args.numAncBytes = padlen;
+
+        in_buf.bufs = (void**)&in_ptr;
+        in_buf.bufferIdentifiers = in_identifier;
+        in_buf.bufSizes = in_size;
+        in_buf.bufElSizes = in_elem_size;
 
         out_ptr = outbuf;
         out_size = sizeof(outbuf);
