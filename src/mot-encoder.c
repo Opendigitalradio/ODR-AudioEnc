@@ -559,7 +559,7 @@ void writeDLS(int output_fd, const char* dls_file, int padlen) {
 void create_dls_datagroup (char* text, int padlen, UCHAR*** p_dlsdg, int* p_numdg) {
 
     UCHAR dlsseg[8][16];      // max 8 segments, each max 16 chars
-    UCHAR** dlsdg;            // Array od datagroups composing dls text;
+    UCHAR** dlsdg;            // Array of datagroups composing dls text;
 
 
     int numseg;               // Number of DSL segments
@@ -605,8 +605,8 @@ void create_dls_datagroup (char* text, int padlen, UCHAR*** p_dlsdg, int* p_numd
     *p_numdg = numdg;
     fprintf(stderr, "PAD Length: %d\n", padlen);
     fprintf(stderr, "DLS text: %s\n", text);
-    fprintf(stderr, "Number od DLS segments: %d\n", numseg);
-    fprintf(stderr, "Number od DLS data grupus: %d\n", numdg);
+    fprintf(stderr, "Number of DLS segments: %d\n", numseg);
+    fprintf(stderr, "Number of DLS data groups: %d\n", numdg);
 
     if (padlen == 17)
         xpadlengthmask = 3;
