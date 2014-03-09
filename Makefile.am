@@ -207,7 +207,7 @@ libfdk_aac_la_SOURCES = \
     $(PCMUTILS_SRC) $(FDK_SRC) $(SYS_SRC)
 
 EXTRA_DIST = \
-    $(top_srcdir)/autogen.sh \
+    $(top_srcdir)/bootstrap \
     $(top_srcdir)/NOTICE \
     $(top_srcdir)/Android.mk \
     $(top_srcdir)/fdk-aac.sym \
