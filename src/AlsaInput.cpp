@@ -101,7 +101,7 @@ int AlsaInput::prepare()
     return 0;
 }
 
-size_t AlsaInput::read(uint8_t* buf, snd_pcm_uframes_t length)
+size_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
 {
     int i;
     int err;
@@ -121,19 +121,30 @@ size_t AlsaInput::read(uint8_t* buf, snd_pcm_uframes_t length)
     return err;
 }
 
-void AlsaInput::start()
+void AlsaInputThreaded::start()
 {
     m_running = true;
-    m_thread = boost::thread(&AlsaInput::process, this);
+    m_thread = boost::thread(&AlsaInputThreaded::process, this);
 }
 
-void AlsaInput::process()
+void AlsaInputThreaded::process()
 {
     uint8_t samplebuf[NUM_SAMPLES_PER_CALL * BYTES_PER_SAMPLE * m_channels];
     while (m_running) {
-        size_t n = read(samplebuf, NUM_SAMPLES_PER_CALL);
+        size_t n = m_read(samplebuf, NUM_SAMPLES_PER_CALL);
 
         m_queue.push(samplebuf, BYTES_PER_SAMPLE*m_channels*n);
     }
+}
+
+
+size_t AlsaInputDirect::read(uint8_t* buf, size_t length)
+{
+    int bytes_per_frame = m_channels * BYTES_PER_SAMPLE;
+    assert(length % bytes_per_frame == 0);
+
+    size_t read = m_read(buf, length / bytes_per_frame);
+
+    return read * bytes_per_frame;
 }
 

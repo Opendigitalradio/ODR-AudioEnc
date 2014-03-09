@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    AlsaInput alsa_in(alsa_device, channels, sample_rate, queue);
+    AlsaInputThreaded alsa_in(alsa_device, channels, sample_rate, queue);
 
     if (alsa_in.prepare() != 0) {
         fprintf(stderr, "Alsa preparation failed\n");

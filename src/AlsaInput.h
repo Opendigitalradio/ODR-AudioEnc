@@ -40,22 +40,13 @@ class AlsaInput
     public:
         AlsaInput(const string& alsa_dev,
                 unsigned int channels,
-                unsigned int rate,
-                SampleQueue<uint8_t>& queue) :
-            m_running(false),
+                unsigned int rate) :
             m_alsa_dev(alsa_dev),
             m_channels(channels),
             m_rate(rate),
-            m_queue(queue),
             m_alsa_handle(NULL) { }
 
-        ~AlsaInput()
-        {
-            if (m_running) {
-                m_running = false;
-                m_thread.interrupt();
-                m_thread.join();
-            }
+        ~AlsaInput() {
 
             if (m_alsa_handle) {
                 snd_pcm_abort(m_alsa_handle);
@@ -63,25 +54,79 @@ class AlsaInput
             }
         }
 
+        /* Prepare the audio input */
         int prepare();
 
-        void start();
+        virtual void start() = 0;
 
-    private:
-        AlsaInput(const AlsaInput& other) : m_queue(other.m_queue) {}
+    protected:
+        size_t m_read(uint8_t* buf, snd_pcm_uframes_t length);
 
-        size_t read(uint8_t* buf, snd_pcm_uframes_t length);
-        void process();
-
-        bool m_running;
-        boost::thread m_thread;
         string m_alsa_dev;
         unsigned int m_channels;
         unsigned int m_rate;
 
-        SampleQueue<uint8_t>& m_queue;
-
         snd_pcm_t *m_alsa_handle;
+
+    private:
+        AlsaInput(const AlsaInput& other) {}
+};
+
+class AlsaInputDirect : public AlsaInput
+{
+    public:
+        AlsaInputDirect(const string& alsa_dev,
+                unsigned int channels,
+                unsigned int rate) :
+            AlsaInput(alsa_dev, channels, rate) { }
+
+        virtual void start() { };
+
+        /* Read length Bytes from from the alsa device.
+         * length must be a multiple of channels * bytes_per_sample.
+         *
+         * Returns the number of bytes read.
+         */
+        size_t read(uint8_t* buf, size_t length);
+
+    private:
+        AlsaInputDirect(const AlsaInputDirect& other) :
+            AlsaInput("", 0, 0) { }
+};
+
+class AlsaInputThreaded : public AlsaInput
+{
+    public:
+        AlsaInputThreaded(const string& alsa_dev,
+                unsigned int channels,
+                unsigned int rate,
+                SampleQueue<uint8_t>& queue) :
+            AlsaInput(alsa_dev, channels, rate),
+            m_running(false),
+            m_queue(queue) { }
+
+        ~AlsaInputThreaded()
+        {
+            if (m_running) {
+                m_running = false;
+                m_thread.interrupt();
+                m_thread.join();
+            }
+        }
+
+        virtual void start();
+
+    private:
+        AlsaInputThreaded(const AlsaInputThreaded& other) :
+            AlsaInput("", 0, 0),
+            m_queue(other.m_queue) {}
+
+        void process();
+
+        bool m_running;
+        boost::thread m_thread;
+
+        SampleQueue<uint8_t>& m_queue;
 
 };
 
