@@ -47,11 +47,11 @@ mot_encoder_CFLAGS   = @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
 mot_encoder_SOURCES  = mot-encoder.c contrib/lib_crc.c
 
-dabplus_zmq_LDFLAGS = -no-install
-dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq -lasound \
+dabplus_enc_LDFLAGS = -no-install
+dabplus_enc_LDADD = libfdk-aac.la -lfec -lzmq -lasound \
 					-lrt -lboost_thread
 
-dabplus_zmq_SOURCES = src/AlsaDabplus.cpp \
+dabplus_enc_SOURCES = src/AlsaDabplus.cpp \
 					  src/AlsaInput.cpp \
 					  src/AlsaInput.h \
 					  src/SampleQueue.h \
@@ -60,8 +60,7 @@ dabplus_zmq_SOURCES = src/AlsaDabplus.cpp \
 bin_PROGRAMS = aac-enc$(EXEEXT) \
 			   aac-enc-dabplus$(EXEEXT) \
 			   aac-enc-dabplus-zmq$(EXEEXT) \
-			   alsa-dabplus-zmq$(EXEEXT) \
-			   dabplus-zmq$(EXEEXT) \
+			   dabplus-enc$(EXEEXT) \
 			   mot-encoder$(EXEEXT)
 
 noinst_HEADERS = wavreader.h
