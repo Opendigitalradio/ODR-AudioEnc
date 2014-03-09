@@ -93,7 +93,7 @@ void writeMotPAD(int output_fd,
         unsigned short int padlen);
 
 void create_dls_datagroup (char* text, int padlen, unsigned char*** p_dlsdg, int* p_numdg);
-void writeDLS(int output_fd, int padlen);
+void writeDLS(int output_fd, const char* dls_file, int padlen);
 
 void usage(char* name)
 {
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
                 }
                 else {
                     fidx++;
-                    writeDLS(output_fd, padlen);
+                    writeDLS(output_fd, dls_file, padlen);
                     sleep(10);
                 }
             }
@@ -524,7 +524,7 @@ void writeMotPAD(int output_fd,
 }
 
 
-void writeDLS(int output_fd, int padlen) {
+void writeDLS(int output_fd, const char* dls_file, int padlen) {
     char dlstext[MAXDLS];
     static char dlstextprev[MAXDLS];
     int dlslen;
@@ -538,7 +538,7 @@ void writeDLS(int output_fd, int padlen) {
         close(dlsfd);
     }
 
-    dlsfd = open("/tmp/dls.file", O_RDONLY);
+    dlsfd = open(dls_file, O_RDONLY);
     if (dlsfd == -1) {
         fprintf(stderr,"Error - Cannot open dls file\n");
         return;
