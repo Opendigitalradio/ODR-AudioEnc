@@ -39,28 +39,20 @@ using namespace std;
 void usage(const char* name) {
     fprintf(stderr, "%s [OPTION...]\n", name);
     fprintf(stderr,
-"     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
-//"   -d, --data=FILENAME                  Set data filename.\n"
-//"   -g, --fs-bug                         Turn on FS bug mitigation.\n"
-//"   -i, --input=FILENAME                 Input filename (default: stdin).\n"
-"     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
-"     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
-//"   -m, --message                        Turn on AAC frame messages.\n"
-//"   -p, --pad=BYTES                      Set PAD size in bytes.\n"
-//"   -f, --format={ wav, raw }            Set input file format (default: wav).\n"
-"     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
-"     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
-"     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
-//"   -t, --type=TYPE                      Set data type (dls|pad|packet|dg).\n"
-//"   -v, --verbose=LEVEL                  Set verbosity level.\n"
-//"   -V, --version                        Print version and exit.\n"
-//"   --mi=[ 0, ... ]                      Set AAC frame messages interval in milliseconds.\n"
-//"   --ma=[ 0, ... ]                      Set AAC frame messages attack time in milliseconds.\n"
-//"   -l, --lp                             Set frame size to 1024 instead of 960.\n"
-"\n"
-"Only the tcp:// zeromq transport has been tested until now.\n"
-
-);
+    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
+    "     -D, --drift-comp                     Enable ALSA sound card drift compensation.\n"
+    //"   -i, --input=FILENAME                 Input filename (default: stdin).\n"
+    "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
+    "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
+    //"   -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
+    "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
+    "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
+    //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
+    //"   -V, --version                        Print version and exit.\n"
+    "\n"
+    "Only the tcp:// zeromq transport has been tested until now.\n"
+    );
 
 }
 
@@ -165,7 +157,8 @@ int main(int argc, char *argv[]) {
     int sample_rate=48000, channels=2;
     const int bytes_per_sample = 2;
     void *rs_handler = NULL;
-    int afterburner = 0;
+    bool afterburner = false;
+    bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
 
     const struct option longopts[] = {
@@ -174,6 +167,7 @@ int main(int argc, char *argv[]) {
         {"device",      required_argument,  0, 'd'},
         {"rate",        required_argument,  0, 'r'},
         {"channels",    required_argument,  0, 'c'},
+        {"drift-comp",  no_argument,        0, 'D'},
         {"afterburner", no_argument,        0, 'a'},
         {"help",        no_argument,        0, 'h'},
         {0,0,0,0},
@@ -181,13 +175,13 @@ int main(int argc, char *argv[]) {
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hab:c:o:r:d:", longopts, &index);
+        ch = getopt_long(argc, argv, "hab:c:o:r:d:D", longopts, &index);
         switch (ch) {
         case 'd':
             alsa_device = optarg;
             break;
         case 'a':
-            afterburner = 1;
+            afterburner = true;
             break;
         case 'b':
             subchannel_index = atoi(optarg) / 8;
@@ -200,6 +194,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'o':
             outuri = optarg;
+            break;
+        case 'D':
+            drift_compensation = true;
             break;
         case '?':
         case 'h':
@@ -256,15 +253,25 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    AlsaInputThreaded alsa_in(alsa_device, channels, sample_rate, queue);
+    // We'll use either of the two possible alsa inputs.
+    AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
+    AlsaInputDirect alsa_in_direct(alsa_device, channels, sample_rate);
 
-    if (alsa_in.prepare() != 0) {
-        fprintf(stderr, "Alsa preparation failed\n");
-        return 1;
+    if (drift_compensation) {
+        if (alsa_in_threaded.prepare() != 0) {
+            fprintf(stderr, "Alsa preparation failed\n");
+            return 1;
+        }
+
+        fprintf(stderr, "Start ALSA capture thread\n");
+        alsa_in_threaded.start();
     }
-
-    fprintf(stderr, "Start ALSA capture thread\n");
-    alsa_in.start();
+    else {
+        if (alsa_in_direct.prepare() != 0) {
+            fprintf(stderr, "Alsa preparation failed\n");
+            return 1;
+        }
+    }
 
     int outbuf_size = subchannel_index*120;
     uint8_t outbuf[20480];
@@ -293,49 +300,59 @@ int main(int argc, char *argv[]) {
 
 
         // -------------- wait the right amount of time
-        struct timespec tp_now;
-        clock_gettime(CLOCK_MONOTONIC, &tp_now);
+        if (drift_compensation) {
+            struct timespec tp_now;
+            clock_gettime(CLOCK_MONOTONIC, &tp_now);
 
-        unsigned long time_now  = (1000000000ul * tp_now.tv_sec) +
-            tp_now.tv_nsec;
-        unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
-            tp_next.tv_nsec;
+            unsigned long time_now  = (1000000000ul * tp_now.tv_sec) +
+                tp_now.tv_nsec;
+            unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
+                tp_next.tv_nsec;
 
-        const unsigned long wait_time = 120000000ul / 2;
+            const unsigned long wait_time = 120000000ul / 2;
 
-        unsigned long waiting = wait_time - (time_now - time_next);
-        if ((time_now - time_next) < wait_time) {
-            //printf("Sleep %zuus\n", waiting / 1000);
-            usleep(waiting / 1000);
+            unsigned long waiting = wait_time - (time_now - time_next);
+            if ((time_now - time_next) < wait_time) {
+                //printf("Sleep %zuus\n", waiting / 1000);
+                usleep(waiting / 1000);
+            }
+
+            // Move our time_counter 60ms into the future.
+            // The encoder needs two calls for one frame
+            tp_next.tv_nsec += wait_time;
+            if (tp_next.tv_nsec >  1000000000L) {
+                tp_next.tv_nsec -= 1000000000L;
+                tp_next.tv_sec  += 1;
+            }
         }
-
-        // Move our time_counter 60ms into the future.
-        // The encoder needs two calls for one frame
-        tp_next.tv_nsec += wait_time;
-        if (tp_next.tv_nsec >  1000000000L) {
-            tp_next.tv_nsec -= 1000000000L;
-            tp_next.tv_sec  += 1;
-        }
-
 
         // -------------- Read Data
         memset(outbuf, 0x00, outbuf_size);
 
-        size_t overruns;
-        size_t read = queue.pop(input_buf, input_size, &overruns); // returns bytes
+        size_t read;
+        if (drift_compensation) {
+            size_t overruns;
+            read = queue.pop(input_buf, input_size, &overruns); // returns bytes
 
-        if (read != input_size) {
-            fprintf(stderr, "U");
+            if (read != input_size) {
+                fprintf(stderr, "U");
+            }
+
+            if (overruns) {
+                fprintf(stderr, "O%zu", overruns);
+            }
         }
-
-        if (overruns) {
-            fprintf(stderr, "O%zu", overruns);
+        else {
+            read = alsa_in_direct.read(input_buf, input_size);
+            if (read != input_size) {
+                fprintf(stderr, "Short alsa read !\n");
+            }
         }
 
         // -------------- AAC Encoding
 
         in_ptr = input_buf;
-        in_size = (int)read;
+        in_size = read;
         in_elem_size = BYTES_PER_SAMPLE;
         in_args.numInSamples = input_size/BYTES_PER_SAMPLE;
         in_buf.numBufs = 1;
