@@ -213,6 +213,7 @@ libfdk_aac_la_SOURCES = \
 EXTRA_DIST = \
     $(top_srcdir)/bootstrap \
     $(top_srcdir)/NOTICE \
+    $(top_srcdir)/README.md \
     $(top_srcdir)/Android.mk \
     $(top_srcdir)/fdk-aac.sym \
     $(top_srcdir)/documentation/*.pdf \
