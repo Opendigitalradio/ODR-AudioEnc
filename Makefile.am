@@ -33,36 +33,40 @@ libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti
 libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
     -export-symbols $(top_srcdir)/fdk-aac.sym
 
-aac_enc_LDADD = libfdk-aac.la
-aac_enc_SOURCES = aac-enc.c wavreader.c
+#aac_enc_LDADD   = libfdk-aac.la
+#aac_enc_SOURCES = src/aac-enc.c \
+#				  src/wavreader.c
 
-aac_enc_dabplus_LDADD = libfdk-aac.la -lfec
-aac_enc_dabplus_SOURCES = aac-enc-dabplus.c wavreader.c
+dabplus_enc_file_LDADD   =  libfdk-aac.la -lfec
+dabplus_enc_file_SOURCES =  src/aac-enc-dabplus.c \
+							src/wavreader.c
 
-aac_enc_dabplus_zmq_LDADD = libfdk-aac.la -lfec -lzmq
-aac_enc_dabplus_zmq_SOURCES = aac-enc-dabplus-zmq.c wavreader.c \
-							  contrib/lib_crc.c
+dabplus_enc_file_zmq_LDADD   =  libfdk-aac.la -lfec -lzmq
+dabplus_enc_file_zmq_SOURCES =  src/aac-enc-dabplus-zmq.c \
+								src/wavreader.c \
+								contrib/lib_crc.c
+
+dabplus_enc_alsa_zmq_LDFLAGS  =  -no-install
+dabplus_enc_alsa_zmq_LDADD    = libfdk-aac.la -lfec -lzmq -lasound \
+								-lrt -lboost_thread
+dabplus_enc_alsa_zmq_SOURCES  = src/AlsaDabplus.cpp \
+								src/AlsaInput.cpp \
+								src/AlsaInput.h \
+								src/SampleQueue.h \
+								src/zmq.hpp
+
 
 mot_encoder_CFLAGS   = @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
-mot_encoder_SOURCES  = mot-encoder.c contrib/lib_crc.c
+mot_encoder_SOURCES  = src/mot-encoder.c \
+					   contrib/lib_crc.c
 
-dabplus_enc_LDFLAGS = -no-install
-dabplus_enc_LDADD = libfdk-aac.la -lfec -lzmq -lasound \
-					-lrt -lboost_thread
+bin_PROGRAMS =  dabplus-enc-file$(EXEEXT) \
+				dabplus-enc-file-zmq$(EXEEXT) \
+				dabplus-enc-alsa-zmq$(EXEEXT) \
+				mot-encoder$(EXEEXT)
 
-dabplus_enc_SOURCES = src/AlsaDabplus.cpp \
-					  src/AlsaInput.cpp \
-					  src/AlsaInput.h \
-					  src/SampleQueue.h \
-					  src/zmq.hpp
-
-bin_PROGRAMS = aac-enc-dabplus$(EXEEXT) \
-			   aac-enc-dabplus-zmq$(EXEEXT) \
-			   dabplus-enc$(EXEEXT) \
-			   mot-encoder$(EXEEXT)
-
-noinst_HEADERS = wavreader.h
+noinst_HEADERS = src/wavreader.h
 
 AACDEC_SRC = \
     libAACdec/src/aacdec_drc.cpp \
