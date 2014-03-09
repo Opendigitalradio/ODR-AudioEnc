@@ -378,6 +378,8 @@ int main(int argc, char *argv[]) {
         else if(ret >= 0) {
             // Otherwise, you're good to go and buffer should contain "count" bytes.
             in_buf.numBufs = 2;    // Samples + Data;
+            if (ret > 0)
+                fprintf(stderr, "p");
         }
         else {
             // Some other error occurred during read.
