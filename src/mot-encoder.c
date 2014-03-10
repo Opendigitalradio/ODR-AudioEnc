@@ -113,6 +113,8 @@ void usage(char* name)
                     "                        Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
                     "                        Default: /tmp/dls.txt\n"
+                    " -p, --pad=LENGTH       Set the pad length. Max value:53\n"
+                    "                        Default: 53\n"
            );
 }
 
@@ -136,6 +138,7 @@ int main(int argc, char *argv[])
         {"dir",        required_argument,  0, 'd'},
         {"output",     required_argument,  0, 'o'},
         {"dls",        required_argument,  0, 't'},
+        {"pad",        required_argument,  0, 'p'},
         {"help",       no_argument,        0, 'h'},
         {0,0,0,0},
     };
@@ -149,7 +152,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hd:o:t:", longopts, &index);
+        ch = getopt_long(argc, argv, "hd:o:t:p:", longopts, &index);
         switch (ch) {
             case 'd':
                 dir = optarg;
@@ -160,6 +163,9 @@ int main(int argc, char *argv[])
             case 't':
                 dls_file = optarg;
                 break;
+            case 'p':
+                padlen = atoi(optarg);
+                break;
             case '?':
             case 'h':
                 usage(argv[0]);
@@ -167,10 +173,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (padlen <= 0 || padlen > 53) {
+        fprintf(stderr, "Error: pad length %d out of bounds (0 < padlen <= 53)\n",
+                padlen);
+        return 2;
+    }
+
     if (!dir) {
         fprintf(stderr, "Error: image directory not defined!\n");
         usage(argv[0]);
-        return 3;
+        return 2;
     }
 
     int output_fd = open(output, O_WRONLY);
