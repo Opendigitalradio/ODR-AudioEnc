@@ -59,7 +59,7 @@ dabplus_enc_alsa_zmq_LDFLAGS     = -no-install
 dabplus_enc_alsa_zmq_LDADD       = libfdk-aac.la -lfec -lzmq -lasound \
 								   -lrt -lboost_thread
 dabplus_enc_alsa_zmq_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
-dabplus_enc_alsa_zmq_SOURCES     = src/AlsaDabplus.cpp \
+dabplus_enc_alsa_zmq_SOURCES     = src/dabplus-enc-alsa-zmq.cpp \
 								   src/AlsaInput.cpp \
 								   src/AlsaInput.h \
 								   src/SampleQueue.h \
