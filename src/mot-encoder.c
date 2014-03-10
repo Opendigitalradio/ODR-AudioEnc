@@ -97,14 +97,19 @@ void writeDLS(int output_fd, const char* dls_file, int padlen);
 
 void usage(char* name)
 {
-    fprintf(stderr, "DAB MOT encoder for slideshow and DLS\n\n"
+    fprintf(stderr, "DAB MOT encoder %s for slideshow and DLS\n\n"
                     "By CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/)\n\n"
                     "Reads image data from the specified directory, and outputs PAD data\n"
                     "on standard output\n"
                     "Reads DLS from /tmp/dls.file\n\n"
                     "WARNING: This program has memory leaks! Do not attempt\n"
                     "to leave it running for long periods of time!\n\n"
-                    "  http://opendigitalradio.org\n\n"
+                    "  http://opendigitalradio.org\n\n",
+#if defined(GITVERSION)
+                    GITVERSION
+#else
+                    PACKAGE_VERSION
+#endif
                     );
     fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
     fprintf(stderr, " -d, --dir=DIRNAME      Directory to read images from.\n"

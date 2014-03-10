@@ -33,9 +33,10 @@
 
 void usage(const char* name) {
     fprintf(stderr,
-    "%s is a HE-AACv2 encoder for DAB+ based on fdk-aac-dabplus\n"
-    "that can encode from a file or pipe source, and encode\n"
-    "into a file or pipe. There is no PAD support.\n\n"
+    "dabplus-enc-file %s is a HE-AACv2 encoder for DAB+\n"
+    "based on fdk-aac-dabplus that can read from a file\n"
+    "or pipe source and encode into a file or pipe.\n"
+    "There is no PAD support.\n\n"
     "Usage:\n"
     "%s [OPTION...]\n\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
@@ -47,7 +48,13 @@ void usage(const char* name) {
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
     //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
-    , name, name);
+    ,
+#if defined(GITVERSION)
+    GITVERSION
+#else
+    PACKAGE_VERSION
+#endif
+    , name);
 
 }
 

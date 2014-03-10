@@ -45,16 +45,22 @@
 
 void usage(const char* name) {
     fprintf(stderr,
-    "%s is a HE-AACv2 encoder for DAB+ based on fdk-aac-dabplus\n"
-    "that can encode from a file or pipe source, and encode\n"
-    "to a ZeroMQ output for ODR-DabMux.\n"
+    "dabplus-enc-file-zmq %s is a HE-AACv2 encoder for DAB+\n"
+    "based on fdk-aac-dabplus that can read from a file\n"
+    "or pipe source and encode to a ZeroMQ output for ODR-DabMux.\n"
     "\n"
     "It includes PAD (DLS and MOT Slideshow) support by http://rd.csp.it\n"
     "to be used with mot-encoder\n"
     "\n"
     "  http://opendigitalradio.org\n"
     "\nUsage:\n"
-    "%s [OPTION...]\n", name, name);
+    "%s [OPTION...]\n",
+#if defined(GITVERSION)
+    GITVERSION
+#else
+    PACKAGE_VERSION
+#endif
+    , name);
 
     fprintf(stderr,
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"

@@ -40,9 +40,9 @@ using namespace std;
 
 void usage(const char* name) {
     fprintf(stderr,
-    "%s is a HE-AACv2 encoder for DAB+ based on fdk-aac-dabplus\n"
-    "that can encode from a ALSA source, and encode\n"
-    "to a ZeroMQ output for ODR-DabMux.\n"
+    "dabplus-enc-alsa-zmq %s is a HE-AACv2 encoder for DAB+\n"
+    "based on fdk-aac-dabplus that can read from a ALSA source\n"
+    "and encode to a ZeroMQ output for ODR-DabMux.\n"
     "\n"
     "The -D option enables experimental sound card clock drift compensation.\n"
     "A consumer sound card has a clock that is always a bit imprecise, and\n"
@@ -62,7 +62,13 @@ void usage(const char* name) {
     "\n"
     "  http://opendigitalradio.org\n"
     "\nUsage:\n"
-    "%s [OPTION...]\n", name, name);
+    "%s [OPTION...]\n",
+#if defined(GITVERSION)
+    GITVERSION
+#else
+    PACKAGE_VERSION
+#endif
+    , name);
     fprintf(stderr,
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
     "     -D, --drift-comp                     Enable ALSA sound card drift compensation.\n"
@@ -205,6 +211,11 @@ int main(int argc, char *argv[]) {
         {"help",        no_argument,        0, 'h'},
         {0,0,0,0},
     };
+
+    if (argc < 2) {
+        usage(argv[0]);
+        return 1;
+    }
 
     int index;
     while(ch != -1) {

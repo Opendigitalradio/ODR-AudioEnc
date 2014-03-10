@@ -46,6 +46,8 @@ AC_SUBST(FDK_AAC_VERSION)
 AC_SUBST(LIBS_PUBLIC)
 AC_SUBST(LIBS_PRIVATE)
 
+AM_CONDITIONAL([IS_GIT_REPO], [test -d '.git'])
+
 AC_CONFIG_FILES([Makefile
                  fdk-aac.pc])
 AC_OUTPUT
