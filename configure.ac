@@ -21,6 +21,8 @@ AC_CHECK_LIB([boost_thread], [main], [], [AC_MSG_ERROR([library boost_thread is 
 
 AC_CHECK_LIB([rt], [clock_gettime], [], [AC_MSG_ERROR([library rt is missing])])
 
+AM_PATH_ALSA(1.0.27)
+
 
 # fdk-aac-dabplus-zmq needs ZeroMQ
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
