@@ -32,12 +32,20 @@ How to build
 =============
 
 Requirements:
+
 * boost-thread and boost-system
 * ImageMagick magickwand (for MOT slideshow)
-
-* Download code and unpack it.
+* The alsa libraries
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
-* do "./configure", then "make" and "make install"
+
+This package:
+    git clone https://github.com/mpbraendli/fdk-aac-dabplus.git
+    cd fdk-aac-dabplus
+    ./bootstrap
+    ./configure
+    make
+    sudo make install
+
 * See the possible scenarios below on how to use the tools
 * use mot-encoder to encode images into MOT Slideshow
 
@@ -77,7 +85,10 @@ This illustrates the fifo input of *dabplus-enc-file-zmq*.
 
     sox -t alsa $ALSASRC -b 16 -t raw - rate 32k channels 2 | \
     dabplus-enc-file-zmq -r 32000 \
-    -i /dev/stdin -b $BITRATE -f raw -a -o $DST -p 4
+    -i /dev/stdin -b $BITRATE -f raw -a -o $DST -p 53
+
+The -p 53 sets the padlen, compatible with the default mot-encoder setting. mot-encoder needs
+to be given the same value for this option.
 
 
 Scenario 3
