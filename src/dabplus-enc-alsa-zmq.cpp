@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
 
-    char* pad_fifo = "/tmp/pad.fifo";
+    const char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
     unsigned char pad_buf[128];
     int padlen;
