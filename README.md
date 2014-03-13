@@ -76,8 +76,31 @@ the audio is captured from the soundcard, and encoded into HE-AACv2.
 
 High occurrence of these will lead to audible artifacts.
 
-
 Scenario 2
+----------
+
+Play some local audio source from a file, with ZMQ output for ODR-DabMux. The problem with
+playing a file is that dabplus-enc-file-zmq cannot directly be used, because ODR-DabMux
+does not back-pressure the encoder, which will therefore encode much faster than realtime.
+
+While this issue is sorted out, the following trick is a very flexible solution: use the
+alsa virtual loop soundcard *snd-aloop* in the following way:
+
+    modprobe snd-aloop
+
+This creates a new audio card (usually 'hw:1' but have a look at /proc/asound/card to be sure) that
+can then be used for the alsa encoder:
+
+    ./dabplus-enc-alsa-zmq -d hw:1 -c 2 -r 32000 -b 64 -o
+
+Then, you can use any media player that has an alsa output to play whatever source it supports:
+
+    cd your/preferred/music
+    mplayer -ao alsa:device=hw=1.1 -srate 32000 -shuffle *
+
+Important: you must specify the correct sample rate on both "sides" of the virtual sound card.
+
+Scenario 3
 ----------
 Live Stream encoding and preparing for DAB muxer, with ZMQ output, at 32kHz, using sox.
 This illustrates the fifo input of *dabplus-enc-file-zmq*.
@@ -91,7 +114,7 @@ The -p 53 sets the padlen, compatible with the default mot-encoder setting. mot-
 to be given the same value for this option.
 
 
-Scenario 3
+Scenario 4
 ----------
 Live Stream encoding and preparing for DAB muxer, with FIFO to odr-dabmux, 48kHz, using
 arecord.
@@ -102,7 +125,7 @@ arecord.
 
 Here we are also using the ALSA plughw feature.
 
-Scenario 4
+Scenario 5
 ----------
 Wave file encoding, for non-realtime processing
 
