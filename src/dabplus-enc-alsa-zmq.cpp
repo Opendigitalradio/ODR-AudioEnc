@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 
 #include "libAACenc/include/aacenc_lib.h"
 
@@ -176,12 +177,44 @@ int prepare_aac_encoder(
     return 0;
 }
 
+/* Get the number of columns of the terminal this runs in
+ */
+int get_win_columns()
+{
+    struct winsize w;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
+        return 0;
+    }
+
+    return w.ws_col;
+}
+
+#define WINDOW_MARGIN_RIGHT 6
+
+/* Add line breaks in regular intervals to the
+ * little sequence of dots because my terminal
+ */
+void print_status(const char* status, int *consumed_cols)
+{
+    fprintf(stdout, "%s", status);
+    *consumed_cols -= strnlen(status, *consumed_cols);
+
+    if (*consumed_cols <= 0) {
+        fprintf(stdout, "\n");
+        *consumed_cols = get_win_columns();
+
+        // Guarantee that it's never negative
+        if (*consumed_cols > WINDOW_MARGIN_RIGHT)
+            *consumed_cols -= WINDOW_MARGIN_RIGHT;
+    }
+}
 
 #define no_argument 0
 #define required_argument 1
 #define optional_argument 2
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     int subchannel_index = 8; //64kbps subchannel
     int ch=0;
     const char *alsa_device = "default";
@@ -352,6 +385,8 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "Starting encoding\n");
 
+    int remaining_line_len = get_win_columns() - 6;
+
     int send_error_count = 0;
     struct timespec tp_next;
     clock_gettime(CLOCK_MONOTONIC, &tp_next);
@@ -414,7 +449,7 @@ int main(int argc, char *argv[]) {
             // Otherwise, you're good to go and buffer should contain "count" bytes.
             in_buf.numBufs = 2;    // Samples + Data;
             if (ret > 0)
-                fprintf(stderr, "p");
+                print_status("p", &remaining_line_len);
         }
         else {
             // Some other error occurred during read.
@@ -431,11 +466,13 @@ int main(int argc, char *argv[]) {
             read = queue.pop(input_buf, input_size, &overruns); // returns bytes
 
             if (read != input_size) {
-                fprintf(stderr, "U");
+                print_status("U", &remaining_line_len);
             }
 
             if (overruns) {
-                fprintf(stderr, "O%zu", overruns);
+                char status[16];
+                snprintf(status, 16, "O%zu", overruns);
+                print_status(status, &remaining_line_len);
             }
         }
         else {
@@ -520,8 +557,10 @@ int main(int argc, char *argv[]) {
             }
 
             if (out_args.numOutBytes + row*10 == outbuf_size)
-                fprintf(stderr, ".");
+                print_status(".", &remaining_line_len);
         }
+
+        fflush(stdout);
     }
 
     zmq_sock.close();
