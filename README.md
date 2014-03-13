@@ -137,10 +137,12 @@ Usage of MOT Slideshow
 
 MOT Slideshow is an experimental feature. The *mot-encoder* reads images from
 the specified folder, and generates the PAD data for the encoder. This is
-communicated through a fifo to the encoder.
+communicated through a fifo to the encoder. It also reads DLS from a file, and
+includes this information in the PAD.
 
 Only *dabplus-enc-file-zmq* and *dabplus-enc-alsa-zmq* insert the PAD data from
 mot-encoder into the bitstream.
 
-This is an ongoing development.
+This is an ongoing development. Make sure you use the same pad length option
+for the mot-encoder and the audio encoder.
 
