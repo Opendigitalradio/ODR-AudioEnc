@@ -49,7 +49,7 @@ class AlsaInput
         ~AlsaInput() {
 
             if (m_alsa_handle) {
-                snd_pcm_abort(m_alsa_handle);
+                snd_pcm_close(m_alsa_handle);
                 m_alsa_handle = NULL;
             }
         }
