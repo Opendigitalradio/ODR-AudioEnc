@@ -191,6 +191,10 @@ int main(int argc, char *argv[])
     }
 
     int output_fd = open(output, O_WRONLY);
+    if (output_fd == -1) {
+        perror("Failed to open output");
+        return 3;
+    }
 
     MagickWandGenesis();
 
