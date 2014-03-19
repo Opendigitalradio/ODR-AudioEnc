@@ -60,7 +60,7 @@ class AlsaInput
         virtual void start() = 0;
 
     protected:
-        size_t m_read(uint8_t* buf, snd_pcm_uframes_t length);
+        ssize_t m_read(uint8_t* buf, snd_pcm_uframes_t length);
 
         string m_alsa_dev;
         unsigned int m_channels;
@@ -87,7 +87,7 @@ class AlsaInputDirect : public AlsaInput
          *
          * Returns the number of bytes read.
          */
-        size_t read(uint8_t* buf, size_t length);
+        ssize_t read(uint8_t* buf, size_t length);
 
     private:
         AlsaInputDirect(const AlsaInputDirect& other) :
@@ -102,6 +102,7 @@ class AlsaInputThreaded : public AlsaInput
                 unsigned int rate,
                 SampleQueue<uint8_t>& queue) :
             AlsaInput(alsa_dev, channels, rate),
+            m_fault(false),
             m_running(false),
             m_queue(queue) { }
 
@@ -116,6 +117,8 @@ class AlsaInputThreaded : public AlsaInput
 
         virtual void start();
 
+        bool fault_detected() { return m_fault; };
+
     private:
         AlsaInputThreaded(const AlsaInputThreaded& other) :
             AlsaInput("", 0, 0),
@@ -123,6 +126,7 @@ class AlsaInputThreaded : public AlsaInput
 
         void process();
 
+        bool m_fault;
         bool m_running;
         boost::thread m_thread;
 

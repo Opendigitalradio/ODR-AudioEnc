@@ -469,8 +469,13 @@ int main(int argc, char *argv[])
         // -------------- Read Data
         memset(outbuf, 0x00, outbuf_size);
 
-        size_t read;
+        ssize_t read;
         if (drift_compensation) {
+            if (alsa_in_threaded.fault_detected()) {
+                fprintf(stderr, "Detected fault in alsa input!\n");
+                break;
+            }
+
             size_t overruns;
             read = queue.pop(input_buf, input_size, &overruns); // returns bytes
 
@@ -486,7 +491,10 @@ int main(int argc, char *argv[])
         }
         else {
             read = alsa_in_direct.read(input_buf, input_size);
-            if (read != input_size) {
+            if (read < 0) {
+                break;
+            }
+            else if (read != input_size) {
                 fprintf(stderr, "Short alsa read !\n");
             }
         }
@@ -519,9 +527,11 @@ int main(int argc, char *argv[])
         AACENC_ERROR err;
         if ((err = aacEncEncode(encoder, &in_buf, &out_buf, &in_args, &out_args))
                 != AACENC_OK) {
-            if (err == AACENC_ENCODE_EOF)
+            if (err == AACENC_ENCODE_EOF) {
+                fprintf(stderr, "encoder error: EOF reached\n");
                 break;
-            fprintf(stderr, "Encoding failed\n");
+            }
+            fprintf(stderr, "Encoding failed (%d)\n", err);
             break;
         }
         calls++;
@@ -532,7 +542,7 @@ int main(int argc, char *argv[])
             // Our timing code depends on this
             if (! ((sample_rate == 32000 && calls == 2) ||
                    (sample_rate == 48000 && calls == 3)) ) {
-                fprintf(stderr, "INTERNAL ERROR! GURU MEDITATION: sample rate %d, calls %d\n",
+                fprintf(stderr, "INTERNAL ERROR! sample rate %d, calls %d\n",
                     sample_rate, calls);
                 }
             calls = 0;

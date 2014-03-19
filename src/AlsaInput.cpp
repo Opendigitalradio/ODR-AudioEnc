@@ -101,7 +101,7 @@ int AlsaInput::prepare()
     return 0;
 }
 
-size_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
+ssize_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
 {
     int i;
     int err;
@@ -123,28 +123,39 @@ size_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
 
 void AlsaInputThreaded::start()
 {
-    m_running = true;
-    m_thread = boost::thread(&AlsaInputThreaded::process, this);
+    if (m_fault) {
+        fprintf(stderr, "Cannot start alsa input. Fault detected previsouly!\n");
+    }
+    else {
+        m_running = true;
+        m_thread = boost::thread(&AlsaInputThreaded::process, this);
+    }
 }
 
 void AlsaInputThreaded::process()
 {
     uint8_t samplebuf[NUM_SAMPLES_PER_CALL * BYTES_PER_SAMPLE * m_channels];
     while (m_running) {
-        size_t n = m_read(samplebuf, NUM_SAMPLES_PER_CALL);
+        ssize_t n = m_read(samplebuf, NUM_SAMPLES_PER_CALL);
+
+        if (n < 0) {
+            m_running = false;
+            m_fault = true;
+            break;
+        }
 
         m_queue.push(samplebuf, BYTES_PER_SAMPLE*m_channels*n);
     }
 }
 
 
-size_t AlsaInputDirect::read(uint8_t* buf, size_t length)
+ssize_t AlsaInputDirect::read(uint8_t* buf, size_t length)
 {
     int bytes_per_frame = m_channels * BYTES_PER_SAMPLE;
     assert(length % bytes_per_frame == 0);
 
-    size_t read = m_read(buf, length / bytes_per_frame);
+    ssize_t read = m_read(buf, length / bytes_per_frame);
 
-    return read * bytes_per_frame;
+    return (read > 0) ? read * bytes_per_frame : read;
 }
 
