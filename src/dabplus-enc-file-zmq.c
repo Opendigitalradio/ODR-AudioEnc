@@ -47,7 +47,8 @@ void usage(const char* name) {
     fprintf(stderr,
     "dabplus-enc-file-zmq %s is a HE-AACv2 encoder for DAB+\n"
     "based on fdk-aac-dabplus that can read from a file\n"
-    "or pipe source and encode to a ZeroMQ output for ODR-DabMux.\n"
+    "or pipe source and encode to a ZeroMQ output for ODR-DabMux,\n"
+    "a file or standard output.\n"
     "\n"
     "It includes PAD (DLS and MOT Slideshow) support by http://rd.csp.it\n"
     "to be used with mot-encoder\n"
@@ -65,7 +66,10 @@ void usage(const char* name) {
     fprintf(stderr,
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
-    "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
+    "     -o, --output=URI                     Output zmq uri or filename.\n"
+    "                                          Use '-' for standard output,\n"
+    "                                          'tcp://odr-dabmux-host:9000' for ZeroMQ.\n"
+    "                                          Protocols supported: tcp, pgm, epgm\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
     "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name (default: /tmp/pad.fifo).\n"
@@ -92,6 +96,7 @@ int main(int argc, char *argv[]) {
     const char *infile = NULL;
     const char *outuri = NULL;
     FILE *in_fh;
+    FILE *out_fh;
     void *wav;
     int wav_format, bits_per_sample, sample_rate=48000, channels=2;
     uint8_t* input_buf;
@@ -231,14 +236,39 @@ int main(int argc, char *argv[]) {
     }
 
     if (outuri) {
-        zmq_sock = zmq_socket(zmq_context, ZMQ_PUB);
-        if (zmq_sock == NULL) {
-            fprintf(stderr, "Error occurred during zmq_socket: %s\n", zmq_strerror(errno));
-            return 2;
+        if (strcmp(outuri, "-") == 0) {
+            out_fh = stdout;
         }
-        if (zmq_connect(zmq_sock, outuri) != 0) {
-            fprintf(stderr, "Error occurred during zmq_connect: %s\n", zmq_strerror(errno));
-            return 2;
+        else if (strncmp(outuri, "file://", 7) == 0) {
+            out_fh = fopen(&outuri[7], "wb");
+
+            if(!out_fh) {
+                fprintf(stderr, "Can't open output file!\n");
+                return 1;
+            }
+        }
+        else if ((strncmp(outuri, "tcp://", 6) == 0) ||
+                (strncmp(outuri, "pgm://", 6) == 0) ||
+                (strncmp(outuri, "epgm://", 7) == 0)) {
+            zmq_sock = zmq_socket(zmq_context, ZMQ_PUB);
+            if (zmq_sock == NULL) {
+                fprintf(stderr, "Error occurred during zmq_socket: %s\n",
+                        zmq_strerror(errno));
+                return 2;
+            }
+            if (zmq_connect(zmq_sock, outuri) != 0) {
+                fprintf(stderr, "Error occurred during zmq_connect: %s\n",
+                        zmq_strerror(errno));
+                return 2;
+            }
+        }
+        else {
+            out_fh = fopen(outuri, "wb");
+
+            if(!out_fh) {
+                fprintf(stderr, "Can't open output file!\n");
+                return 1;
+            }
         }
     } else {
         fprintf(stderr, "Output URI not defined\n");
@@ -475,10 +505,15 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        send_error = zmq_send(zmq_sock, outbuf, outbuf_size, ZMQ_DONTWAIT);
-        if (send_error < 0) {
-            fprintf(stderr, "ZeroMQ send failed! %s\n", zmq_strerror(errno));
-            send_error_count ++;
+        if (zmq_sock) {
+            send_error = zmq_send(zmq_sock, outbuf, outbuf_size, ZMQ_DONTWAIT);
+            if (send_error < 0) {
+                fprintf(stderr, "ZeroMQ send failed! %s\n", zmq_strerror(errno));
+                send_error_count ++;
+            }
+        }
+        else {
+            fwrite(outbuf, 1, /*out_args.numOutBytes*/ outbuf_size, out_fh);
         }
 
         if (send_error_count > 10)
@@ -502,12 +537,19 @@ int main(int argc, char *argv[]) {
     } else {
         wav_read_close(wav);
     }
-    zmq_close(zmq_sock);
+
+    if (zmq_sock) {
+        zmq_close(zmq_sock);
+        zmq_ctx_term(zmq_context);
+    }
+    else {
+        fclose(out_fh);
+    }
+
     free_rs_char(rs_handler);
 
     aacEncClose(&handle);
 
-    zmq_ctx_term(zmq_context);
     return 0;
 }
 
