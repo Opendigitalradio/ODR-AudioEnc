@@ -294,7 +294,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fprintf(stderr, "Setting up ZeroMQ socket\n");
+    if ( ! (sample_rate == 32000 || sample_rate == 48000)) {
+        fprintf(stderr, "Invalid sample rate. Possible values are: 32000, 48000.\n");
+        return 1;
+    }
+
+    const int enc_calls_per_output = sample_rate / 16000;
+
     if (!outuri) {
         fprintf(stderr, "ZeroMQ output URI not defined\n");
         return 1;
@@ -414,7 +420,10 @@ int main(int argc, char *argv[])
             unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
                 tp_next.tv_nsec;
 
-            const unsigned long wait_time = 120000000ul / 2;
+            const unsigned long dabplus_superframe_nsec = 120000000ul;
+
+            const unsigned long wait_time =
+                dabplus_superframe_nsec / enc_calls_per_output;
 
             unsigned long waiting = wait_time - (time_now - time_next);
             if ((time_now - time_next) < wait_time) {
@@ -521,7 +530,11 @@ int main(int argc, char *argv[])
         if (out_args.numOutBytes != 0)
         {
             // Our timing code depends on this
-            assert (calls == 2);
+            if (! ((sample_rate == 32000 && calls == 2) ||
+                   (sample_rate == 48000 && calls == 3)) ) {
+                fprintf(stderr, "INTERNAL ERROR! GURU MEDITATION: sample rate %d, calls %d\n",
+                    sample_rate, calls);
+                }
             calls = 0;
 
             // ----------- RS encoding
