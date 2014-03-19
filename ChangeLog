@@ -1,15 +1,29 @@
+2014-03-19: Matthias P. Braendli <matthias@mpb.li>
+	(v0.2.2):
+	* README:
+		Add snd-aloop scenario.
+	* dabplus-enc-alsa-zmq:
+		Support older version of libasound2, so that
+		it compiles with debian stable.
+		Repair 48kHz sample rate.
+	* dabplus-enc-file-zmq:
+		Add support for file output, which make
+		dabplus-enc-file redundant.
+	* dabplus-enc-file:
+		Has been removed
+
 2014-03-10: Matthias P. Braendli <matthias@mpb.li>
 	(v0.2.1):
-		Add -p option to mot-encoder
-		Add version numbers to each encoder
+		Add -p option to mot-encoder.
+		Add version numbers to each encoder.
 
 2014-03-09: Matthias P. Braendli <matthias@mpb.li>
 	(v0.2.0):
 		Rename all tools in a consistent way and tidy
 		them up.
-		Add the alsa input with optional drift compensation
+		Add the alsa input with optional drift compensation.
 		Add MOT Slideshow and PAD code from CSP.it
-		Add new descriptions and scenarios to the README
+		Add new descriptions and scenarios to the README.
 
 2014-02-11: Matthias P. Braendli <matthias@mpb.li>
 	(v0.1.0):
