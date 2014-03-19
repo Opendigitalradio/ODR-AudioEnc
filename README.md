@@ -18,7 +18,7 @@ for imprecise sound card clocks.
 support for DAB MOT Slideshow and DLS, written by [CSP](http://rd.csp.it).
 
 To encode DLS and Slideshow data, the *mot-encoder* tool reads images
-from a folder, and DLS text from a file, and generates the PAD data
+from a folder and DLS text from a file, and generates the PAD data
 for the encoder.
 
 For detailed usage, see the usage screen of the different tools.
@@ -33,8 +33,9 @@ Requirements:
 
 * boost-thread and boost-system
 * ImageMagick magickwand (for MOT slideshow)
-* The alsa libraries
+* The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
+* Download and install ZeroMQ from http://download.zeromq.org/zeromq-4.0.3.tar.gz
 
 This package:
     git clone https://github.com/mpbraendli/fdk-aac-dabplus.git
