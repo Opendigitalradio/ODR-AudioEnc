@@ -5,11 +5,9 @@ This package contains several tools that use the standalone library
 of the Fraunhofer FDK AAC code from Android, patched for
 960-transform to do DAB+ broadcast encoding.
 
-The first tool, *dabplus-enc-file* can encode from a file or pipe
-source, and encode into a file or pipe. There is no PAD support.
-
 The *dabplus-enc-file-zmq* can encode from a file or pipe source,
-and encode to a ZeroMQ output compatible with ODR-DabMux.
+and encode to a ZeroMQ output compatible with ODR-DabMux, to a
+file or to stdout.
 
 The *dabplus-enc-alsa-zmq* can encode from an ALSA soundcard,
 and encode to a ZeroMQ output compatible with ODR-DabMux. It supports
@@ -100,6 +98,7 @@ Then, you can use any media player that has an alsa output to play whatever sour
 
 Important: you must specify the correct sample rate on both "sides" of the virtual sound card.
 
+
 Scenario 3
 ----------
 Live Stream encoding and preparing for DAB muxer, with ZMQ output, at 32kHz, using sox.
@@ -120,16 +119,16 @@ Live Stream encoding and preparing for DAB muxer, with FIFO to odr-dabmux, 48kHz
 arecord.
 
     arecord -t raw -f S16_LE -c 2 -r 48000 -D plughw:CARD=Loopback,DEV=0,SUBDEV=0 | \
-    dabplus-enc-file -a -b 24 -f raw -c 2 -r 48000 -i /dev/stdin -o /dev/stdout 2>/dev/null | \
+    dabplus-enc-file-zmq -a -b 24 -f raw -c 2 -r 48000 -i /dev/stdin -o - | \
     mbuffer -q -m 10k -P 100 -s 360 > station1.fifo
 
-Here we are also using the ALSA plughw feature.
+Here we are using the ALSA plughw feature.
 
 Scenario 5
 ----------
 Wave file encoding, for non-realtime processing
 
-    dabplus-enc-file -a -b 64 -i wave_file.wav -o station1.dabp
+    dabplus-enc-file-zmq -a -b 64 -i wave_file.wav -o station1.dabp
 
 
 Usage of MOT Slideshow

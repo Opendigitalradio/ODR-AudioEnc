@@ -43,11 +43,6 @@ libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
 #aac_enc_SOURCES = src/aac-enc.c \
 #				  src/wavreader.c
 
-dabplus_enc_file_LDADD     = libfdk-aac.la -lfec
-dabplus_enc_file_CFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
-dabplus_enc_file_SOURCES   = src/dabplus-enc-file.c \
-							 src/wavreader.c
-
 dabplus_enc_file_zmq_LDADD     = libfdk-aac.la -lfec -lzmq
 dabplus_enc_file_zmq_CFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
 dabplus_enc_file_zmq_SOURCES   = src/dabplus-enc-file-zmq.c \
@@ -72,8 +67,7 @@ mot_encoder_SOURCES  = src/mot-encoder.c \
 					   contrib/lib_crc.h \
 					   contrib/lib_crc.c
 
-bin_PROGRAMS =  dabplus-enc-file$(EXEEXT) \
-				dabplus-enc-file-zmq$(EXEEXT) \
+bin_PROGRAMS =  dabplus-enc-file-zmq$(EXEEXT) \
 				dabplus-enc-alsa-zmq$(EXEEXT) \
 				mot-encoder$(EXEEXT)
 
