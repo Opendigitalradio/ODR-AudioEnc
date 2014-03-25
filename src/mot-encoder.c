@@ -95,6 +95,10 @@ void writeMotPAD(int output_fd,
 void create_dls_datagroup (char* text, int padlen, unsigned char*** p_dlsdg, int* p_numdg);
 void writeDLS(int output_fd, const char* dls_file, int padlen);
 
+int get_xpadlengthmask(int padlen);
+#define ALLOWED_PADLEN "23, 26, 34, 42, 58"
+
+
 void usage(char* name)
 {
     fprintf(stderr, "DAB MOT encoder %s for slideshow and DLS\n\n"
@@ -118,7 +122,8 @@ void usage(char* name)
                     "                        Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
                     "                        Default: /tmp/dls.txt\n"
-                    " -p, --pad=LENGTH       Set the pad length. Max value:58\n"
+                    " -p, --pad=LENGTH       Set the pad length.\n"
+                    "                        Possible values: " ALLOWED_PADLEN "\n"
                     "                        Default: 58\n"
            );
 }
@@ -178,8 +183,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (padlen <= 0 || padlen > 58) {
-        fprintf(stderr, "Error: pad length %d out of bounds (0 < padlen <= 58)\n",
+    if (get_xpadlengthmask(padlen) == -1) {
+        fprintf(stderr, "Error: pad length %d invalid: Possible values: "
+                    ALLOWED_PADLEN "\n",
                 padlen);
         return 2;
     }
@@ -430,16 +436,7 @@ void writeMotPAD(int output_fd,
     unsigned short int crc;
 
 
-    if (padlen == 23)
-        xpadlengthmask = 3;
-    else if (padlen == 26)
-        xpadlengthmask = 4;
-    else if (padlen == 34)
-        xpadlengthmask = 5;
-    else if (padlen == 42)
-        xpadlengthmask = 6;
-    else if (padlen == 58)
-        xpadlengthmask = 7;
+    xpadlengthmask = get_xpadlengthmask(padlen);
 
 /*
     // Write Data Group Length Indicator
@@ -648,16 +645,7 @@ void create_dls_datagroup (char* text, int padlen, UCHAR*** p_dlsdg, int* p_numd
     fprintf(stderr, "Number of DLS segments: %d\n", numseg);
     fprintf(stderr, "Number of DLS data groups: %d\n", numdg);
 
-    if (padlen == 23)
-        xpadlengthmask = 3;
-    else if (padlen == 26)
-        xpadlengthmask = 4;
-    else if (padlen == 34)
-        xpadlengthmask = 5;
-    else if (padlen == 42)
-        xpadlengthmask = 6;
-    else if (padlen == 58)
-        xpadlengthmask = 7;
+    xpadlengthmask = get_xpadlengthmask(padlen);
 
     *p_dlsdg = (UCHAR**) malloc(numdg * sizeof(UCHAR*));
     dlsdg = *p_dlsdg;
@@ -851,5 +839,28 @@ void create_dls_datagroup (char* text, int padlen, UCHAR*** p_dlsdg, int* p_numd
             i++;
         }
     }
+}
+
+int get_xpadlengthmask(int padlen)
+{
+    int xpadlengthmask;
+
+    /* Don't forget to change ALLOWED_PADLEN
+     * if you change this check
+     */
+    if (padlen == 23)
+        xpadlengthmask = 3;
+    else if (padlen == 26)
+        xpadlengthmask = 4;
+    else if (padlen == 34)
+        xpadlengthmask = 5;
+    else if (padlen == 42)
+        xpadlengthmask = 6;
+    else if (padlen == 58)
+        xpadlengthmask = 7;
+    else
+        xpadlengthmask = -1; // Error
+
+    return xpadlengthmask;
 }
 
