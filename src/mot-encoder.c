@@ -118,8 +118,8 @@ void usage(char* name)
                     "                        Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
                     "                        Default: /tmp/dls.txt\n"
-                    " -p, --pad=LENGTH       Set the pad length. Max value:53\n"
-                    "                        Default: 53\n"
+                    " -p, --pad=LENGTH       Set the pad length. Max value:58\n"
+                    "                        Default: 58\n"
            );
 }
 
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     DIR *pDir;
     char imagepath[128];
     char dlstext[MAXDLS], dlstextprev[MAXDLS];
-    int padlen=53;
+    int padlen=58;
 
     char* dir = NULL;
     char* output = "/tmp/pad.fifo";
@@ -178,8 +178,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (padlen <= 0 || padlen > 53) {
-        fprintf(stderr, "Error: pad length %d out of bounds (0 < padlen <= 53)\n",
+    if (padlen <= 0 || padlen > 58) {
+        fprintf(stderr, "Error: pad length %d out of bounds (0 < padlen <= 58)\n",
                 padlen);
         return 2;
     }
@@ -426,22 +426,22 @@ void writeMotPAD(int output_fd,
 {
 
     unsigned char pad[128];
-    int xpadlengthmask, i, j, numseg, lastseglen;
+    int xpadlengthmask, i, j,k, numseg, lastseglen;
     unsigned short int crc;
 
 
-    if (padlen == 17)
+    if (padlen == 23)
         xpadlengthmask = 3;
-    else if (padlen == 21)
+    else if (padlen == 26)
         xpadlengthmask = 4;
-    else if (padlen == 29)
+    else if (padlen == 34)
         xpadlengthmask = 5;
-    else if (padlen == 37)
+    else if (padlen == 42)
         xpadlengthmask = 6;
-    else if (padlen == 53)
+    else if (padlen == 58)
         xpadlengthmask = 7;
 
-
+/*
     // Write Data Group Length Indicator
     crc = 0xffff;
 
@@ -481,10 +481,12 @@ void writeMotPAD(int output_fd,
     //fprintf(stderr,"Data Group Length Indicator: ");
     //for (i=0;i<padlen;i++) fprintf(stderr,"%02x ",pad[i]);
     //fprintf(stderr,"\n");
+*/
+
 
     // Write MSC Data Groups
-    numseg = mscdgsize / (padlen-5);
-    lastseglen = mscdgsize % (padlen-5);
+    numseg = mscdgsize / (padlen-10);
+    lastseglen = mscdgsize % (padlen-10);
     if (lastseglen > 0) {
         numseg++;       // The last incomplete segment
     }
@@ -494,7 +496,7 @@ void writeMotPAD(int output_fd,
         int curseglen;
         UCHAR firstseg;
 
-        curseg = &mscdg[i*(padlen-5)];
+        curseg = &mscdg[i*(padlen-10)];
         //fprintf(stderr,"Segment number %d\n",i+1);
 
         if (i == 0)               // First segment
@@ -506,9 +508,9 @@ void writeMotPAD(int output_fd,
             if (lastseglen!=0)
                 curseglen = lastseglen;
             else
-                curseglen = padlen-5;
+                curseglen = padlen-10;
         } else {
-            curseglen = padlen-5;
+            curseglen = padlen-10;
         }
 
         // FF-PAD Byte L (CI=1)
@@ -518,21 +520,38 @@ void writeMotPAD(int output_fd,
         pad[padlen-2] = 0x20;
 
         if (firstseg == 1) {
-            // CI => data length = 12 (011) - Application Type=12 (start of MOT)
-            pad[padlen-3] = (xpadlengthmask<<5) | 12;
+            // Write Data Group Length Indicator
+            crc = 0xffff;
+	    // CI for data group length indicator: data length=4, Application Type=1
+            pad[padlen-3]=0x01;
+            // CI for data group length indicator: Application Type=12 (Start of MOT)
+            pad[padlen-4]=(xpadlengthmask<<5) | 12; 
+            // End of CI list
+            pad[padlen-5]=0x00;
+            // RFA+HI Data group length
+            pad[padlen-6]=(mscdgsize & 0x3F00)>>8;
+            pad[padlen-7]=(mscdgsize & 0x00FF);
+            crc = update_crc_ccitt(crc, pad[padlen-6]);
+            crc = update_crc_ccitt(crc, pad[padlen-7]);
+            crc = ~crc;
+            // HI CRC
+            pad[padlen-8]=(crc & 0xFF00) >> 8;
+            // LO CRC
+            pad[padlen-9]=(crc & 0x00FF);
+            k=10;
         }
         else {
-            // CI => data length = 12 (011) - Application Type=13 (MOT)
+            // CI => data length = 12 (011) - Application Type=13 (Cont. of MOT)
             pad[padlen-3] = (xpadlengthmask<<5) | 13;
+            // End of CI list
+            pad[padlen-4] = 0x00;
+            k=5;
         }
-
-        // End of CI list
-        pad[padlen-4] = 0x00;
 
         for (j = 0; j < curseglen; j++) {
-            pad[padlen-5-j] = curseg[j];
+            pad[padlen-k-j] = curseg[j];
         }
-        for (j = padlen-5-curseglen; j >= 0; j--) {
+        for (j = padlen-k-curseglen; j >= 0; j--) {
             pad[j] = 0x00;
         }
 
@@ -629,15 +648,15 @@ void create_dls_datagroup (char* text, int padlen, UCHAR*** p_dlsdg, int* p_numd
     fprintf(stderr, "Number of DLS segments: %d\n", numseg);
     fprintf(stderr, "Number of DLS data groups: %d\n", numdg);
 
-    if (padlen == 17)
+    if (padlen == 23)
         xpadlengthmask = 3;
-    else if (padlen == 21)
+    else if (padlen == 26)
         xpadlengthmask = 4;
-    else if (padlen == 29)
+    else if (padlen == 34)
         xpadlengthmask = 5;
-    else if (padlen == 37)
+    else if (padlen == 42)
         xpadlengthmask = 6;
-    else if (padlen == 53)
+    else if (padlen == 58)
         xpadlengthmask = 7;
 
     *p_dlsdg = (UCHAR**) malloc(numdg * sizeof(UCHAR*));
