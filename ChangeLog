@@ -1,3 +1,10 @@
+2014-03-29: Matthias P. Braendli <matthias@mpb.li>
+	(v0.3.0):
+		MOT Slideshow and DLS support
+	* fdk-aac encoder:
+		Fix insertion of PAD data (must be in first AU)
+	* mot-encoder:
+		Correct X-PAD encoding
 2014-03-19: Matthias P. Braendli <matthias@mpb.li>
 	(v0.2.2):
 	* README:

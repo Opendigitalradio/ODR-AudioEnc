@@ -14,7 +14,7 @@ and encode to a ZeroMQ output compatible with ODR-DabMux. It supports
 experimental sound card clock drift compensation, that can compensate
 for imprecise sound card clocks.
 
-*dabplus-enc-file-zmq* and *dabplus-enc-alsa-zmq* include experimental
+*dabplus-enc-file-zmq* and *dabplus-enc-alsa-zmq* include
 support for DAB MOT Slideshow and DLS, written by [CSP](http://rd.csp.it).
 
 To encode DLS and Slideshow data, the *mot-encoder* tool reads images
@@ -133,17 +133,30 @@ Wave file encoding, for non-realtime processing
     dabplus-enc-file-zmq -a -b 64 -i wave_file.wav -o station1.dabp
 
 
-Usage of MOT Slideshow
-======================
+Usage of MOT Slideshow and DLS
+==============================
 
-MOT Slideshow is an experimental feature. The *mot-encoder* reads images from
+MOT Slideshow is a new feature, which has been tested on several receivers and
+using [XPADxpert](http://www.basicmaster.de/xpadxpert/), but is still a work
+in progress.
+
+*mot-encoder* reads images from
 the specified folder, and generates the PAD data for the encoder. This is
 communicated through a fifo to the encoder. It also reads DLS from a file, and
 includes this information in the PAD.
 
-Only *dabplus-enc-file-zmq* and *dabplus-enc-alsa-zmq* insert the PAD data from
+*dabplus-enc-file-zmq* and *dabplus-enc-alsa-zmq* can insert the PAD data from
 mot-encoder into the bitstream.
+The mp2 encoder [toolame-dab](https://github.com/Opendigitalradio/toolame-dab)
+can also read *mot-encoder* data.
 
 This is an ongoing development. Make sure you use the same pad length option
-for the mot-encoder and the audio encoder.
+for *mot-encoder* and the audio encoder. Only some pad lengths are supported,
+please see *mot-encoder*'s help.
+
+Known Limitations
+-----------------
+
+*mot-encoder* encodes slides in a 10 second interval, which is not linked
+to the rate at which the encoder reads the PAD data.
 
