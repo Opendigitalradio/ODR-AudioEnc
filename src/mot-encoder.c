@@ -482,44 +482,35 @@ void writeMotPAD(int output_fd,
 
 
     // Write MSC Data Groups
-    numseg = mscdgsize / (padlen-10);
-    lastseglen = mscdgsize % (padlen-10);
-    if (lastseglen > 0) {
-        numseg++;       // The last incomplete segment
-    }
-
-    for (i = 0; i < numseg; i++) {
+    int curseglen, non_ci_seglen;
+    for (i = 0; i < mscdgsize; i += curseglen) {
         UCHAR* curseg;
-        int curseglen;
         UCHAR firstseg;
 
-        curseg = &mscdg[i*(padlen-10)];
-        //fprintf(stderr,"Segment number %d\n",i+1);
+        curseg = &mscdg[i];
+        //fprintf(stderr,"Segment offset %d\n",i);
 
-        if (i == 0)               // First segment
+        if (i == 0) {             // First segment
             firstseg = 1;
-        else
-            firstseg = 0;
-
-        if (i == numseg-1) {      //Last segment
-            if (lastseglen!=0)
-                curseglen = lastseglen;
-            else
-                curseglen = padlen-10;
-        } else {
             curseglen = padlen-10;
+
+            non_ci_seglen = curseglen + 4 + 1 + 2;  // size of first X-PAD = MSC-DG + DGLI-DG + End of CI list + 2x CI = size of subsequent non-CI X-PADs
+        }
+        else {
+            firstseg = 0;
+            curseglen = MIN(non_ci_seglen,mscdgsize-i);
         }
 
-        // FF-PAD Byte L (CI=1)
-        pad[padlen-1] = 0x02;
-
-        // FF-PAD Byte L-1 (Variable size X_PAD)
-        pad[padlen-2] = 0x20;
-
         if (firstseg == 1) {
+            // FF-PAD Byte L (CI=1)
+            pad[padlen-1] = 0x02;
+
+            // FF-PAD Byte L-1 (Variable size X_PAD)
+            pad[padlen-2] = 0x20;
+
             // Write Data Group Length Indicator
             crc = 0xffff;
-	    // CI for data group length indicator: data length=4, Application Type=1
+            // CI for data group length indicator: data length=4, Application Type=1
             pad[padlen-3]=0x01;
             // CI for data group length indicator: Application Type=12 (Start of MOT)
             pad[padlen-4]=(xpadlengthmask<<5) | 12; 
@@ -538,11 +529,12 @@ void writeMotPAD(int output_fd,
             k=10;
         }
         else {
-            // CI => data length = 12 (011) - Application Type=13 (Cont. of MOT)
-            pad[padlen-3] = (xpadlengthmask<<5) | 13;
-            // End of CI list
-            pad[padlen-4] = 0x00;
-            k=5;
+            // FF-PAD Byte L (CI=0)
+            pad[padlen-1] = 0x00;
+
+            // FF-PAD Byte L-1 (Variable size X_PAD)
+            pad[padlen-2] = 0x20;
+            k=3;
         }
 
         for (j = 0; j < curseglen; j++) {
