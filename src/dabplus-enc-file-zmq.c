@@ -31,6 +31,7 @@
 #include <assert.h>
 #include "libAACenc/include/aacenc_lib.h"
 #include "wavreader.h"
+#include "encryption.h"
 
 #include <fec.h>
 #include <sys/types.h>
@@ -76,7 +77,7 @@ void usage(const char* name) {
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
-    //"   -t, --type=TYPE                      Set data type (dls|pad|packet|dg).\n"
+    "     -k, --secret-key=FILE                Set the secret key for encryption.\n"
     //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now.\n"
@@ -116,6 +117,10 @@ int main(int argc, char *argv[]) {
     void *zmq_context = zmq_ctx_new();
     void *zmq_sock = NULL;
 
+    /* Data for ZMQ CURVE authentication */
+    char* keyfile = NULL;
+    char secretkey[CURVE_KEYLEN+1];
+
     const struct option longopts[] = {
         {"bitrate",     required_argument,  0, 'b'},
         {"input",       required_argument,  0, 'i'},
@@ -125,6 +130,7 @@ int main(int argc, char *argv[]) {
         {"channels",    required_argument,  0, 'c'},
         {"pad",         required_argument,  0, 'p'},
         {"pad-fifo",    required_argument,  0, 'P'},
+        {"secret-key",  required_argument,  0, 'k'},
         {"afterburner", no_argument,        0, 'a'},
         {"help",        no_argument,        0, 'h'},
         {0,0,0,0},
@@ -137,7 +143,7 @@ int main(int argc, char *argv[]) {
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "tlhab:c:i:o:r:f:p:P:", longopts, &index);
+        ch = getopt_long(argc, argv, "tlhab:c:i:k:o:r:f:p:P:", longopts, &index);
         switch (ch) {
         case 'f':
             if(strcmp(optarg, "raw")==0) {
@@ -159,6 +165,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'i':
             infile = optarg;
+            break;
+        case 'k':
+            keyfile = optarg;
             break;
         case 'o':
             outuri = optarg;
@@ -255,6 +264,30 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error occurred during zmq_socket: %s\n",
                         zmq_strerror(errno));
                 return 2;
+            }
+            if (keyfile) {
+                fprintf(stderr, "Enabling encryption\n");
+
+                int rc = readkey(keyfile, secretkey);
+                if (rc) {
+                    fprintf(stderr, "Error reading secret key\n");
+                    return 2;
+                }
+
+                const int yes = 1;
+                rc = zmq_setsockopt(zmq_sock, ZMQ_CURVE_SERVER,
+                        &yes, sizeof(yes));
+                if (rc) {
+                    fprintf(stderr, "Error: %s\n", zmq_strerror(errno));
+                    return 2;
+                }
+
+                rc = zmq_setsockopt(zmq_sock, ZMQ_CURVE_SECRETKEY,
+                        secretkey, CURVE_KEYLEN);
+                if (rc) {
+                    fprintf(stderr, "Error: %s\n", zmq_strerror(errno));
+                    return 2;
+                }
             }
             if (zmq_connect(zmq_sock, outuri) != 0) {
                 fprintf(stderr, "Error occurred during zmq_connect: %s\n",

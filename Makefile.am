@@ -47,6 +47,8 @@ dabplus_enc_file_zmq_LDADD     = libfdk-aac.la -lfec -lzmq
 dabplus_enc_file_zmq_CFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
 dabplus_enc_file_zmq_SOURCES   = src/dabplus-enc-file-zmq.c \
 								 src/wavreader.c \
+								 src/encryption.c \
+								 src/encryption.h \
 								 contrib/lib_crc.h \
 								 contrib/lib_crc.c
 
@@ -58,6 +60,8 @@ dabplus_enc_alsa_zmq_SOURCES     = src/dabplus-enc-alsa-zmq.cpp \
 								   src/AlsaInput.cpp \
 								   src/AlsaInput.h \
 								   src/SampleQueue.h \
+								   src/encryption.c \
+								   src/encryption.h \
 								   src/zmq.hpp
 
 

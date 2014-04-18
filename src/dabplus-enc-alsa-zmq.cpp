@@ -21,6 +21,10 @@
 #include "SampleQueue.h"
 #include "zmq.hpp"
 
+extern "C" {
+#include "encryption.h"
+}
+
 #include <string>
 #include <getopt.h>
 #include <cstdio>
@@ -81,7 +85,7 @@ void usage(const char* name) {
     "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
-    //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
+    "     -k, --secret-key=FILE                Set the secret key for encryption.\n"
     //"   -V, --version                        Print version and exit.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now.\n"
@@ -231,6 +235,11 @@ int main(int argc, char *argv[])
     unsigned char pad_buf[128];
     int padlen;
 
+
+    /* Data for ZMQ CURVE authentication */
+    char* keyfile = NULL;
+    char secretkey[CURVE_KEYLEN+1];
+
     const struct option longopts[] = {
         {"bitrate",     required_argument,  0, 'b'},
         {"output",      required_argument,  0, 'o'},
@@ -239,6 +248,7 @@ int main(int argc, char *argv[])
         {"channels",    required_argument,  0, 'c'},
         {"pad",         required_argument,  0, 'p'},
         {"pad-fifo",    required_argument,  0, 'P'},
+        {"secret-key",  required_argument,  0, 'k'},
         {"drift-comp",  no_argument,        0, 'D'},
         {"afterburner", no_argument,        0, 'a'},
         {"help",        no_argument,        0, 'h'},
@@ -252,7 +262,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hab:c:o:r:d:Dp:P:", longopts, &index);
+        ch = getopt_long(argc, argv, "hab:c:k:o:r:d:Dp:P:", longopts, &index);
         switch (ch) {
         case 'd':
             alsa_device = optarg;
@@ -271,6 +281,9 @@ int main(int argc, char *argv[])
             break;
         case 'o':
             outuri = optarg;
+            break;
+        case 'k':
+            keyfile = optarg;
             break;
         case 'D':
             drift_compensation = true;
@@ -328,6 +341,23 @@ int main(int argc, char *argv[])
 
     zmq::context_t zmq_ctx;
     zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
+
+    if (keyfile) {
+        fprintf(stderr, "Enabling encryption\n");
+
+        int rc = readkey(keyfile, secretkey);
+        if (rc) {
+            fprintf(stderr, "Error reading secret key\n");
+            return 2;
+        }
+
+        const int yes = 1;
+        zmq_sock.setsockopt(ZMQ_CURVE_SERVER,
+                &yes, sizeof(yes));
+
+        zmq_sock.setsockopt(ZMQ_CURVE_SECRETKEY,
+                secretkey, CURVE_KEYLEN);
+    }
     zmq_sock.connect(outuri);
 
     HANDLE_AACENCODER encoder;
