@@ -78,6 +78,7 @@ void usage(const char* name) {
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
     "     -k, --secret-key=FILE                Set the secret key for encryption.\n"
+    "     -s, --suppress-dots                  Do not show the little dots.\n"
     //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now.\n"
@@ -117,22 +118,25 @@ int main(int argc, char *argv[]) {
     void *zmq_context = zmq_ctx_new();
     void *zmq_sock = NULL;
 
+    int show_dots = 1;
+
     /* Data for ZMQ CURVE authentication */
     char* keyfile = NULL;
     char secretkey[CURVE_KEYLEN+1];
 
     const struct option longopts[] = {
-        {"bitrate",     required_argument,  0, 'b'},
-        {"input",       required_argument,  0, 'i'},
-        {"output",      required_argument,  0, 'o'},
-        {"format",      required_argument,  0, 'f'},
-        {"rate",        required_argument,  0, 'r'},
-        {"channels",    required_argument,  0, 'c'},
-        {"pad",         required_argument,  0, 'p'},
-        {"pad-fifo",    required_argument,  0, 'P'},
-        {"secret-key",  required_argument,  0, 'k'},
-        {"afterburner", no_argument,        0, 'a'},
-        {"help",        no_argument,        0, 'h'},
+        {"bitrate",       required_argument,  0, 'b'},
+        {"input",         required_argument,  0, 'i'},
+        {"output",        required_argument,  0, 'o'},
+        {"format",        required_argument,  0, 'f'},
+        {"rate",          required_argument,  0, 'r'},
+        {"channels",      required_argument,  0, 'c'},
+        {"pad",           required_argument,  0, 'p'},
+        {"pad-fifo",      required_argument,  0, 'P'},
+        {"secret-key",    required_argument,  0, 'k'},
+        {"afterburner",   no_argument,        0, 'a'},
+        {"help",          no_argument,        0, 'h'},
+        {"suppress-dots", no_argument,        0, 's'},
         {0,0,0,0},
     };
 
@@ -177,6 +181,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'P':
             pad_fifo = optarg;
+            break;
+        case 's':
+            show_dots = 0;
             break;
         case '?':
         case 'h':
@@ -556,7 +563,8 @@ int main(int argc, char *argv[]) {
         }
         //fwrite(outbuf, 1, /*out_args.numOutBytes*/ outbuf_size, out_fh);
         //fprintf(stderr, "Written %d/%d bytes!\n", out_args.numOutBytes + row*10, outbuf_size);
-        if(out_args.numOutBytes + row*10 == outbuf_size)
+        if (show_dots &&
+                out_args.numOutBytes + row*10 == outbuf_size)
             fprintf(stderr, ".");
 
 //      if(frame > 10)
