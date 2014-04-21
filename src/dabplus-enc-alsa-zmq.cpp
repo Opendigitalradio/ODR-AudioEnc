@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hab:c:k:o:r:d:Dp:P:", longopts, &index);
+        ch = getopt_long(argc, argv, "hab:c:k:o:r:d:Dp:P:s", longopts, &index);
         switch (ch) {
         case 'd':
             alsa_device = optarg;
