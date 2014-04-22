@@ -438,49 +438,6 @@ void writeMotPAD(int output_fd,
 
     xpadlengthmask = get_xpadlengthmask(padlen);
 
-/*
-    // Write Data Group Length Indicator
-    crc = 0xffff;
-
-    // FF-PAD Byte L (CI=1)
-    pad[padlen-1] = 0x02;
-
-    // FF-PAD Byte L-1 (Variable size X_PAD)
-    pad[padlen-2] = 0x20;
-
-    // CI => data length = 12 (011) - Application Type=2 (DLS - start of X-PAD data group)
-    pad[padlen-3] = (xpadlengthmask << 5) | 0x01;
-
-    // End of CI list
-    pad[padlen-4] = 0x00;
-
-    // RFA+HI Data group length
-    pad[padlen-5] = (mscdgsize & 0x3F00) >> 8;
-    pad[padlen-6] = (mscdgsize & 0x00FF);
-
-    crc = update_crc_ccitt(crc, pad[padlen-5]);
-    crc = update_crc_ccitt(crc, pad[padlen-6]);
-    crc = ~crc;
-
-    // HI CRC
-    pad[padlen-7] = (crc & 0xFF00) >> 8;
-
-    // LO CRC
-    pad[padlen-8] = (crc & 0x00FF);
-
-    // NULL PADDING
-    for (i = padlen-9; i >= 0; i--) {
-        pad[i] = 0x00;
-    }
-
-    write(output_fd, pad, padlen);
-
-    //fprintf(stderr,"Data Group Length Indicator: ");
-    //for (i=0;i<padlen;i++) fprintf(stderr,"%02x ",pad[i]);
-    //fprintf(stderr,"\n");
-*/
-
-
     // Write MSC Data Groups
     int curseglen, non_ci_seglen;
     for (i = 0; i < mscdgsize; i += curseglen) {
