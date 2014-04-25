@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
     int raw_input = 0;
 
     // For the file output
-    FILE *out_fh;
+    FILE *out_fh = NULL;
 
     const char *outuri = NULL;
     int sample_rate=48000, channels=2;
@@ -667,29 +667,34 @@ int main(int argc, char *argv[])
                 }
             }
 
-            // ------------ ZeroMQ transmit
-            try {
-                zmq_frame_header->version = 1;
-                zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
-                zmq_frame_header->datasize = outbuf_size;
-                zmq_frame_header->audiolevel_left = peak_left;
-                zmq_frame_header->audiolevel_right = peak_right;
-
-                memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
-                        outbuf, outbuf_size);
-
-                zmq_sock.send(zmqframebuf, ZMQ_FRAME_SIZE(zmq_frame_header),
-                        ZMQ_DONTWAIT);
+            if (out_fh) {
+                fwrite(outbuf, 1, outbuf_size, out_fh);
             }
-            catch (zmq::error_t& e) {
-                fprintf(stderr, "ZeroMQ send error !\n");
-                send_error_count ++;
-            }
+            else {
+                // ------------ ZeroMQ transmit
+                try {
+                    zmq_frame_header->version = 1;
+                    zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
+                    zmq_frame_header->datasize = outbuf_size;
+                    zmq_frame_header->audiolevel_left = peak_left;
+                    zmq_frame_header->audiolevel_right = peak_right;
 
-            if (send_error_count > 10)
-            {
-                fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
-                break;
+                    memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
+                            outbuf, outbuf_size);
+
+                    zmq_sock.send(zmqframebuf, ZMQ_FRAME_SIZE(zmq_frame_header),
+                            ZMQ_DONTWAIT);
+                }
+                catch (zmq::error_t& e) {
+                    fprintf(stderr, "ZeroMQ send error !\n");
+                    send_error_count ++;
+                }
+
+                if (send_error_count > 10)
+                {
+                    fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
+                    break;
+                }
             }
 
             if (out_args.numOutBytes + row*10 == outbuf_size) {
@@ -718,6 +723,10 @@ int main(int argc, char *argv[])
         fflush(stdout);
     }
     fprintf(stderr, "\n");
+
+    if (out_fh) {
+        fclose(out_fh);
+    }
 
     zmq_sock.close();
     free_rs_char(rs_handler);
