@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <unistd.h>
 #include <stdint.h>
+#include <math.h>
 
 /* Taken from sox */
 const char* level(int channel, int* peak)

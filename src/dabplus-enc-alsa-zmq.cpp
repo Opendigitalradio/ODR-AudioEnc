@@ -399,7 +399,10 @@ int main(int argc, char *argv[])
     }
 
     int outbuf_size = subchannel_index*120;
-    uint8_t outbuf[20480];
+    uint8_t zmqframebuf[2048];
+    zmq_frame_header_t *zmq_frame_header = (zmq_frame_header_t*)zmqframebuf;
+
+    uint8_t outbuf[2048];
 
     if(outbuf_size % 5 != 0) {
         fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
@@ -585,7 +588,17 @@ int main(int argc, char *argv[])
 
             // ------------ ZeroMQ transmit
             try {
-                zmq_sock.send(outbuf, outbuf_size, ZMQ_DONTWAIT);
+                zmq_frame_header->version = 1;
+                zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
+                zmq_frame_header->datasize = outbuf_size;
+                zmq_frame_header->audiolevel_left = peak_left;
+                zmq_frame_header->audiolevel_right = peak_right;
+
+                memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
+                        outbuf, outbuf_size);
+
+                zmq_sock.send(zmqframebuf, ZMQ_FRAME_SIZE(zmq_frame_header),
+                        ZMQ_DONTWAIT);
             }
             catch (zmq::error_t& e) {
                 fprintf(stderr, "ZeroMQ send error !\n");
