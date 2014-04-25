@@ -49,6 +49,8 @@ dabplus_enc_file_zmq_SOURCES   = src/dabplus-enc-file-zmq.c \
 								 src/wavreader.c \
 								 src/encryption.c \
 								 src/encryption.h \
+								 src/utils.c \
+								 src/utils.h \
 								 contrib/lib_crc.h \
 								 contrib/lib_crc.c
 
@@ -62,7 +64,9 @@ dabplus_enc_alsa_zmq_SOURCES     = src/dabplus-enc-alsa-zmq.cpp \
 								   src/SampleQueue.h \
 								   src/encryption.c \
 								   src/encryption.h \
-								   src/zmq.hpp
+								   src/zmq.hpp \
+								   src/utils.c \
+								   src/utils.h
 
 
 mot_encoder_CFLAGS   = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib

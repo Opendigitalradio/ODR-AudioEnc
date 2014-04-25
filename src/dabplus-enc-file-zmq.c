@@ -32,6 +32,7 @@
 #include "libAACenc/include/aacenc_lib.h"
 #include "wavreader.h"
 #include "encryption.h"
+#include "utils.h"
 
 #include <fec.h>
 #include <sys/types.h>
@@ -40,9 +41,6 @@
 #include <errno.h>
 
 #include "contrib/lib_crc.h"
-
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
 
 void usage(const char* name) {
     fprintf(stderr,
@@ -78,7 +76,7 @@ void usage(const char* name) {
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
     "     -k, --secret-key=FILE                Set the secret key for encryption.\n"
-    "     -s, --suppress-dots                  Do not show the little dots.\n"
+    "     -l, --level                          Show level indication.\n"
     //"   -v, --verbose=LEVEL                  Set verbosity level.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now.\n"
@@ -103,6 +101,11 @@ int main(int argc, char *argv[]) {
     int wav_format, bits_per_sample, sample_rate=48000, channels=2;
     uint8_t* input_buf;
     int16_t* convert_buf;
+
+    /* Keep track of peaks */
+    int peak_left  = 0;
+    int peak_right = 0;
+
     void *rs_handler = NULL;
     int aot = AOT_DABPLUS_AAC_LC;
     int afterburner = 0, raw_input=0;
@@ -118,7 +121,7 @@ int main(int argc, char *argv[]) {
     void *zmq_context = zmq_ctx_new();
     void *zmq_sock = NULL;
 
-    int show_dots = 1;
+    int show_level = 0;
 
     /* Data for ZMQ CURVE authentication */
     char* keyfile = NULL;
@@ -136,7 +139,7 @@ int main(int argc, char *argv[]) {
         {"secret-key",    required_argument,  0, 'k'},
         {"afterburner",   no_argument,        0, 'a'},
         {"help",          no_argument,        0, 'h'},
-        {"suppress-dots", no_argument,        0, 's'},
+        {"level",         no_argument,        0, 'l'},
         {0,0,0,0},
     };
 
@@ -182,8 +185,8 @@ int main(int argc, char *argv[]) {
         case 'P':
             pad_fifo = optarg;
             break;
-        case 's':
-            show_dots = 0;
+        case 'l':
+            show_level = 1;
             break;
         case '?':
         case 'h':
@@ -479,6 +482,11 @@ int main(int argc, char *argv[]) {
             convert_buf[i] = in[0] | (in[1] << 8);
         }
 
+        for (i = 0; i < pcmread/2; i+=2) {
+            peak_left  = MAX(peak_left,  convert_buf[i]);
+            peak_right = MAX(peak_right, convert_buf[i+1]);
+        }
+
         if (pcmread <= 0) {
             in_args.numInSamples = -1;
         } else {
@@ -563,14 +571,17 @@ int main(int argc, char *argv[]) {
         }
         //fwrite(outbuf, 1, /*out_args.numOutBytes*/ outbuf_size, out_fh);
         //fprintf(stderr, "Written %d/%d bytes!\n", out_args.numOutBytes + row*10, outbuf_size);
-        if (show_dots &&
-                out_args.numOutBytes + row*10 == outbuf_size)
-            fprintf(stderr, ".");
 
-//      if(frame > 10)
-//          break;
+        if (show_level && out_args.numOutBytes + row*10 == outbuf_size) {
+            fprintf(stderr, "\rIn: [%6s|%-6s]",
+                    level(0, &peak_left),
+                    level(1, &peak_right));
+        }
+
         frame++;
     }
+    fprintf(stderr, "\n");
+
     free(input_buf);
     free(convert_buf);
     if(raw_input) {
