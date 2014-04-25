@@ -23,7 +23,9 @@
 
 extern "C" {
 #include "encryption.h"
+#include "utils.h"
 }
+
 
 #include <string>
 #include <getopt.h>
@@ -86,7 +88,7 @@ void usage(const char* name) {
     "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
     "     -k, --secret-key=FILE                Set the secret key for encryption.\n"
-    "     -s, --suppress-dots                  Do not show the little dots.\n"
+    "     -l, --level                          Show level indication.\n"
     //"   -V, --version                        Print version and exit.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now.\n"
@@ -182,41 +184,13 @@ int prepare_aac_encoder(
     return 0;
 }
 
-/* Get the number of columns of the terminal this runs in
- */
-int get_win_columns()
-{
-    struct winsize w;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
-        return 0;
-    }
-
-    return w.ws_col;
-}
-
-#define WINDOW_MARGIN_RIGHT 6
-
-/* Add line breaks in regular intervals to the
- * little sequence of dots because my terminal
- */
-void print_status(const char* status, int *consumed_cols)
-{
-    fprintf(stdout, "%s", status);
-    *consumed_cols -= strnlen(status, *consumed_cols);
-
-    if (*consumed_cols <= 0) {
-        fprintf(stdout, "\n");
-        *consumed_cols = get_win_columns();
-
-        // Guarantee that it's never negative
-        if (*consumed_cols > WINDOW_MARGIN_RIGHT)
-            *consumed_cols -= WINDOW_MARGIN_RIGHT;
-    }
-}
-
 #define no_argument 0
 #define required_argument 1
 #define optional_argument 2
+
+#define STATUS_PAD_INSERTED 0x1
+#define STATUS_OVERRUN 0x2
+#define STATUS_UNDERRUN 0x4
 
 int main(int argc, char *argv[])
 {
@@ -231,13 +205,18 @@ int main(int argc, char *argv[])
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
 
+    /* Keep track of peaks */
+    int peak_left  = 0;
+    int peak_right = 0;
+
+
     const char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
     unsigned char pad_buf[128];
     int padlen;
 
-    int show_dots = 1;
-
+    int status = 0;
+    int show_level = 0;
 
     /* Data for ZMQ CURVE authentication */
     char* keyfile = NULL;
@@ -255,7 +234,7 @@ int main(int argc, char *argv[])
         {"drift-comp",    no_argument,        0, 'D'},
         {"afterburner",   no_argument,        0, 'a'},
         {"help",          no_argument,        0, 'h'},
-        {"suppress-dots", no_argument,        0, 's'},
+        {"level",         no_argument,        0, 'l'},
         {0,0,0,0},
     };
 
@@ -266,7 +245,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hab:c:k:o:r:d:Dp:P:s", longopts, &index);
+        ch = getopt_long(argc, argv, "ahDlb:c:k:o:r:d:p:P:", longopts, &index);
         switch (ch) {
         case 'd':
             alsa_device = optarg;
@@ -298,8 +277,8 @@ int main(int argc, char *argv[])
         case 'P':
             pad_fifo = optarg;
             break;
-        case 's':
-            show_dots = 0;
+        case 'l':
+            show_level = 1;
             break;
         case '?':
         case 'h':
@@ -428,8 +407,6 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Starting encoding\n");
 
-    int remaining_line_len = get_win_columns() - 6;
-
     int send_error_count = 0;
     struct timespec tp_next;
     clock_gettime(CLOCK_MONOTONIC, &tp_next);
@@ -495,7 +472,7 @@ int main(int argc, char *argv[])
             // Otherwise, you're good to go and buffer should contain "count" bytes.
             in_buf.numBufs = 2;    // Samples + Data;
             if (ret > 0)
-                print_status("p", &remaining_line_len);
+                status |= STATUS_PAD_INSERTED;
         }
         else {
             // Some other error occurred during read.
@@ -517,13 +494,11 @@ int main(int argc, char *argv[])
             read = queue.pop(input_buf, input_size, &overruns); // returns bytes
 
             if (read != input_size) {
-                print_status("U", &remaining_line_len);
+                status |= STATUS_UNDERRUN;
             }
 
             if (overruns) {
-                char status[16];
-                snprintf(status, 16, "O%zu", overruns);
-                print_status(status, &remaining_line_len);
+                status |= STATUS_OVERRUN;
             }
         }
         else {
@@ -534,6 +509,13 @@ int main(int argc, char *argv[])
             else if (read != input_size) {
                 fprintf(stderr, "Short alsa read !\n");
             }
+        }
+
+        for (int i = 0; i < read; i+=4) {
+            int16_t l = input_buf[i] | (input_buf[i+1] << 8);
+            int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
+            peak_left  = MAX(peak_left,  l);
+            peak_right = MAX(peak_right, r);
         }
 
         // -------------- AAC Encoding
@@ -616,18 +598,25 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            if (show_dots &&
-                    out_args.numOutBytes + row*10 == outbuf_size)
-                print_status(".", &remaining_line_len);
+            if (show_level && out_args.numOutBytes + row*10 == outbuf_size) {
+                fprintf(stderr, "\rIn: [%6s|%-6s] %1s %1s %1s",
+                        level(0, &peak_left),
+                        level(1, &peak_right),
+                        status & STATUS_PAD_INSERTED ? "P" : " ",
+                        status & STATUS_UNDERRUN ? "U" : " ",
+                        status & STATUS_OVERRUN ? "O" : " ");
+            }
+
+            status = 0;
         }
 
         fflush(stdout);
     }
+    fprintf(stderr, "\n");
 
     zmq_sock.close();
     free_rs_char(rs_handler);
 
     aacEncClose(&encoder);
-
 }
 
