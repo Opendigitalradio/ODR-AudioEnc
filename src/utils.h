@@ -37,9 +37,9 @@ struct zmq_frame_header_t
 #define ZMQ_ENCODER_FDK 1
 
 /* The expected frame size incl data of the given frame */
-#define ZMQ_FRAME_SIZE(f) (sizeof(zmq_frame_header_t) + f->datasize)
+#define ZMQ_FRAME_SIZE(f) (sizeof(struct zmq_frame_header_t) + f->datasize)
 
-#define ZMQ_FRAME_DATA(f) ( ((uint8_t*)f)+sizeof(zmq_frame_header_t) )
+#define ZMQ_FRAME_DATA(f) ( ((uint8_t*)f)+sizeof(struct zmq_frame_header_t) )
 
 
 #endif

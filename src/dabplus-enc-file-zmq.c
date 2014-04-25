@@ -412,9 +412,12 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    int loops = 0;
     int outbuf_size = subchannel_index*120;
-    uint8_t outbuf[20480];
+    uint8_t zmqframebuf[2048];
+    struct zmq_frame_header_t *zmq_frame_header =
+        (struct zmq_frame_header_t*)zmqframebuf;
+
+    uint8_t outbuf[2048];
 
     if(outbuf_size % 5 != 0) {
         fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
@@ -554,7 +557,17 @@ int main(int argc, char *argv[]) {
         }
 
         if (zmq_sock) {
-            send_error = zmq_send(zmq_sock, outbuf, outbuf_size, ZMQ_DONTWAIT);
+            zmq_frame_header->version = 1;
+            zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
+            zmq_frame_header->datasize = outbuf_size;
+            zmq_frame_header->audiolevel_left = peak_left;
+            zmq_frame_header->audiolevel_right = peak_right;
+
+            memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
+                    outbuf, outbuf_size);
+
+            send_error = zmq_send(zmq_sock, zmqframebuf,
+                    ZMQ_FRAME_SIZE(zmq_frame_header), ZMQ_DONTWAIT);
             if (send_error < 0) {
                 fprintf(stderr, "ZeroMQ send failed! %s\n", zmq_strerror(errno));
                 send_error_count ++;
