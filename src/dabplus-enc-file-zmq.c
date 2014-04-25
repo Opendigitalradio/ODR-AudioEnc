@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "tlhab:c:i:k:o:r:f:p:P:s", longopts, &index);
+        ch = getopt_long(argc, argv, "tlhab:c:i:k:o:r:f:p:P:", longopts, &index);
         switch (ch) {
         case 'f':
             if(strcmp(optarg, "raw")==0) {
