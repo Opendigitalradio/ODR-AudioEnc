@@ -60,8 +60,8 @@ void usage(const char* name) {
     "make sure that the encoding rate is correct by inserting or deleting\n"
     "audio samples.\n"
     "\n"
-    "When this option is enabled, you will see U and O<number> printed in\n"
-    "the console. These correspond to audio underruns and overruns caused\n"
+    "When this option is enabled, you will see U and O printed in the\n"
+    "console. These correspond to audio underruns and overruns caused\n"
     "by sound card clock drift. When sparse, they should not create audible\n"
     "artifacts.\n"
     "\n"
@@ -692,13 +692,24 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            if (show_level && out_args.numOutBytes + row*10 == outbuf_size) {
-                fprintf(stderr, "\rIn: [%6s|%-6s] %1s %1s %1s",
-                        level(0, &peak_left),
-                        level(1, &peak_right),
-                        status & STATUS_PAD_INSERTED ? "P" : " ",
-                        status & STATUS_UNDERRUN ? "U" : " ",
-                        status & STATUS_OVERRUN ? "O" : " ");
+            if (out_args.numOutBytes + row*10 == outbuf_size) {
+                if (show_level) {
+                    fprintf(stderr, "\rIn: [%6s|%-6s] %1s %1s %1s",
+                            level(0, &peak_left),
+                            level(1, &peak_right),
+                            status & STATUS_PAD_INSERTED ? "P" : " ",
+                            status & STATUS_UNDERRUN ? "U" : " ",
+                            status & STATUS_OVERRUN ? "O" : " ");
+                }
+                else {
+                    if (status & STATUS_OVERRUN) {
+                        fprintf(stderr, "O");
+                    }
+
+                    if (status & STATUS_UNDERRUN) {
+                        fprintf(stderr, "U");
+                    }
+                }
             }
 
             status = 0;
