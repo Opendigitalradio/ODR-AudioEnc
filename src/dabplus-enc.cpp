@@ -604,14 +604,17 @@ int main(int argc, char *argv[])
 
         // -------------- AAC Encoding
 
+        int calculated_padlen = ret > 0 ? padlen : 0;
+
+
         in_ptr[0] = input_buf;
         in_ptr[1] = pad_buf;
         in_size[0] = read;
-        in_size[1] = padlen;
+        in_size[1] = calculated_padlen;
         in_elem_size[0] = BYTES_PER_SAMPLE;
         in_elem_size[1] = sizeof(uint8_t);
         in_args.numInSamples = input_size/BYTES_PER_SAMPLE;
-        in_args.numAncBytes = padlen;
+        in_args.numAncBytes = calculated_padlen;
 
         in_buf.bufs = (void**)&in_ptr;
         in_buf.bufferIdentifiers = in_identifier;
