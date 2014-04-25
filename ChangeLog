@@ -1,3 +1,17 @@
+2014-04-25: Matthias P. Braendli <matthias@mpb.li>
+	(v0.4.0):
+		Merge of dabplus-enc-file-zmq and dabplus-enc-alsa-zmq
+		into dabplus-enc, that now supports ALSA input,
+		file input and output, and ZeroMQ output.
+		This gets rid of quite some duplicated code.
+	* dabplus-enc:
+		Support for ZeroMQ authentication.
+		Peak audio level indicator with -l option and
+		removal of the little dots.
+		New ZeroMQ message format.
+	* mot-encoder:
+		Acceleration of MOT Slideshow transfer.
+
 2014-03-29: Matthias P. Braendli <matthias@mpb.li>
 	(v0.3.0):
 		MOT Slideshow and DLS support

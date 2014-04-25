@@ -1,7 +1,7 @@
 dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([fdk-aac-dabplus], [0.3.0], [http://opendigitalradio.org/])
+AC_INIT([fdk-aac-dabplus], [0.4.0], [http://opendigitalradio.org/])
 AC_CONFIG_AUX_DIR(.)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([tar-ustar foreign])
