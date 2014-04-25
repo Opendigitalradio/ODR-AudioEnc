@@ -43,31 +43,22 @@ libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
 #aac_enc_SOURCES = src/aac-enc.c \
 #				  src/wavreader.c
 
-dabplus_enc_file_zmq_LDADD     = libfdk-aac.la -lfec -lzmq
-dabplus_enc_file_zmq_CFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
-dabplus_enc_file_zmq_SOURCES   = src/dabplus-enc-file-zmq.c \
-								 src/wavreader.c \
-								 src/encryption.c \
-								 src/encryption.h \
-								 src/utils.c \
-								 src/utils.h \
-								 contrib/lib_crc.h \
-								 contrib/lib_crc.c
-
-dabplus_enc_alsa_zmq_LDFLAGS     = -no-install
-dabplus_enc_alsa_zmq_LDADD       = libfdk-aac.la -lfec -lzmq -lasound \
+dabplus_enc_LDFLAGS     = -no-install
+dabplus_enc_LDADD       = libfdk-aac.la -lfec -lzmq -lasound \
 								   -lrt -lboost_thread
-dabplus_enc_alsa_zmq_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
-dabplus_enc_alsa_zmq_SOURCES     = src/dabplus-enc-alsa-zmq.cpp \
-								   src/AlsaInput.cpp \
-								   src/AlsaInput.h \
-								   src/SampleQueue.h \
-								   src/encryption.c \
-								   src/encryption.h \
-								   src/zmq.hpp \
-								   src/utils.c \
-								   src/utils.h
-
+dabplus_enc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
+dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
+						  src/FileInput.cpp \
+						  src/FileInput.h \
+						  src/AlsaInput.cpp \
+						  src/AlsaInput.h \
+						  src/SampleQueue.h \
+						  src/encryption.c \
+						  src/encryption.h \
+						  src/zmq.hpp \
+						  src/utils.c \
+						  src/utils.h \
+						  src/wavreader.c
 
 mot_encoder_CFLAGS   = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
@@ -75,8 +66,7 @@ mot_encoder_SOURCES  = src/mot-encoder.c \
 					   contrib/lib_crc.h \
 					   contrib/lib_crc.c
 
-bin_PROGRAMS =  dabplus-enc-file-zmq$(EXEEXT) \
-				dabplus-enc-alsa-zmq$(EXEEXT) \
+bin_PROGRAMS =  dabplus-enc$(EXEEXT) \
 				mot-encoder$(EXEEXT)
 
 noinst_HEADERS = src/wavreader.h

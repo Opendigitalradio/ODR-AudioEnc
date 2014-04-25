@@ -27,18 +27,19 @@
 
 #include "SampleQueue.h"
 
-using namespace std;
-
 // 16 bits per sample is fine for now
 #define BYTES_PER_SAMPLE 2
 
 // How many samples we insert into the queue each call
 #define NUM_SAMPLES_PER_CALL 10 // 10 samples @ 32kHz = 3.125ms
 
+/* Common functionality for the direct alsa input and the
+ * threaded alsa input
+ */
 class AlsaInput
 {
     public:
-        AlsaInput(const string& alsa_dev,
+        AlsaInput(const std::string& alsa_dev,
                 unsigned int channels,
                 unsigned int rate) :
             m_alsa_dev(alsa_dev),
@@ -57,12 +58,10 @@ class AlsaInput
         /* Prepare the audio input */
         int prepare();
 
-        virtual void start() = 0;
-
     protected:
         ssize_t m_read(uint8_t* buf, snd_pcm_uframes_t length);
 
-        string m_alsa_dev;
+        std::string m_alsa_dev;
         unsigned int m_channels;
         unsigned int m_rate;
 
@@ -75,12 +74,10 @@ class AlsaInput
 class AlsaInputDirect : public AlsaInput
 {
     public:
-        AlsaInputDirect(const string& alsa_dev,
+        AlsaInputDirect(const std::string& alsa_dev,
                 unsigned int channels,
                 unsigned int rate) :
             AlsaInput(alsa_dev, channels, rate) { }
-
-        virtual void start() { };
 
         /* Read length Bytes from from the alsa device.
          * length must be a multiple of channels * bytes_per_sample.
@@ -97,7 +94,7 @@ class AlsaInputDirect : public AlsaInput
 class AlsaInputThreaded : public AlsaInput
 {
     public:
-        AlsaInputThreaded(const string& alsa_dev,
+        AlsaInputThreaded(const std::string& alsa_dev,
                 unsigned int channels,
                 unsigned int rate,
                 SampleQueue<uint8_t>& queue) :
@@ -115,6 +112,7 @@ class AlsaInputThreaded : public AlsaInput
             }
         }
 
+        /* Start the ALSA thread that fills the queue */
         virtual void start();
 
         bool fault_detected() { return m_fault; };

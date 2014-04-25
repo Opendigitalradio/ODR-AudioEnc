@@ -18,14 +18,15 @@
  */
 
 #include "AlsaInput.h"
+#include "FileInput.h"
 #include "SampleQueue.h"
 #include "zmq.hpp"
 
 extern "C" {
 #include "encryption.h"
 #include "utils.h"
+#include "wavreader.h"
 }
-
 
 #include <string>
 #include <getopt.h>
@@ -47,8 +48,8 @@ using namespace std;
 
 void usage(const char* name) {
     fprintf(stderr,
-    "dabplus-enc-alsa-zmq %s is a HE-AACv2 encoder for DAB+\n"
-    "based on fdk-aac-dabplus that can read from a ALSA source\n"
+    "dabplus-enc %s is a HE-AACv2 encoder for DAB+\n"
+    "based on fdk-aac-dabplus that can read from a ALSA or file source\n"
     "and encode to a ZeroMQ output for ODR-DabMux.\n"
     "\n"
     "The -D option enables experimental sound card clock drift compensation.\n"
@@ -69,7 +70,7 @@ void usage(const char* name) {
     "\n"
     "  http://opendigitalradio.org\n"
     "\nUsage:\n"
-    "%s [OPTION...]\n",
+    "%s (-i file|-d alsa_device) [OPTION...]\n",
 #if defined(GITVERSION)
     GITVERSION
 #else
@@ -77,21 +78,27 @@ void usage(const char* name) {
 #endif
     , name);
     fprintf(stderr,
-    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
+    "   For the alsa input:\n"
+    "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
     "     -D, --drift-comp                     Enable ALSA sound card drift compensation.\n"
-    //"   -i, --input=FILENAME                 Input filename (default: stdin).\n"
+    "   For the file input:\n"
+    "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
+    "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
+    "   Encoder parameters:\n"
+    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
     "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
+    "                                     -or- Output file uri. (e.g. 'file.dab')\n"
+    "                                     -or- a single dash '-' to denote stdout\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
     "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name (default: /tmp/pad.fifo).\n"
-    "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
-    "     -c, --channels={ 1, 2 }              Nb of input channels for raw input (default: 2).\n"
-    "     -r, --rate={ 32000, 48000 }          Sample rate for raw input (default: 48000).\n"
-    "     -k, --secret-key=FILE                Set the secret key for encryption.\n"
-    "     -l, --level                          Show level indication.\n"
-    //"   -V, --version                        Print version and exit.\n"
+    "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
+    "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
+    "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
+    "     -l, --level                          Show peak audio level indication.\n"
     "\n"
-    "Only the tcp:// zeromq transport has been tested until now.\n"
+    "Only the tcp:// zeromq transport has been tested until now,\n"
+    " but epgm:// and pgm:// are also accepted\n"
     );
 
 }
@@ -196,7 +203,17 @@ int main(int argc, char *argv[])
 {
     int subchannel_index = 8; //64kbps subchannel
     int ch=0;
-    const char *alsa_device = "default";
+
+    // For the ALSA input
+    const char *alsa_device = NULL;
+
+    // For the file input
+    const char *infile = NULL;
+    int raw_input = 0;
+
+    // For the file output
+    FILE *out_fh;
+
     const char *outuri = NULL;
     int sample_rate=48000, channels=2;
     const int bytes_per_sample = 2;
@@ -209,13 +226,16 @@ int main(int argc, char *argv[])
     int peak_left  = 0;
     int peak_right = 0;
 
-
+    /* For MOT Slideshow and DLS insertion */
     const char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
     unsigned char pad_buf[128];
     int padlen;
 
+    /* Encoder status, see the above STATUS macros */
     int status = 0;
+
+    /* Whether to show the 'sox'-like measurement */
     int show_level = 0;
 
     /* Data for ZMQ CURVE authentication */
@@ -224,15 +244,17 @@ int main(int argc, char *argv[])
 
     const struct option longopts[] = {
         {"bitrate",       required_argument,  0, 'b'},
-        {"output",        required_argument,  0, 'o'},
-        {"device",        required_argument,  0, 'd'},
-        {"rate",          required_argument,  0, 'r'},
         {"channels",      required_argument,  0, 'c'},
+        {"device",        required_argument,  0, 'd'},
+        {"format",        required_argument,  0, 'f'},
+        {"input",         required_argument,  0, 'i'},
+        {"output",        required_argument,  0, 'o'},
         {"pad",           required_argument,  0, 'p'},
         {"pad-fifo",      required_argument,  0, 'P'},
+        {"rate",          required_argument,  0, 'r'},
         {"secret-key",    required_argument,  0, 'k'},
-        {"drift-comp",    no_argument,        0, 'D'},
         {"afterburner",   no_argument,        0, 'a'},
+        {"drift-comp",    no_argument,        0, 'D'},
         {"help",          no_argument,        0, 'h'},
         {"level",         no_argument,        0, 'l'},
         {0,0,0,0},
@@ -245,11 +267,8 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ahDlb:c:k:o:r:d:p:P:", longopts, &index);
+        ch = getopt_long(argc, argv, "ahDlb:c:f:i:k:o:r:d:p:P:", longopts, &index);
         switch (ch) {
-        case 'd':
-            alsa_device = optarg;
-            break;
         case 'a':
             afterburner = true;
             break;
@@ -259,17 +278,29 @@ int main(int argc, char *argv[])
         case 'c':
             channels = atoi(optarg);
             break;
-        case 'r':
-            sample_rate = atoi(optarg);
+        case 'd':
+            alsa_device = optarg;
             break;
-        case 'o':
-            outuri = optarg;
+        case 'D':
+            drift_compensation = true;
+            break;
+        case 'f':
+            if(strcmp(optarg, "raw")==0) {
+                raw_input = 1;
+            } else if(strcmp(optarg, "wav")!=0)
+                usage(argv[0]);
+            break;
+        case 'i':
+            infile = optarg;
             break;
         case 'k':
             keyfile = optarg;
             break;
-        case 'D':
-            drift_compensation = true;
+        case 'l':
+            show_level = 1;
+            break;
+        case 'o':
+            outuri = optarg;
             break;
         case 'p':
             padlen = atoi(optarg);
@@ -277,8 +308,8 @@ int main(int argc, char *argv[])
         case 'P':
             pad_fifo = optarg;
             break;
-        case 'l':
-            show_level = 1;
+        case 'r':
+            sample_rate = atoi(optarg);
             break;
         case '?':
         case 'h':
@@ -287,7 +318,12 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(subchannel_index < 1 || subchannel_index > 24) {
+    if (alsa_device && infile) {
+        fprintf(stderr, "You must define either alsa or file input, not both\n");
+        return 1;
+    }
+
+    if (subchannel_index < 1 || subchannel_index > 24) {
         fprintf(stderr, "Bad subchannels number: %d, try other bitrate.\n",
                 subchannel_index);
         return 1;
@@ -298,10 +334,52 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* We assume that we need to call the encoder
+     * enc_calls_per_output before it gives us one encoded audio
+     * frame. This information is used when the alsa drift compensation
+     * is active
+     */
     const int enc_calls_per_output = sample_rate / 16000;
 
-    if (!outuri) {
-        fprintf(stderr, "ZeroMQ output URI not defined\n");
+    zmq::context_t zmq_ctx;
+    zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
+
+    if (outuri) {
+        if (strcmp(outuri, "-") == 0) {
+            out_fh = stdout;
+        }
+        else if ((strncmp(outuri, "tcp://", 6) == 0) ||
+                (strncmp(outuri, "pgm://", 6) == 0) ||
+                (strncmp(outuri, "epgm://", 7) == 0)) {
+            if (keyfile) {
+                fprintf(stderr, "Enabling encryption\n");
+
+                int rc = readkey(keyfile, secretkey);
+                if (rc) {
+                    fprintf(stderr, "Error reading secret key\n");
+                    return 2;
+                }
+
+                const int yes = 1;
+                zmq_sock.setsockopt(ZMQ_CURVE_SERVER,
+                        &yes, sizeof(yes));
+
+                zmq_sock.setsockopt(ZMQ_CURVE_SECRETKEY,
+                        secretkey, CURVE_KEYLEN);
+            }
+            zmq_sock.connect(outuri);
+        }
+        else { // We assume it's a file name
+            out_fh = fopen(outuri, "wb");
+
+            if (!out_fh) {
+                fprintf(stderr, "Can't open output file!\n");
+                return 1;
+            }
+        }
+    }
+    else {
+        fprintf(stderr, "Output URI not defined\n");
         return 1;
     }
 
@@ -325,26 +403,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    zmq::context_t zmq_ctx;
-    zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
-
-    if (keyfile) {
-        fprintf(stderr, "Enabling encryption\n");
-
-        int rc = readkey(keyfile, secretkey);
-        if (rc) {
-            fprintf(stderr, "Error reading secret key\n");
-            return 2;
-        }
-
-        const int yes = 1;
-        zmq_sock.setsockopt(ZMQ_CURVE_SERVER,
-                &yes, sizeof(yes));
-
-        zmq_sock.setsockopt(ZMQ_CURVE_SECRETKEY,
-                secretkey, CURVE_KEYLEN);
-    }
-    zmq_sock.connect(outuri);
 
     HANDLE_AACENCODER encoder;
 
@@ -378,11 +436,23 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // We'll use either of the two possible alsa inputs.
-    AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
-    AlsaInputDirect alsa_in_direct(alsa_device, channels, sample_rate);
+    /* No input defined ? default to alsa "default" */
+    if (!alsa_device) {
+        alsa_device = "default";
+    }
 
-    if (drift_compensation) {
+    // We'll use one of the tree possible inputs
+    AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
+    AlsaInputDirect   alsa_in_direct(alsa_device, channels, sample_rate);
+    FileInput         file_in(infile, raw_input, sample_rate);
+
+    if (infile) {
+        if (file_in.prepare() != 0) {
+            fprintf(stderr, "File input preparation failed\n");
+            return 1;
+        }
+    }
+    else if (drift_compensation) {
         if (alsa_in_threaded.prepare() != 0) {
             fprintf(stderr, "Alsa preparation failed\n");
             return 1;
@@ -485,9 +555,20 @@ int main(int argc, char *argv[])
 
         // -------------- Read Data
         memset(outbuf, 0x00, outbuf_size);
+        memset(input_buf, 0x00, input_size);
 
         ssize_t read;
-        if (drift_compensation) {
+        if (infile) {
+            read = file_in.read(input_buf, input_size);
+            if (read < 0) {
+                break;
+            }
+            else if (read != input_size) {
+                fprintf(stderr, "Short file read !\n");
+                break;
+            }
+        }
+        else if (drift_compensation) {
             if (alsa_in_threaded.fault_detected()) {
                 fprintf(stderr, "Detected fault in alsa input!\n");
                 break;
