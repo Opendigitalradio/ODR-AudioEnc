@@ -55,7 +55,7 @@ void usage(char* name)
     fprintf(stderr, "DAB DLS encoder %s\n\n"
                     "By CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/)\n"
                     "and Opendigitalradio.org\n\n"
-                    "Reads DLS from /tmp/dls.file\n\n"
+                    "Reads DLS from /tmp/dls.txt\n\n"
                     "WARNING: This program has memory leaks! Do not attempt\n"
                     "to leave it running for long periods of time!\n\n"
                     "  http://opendigitalradio.org\n\n",
@@ -136,6 +136,13 @@ int main(int argc, char *argv[])
         return 3;
     }
 
+    writeDLS(output_fd, dls_file, padlen);
+
+    /* Do it twice, so that there is for sure one toggle done
+     * by create_dls_datagroup
+     *
+     * It's ugly, I know.
+     */
     writeDLS(output_fd, dls_file, padlen);
 
     return 0;
