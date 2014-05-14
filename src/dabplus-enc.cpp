@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
     const char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
     unsigned char pad_buf[128];
-    int padlen;
+    int padlen = 0;
 
     /* Encoder status, see the above STATUS macros */
     int status = 0;
