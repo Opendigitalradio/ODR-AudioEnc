@@ -1,3 +1,7 @@
+2014-05-14: Matthias P. Braendli <matthias@mpb.li>
+	(v0.4.1):
+		Bugfix release for the file output that
+		was non-functional in v0.4.0
 2014-04-25: Matthias P. Braendli <matthias@mpb.li>
 	(v0.4.0):
 		Merge of dabplus-enc-file-zmq and dabplus-enc-alsa-zmq
