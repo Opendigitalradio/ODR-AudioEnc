@@ -86,15 +86,20 @@ void usage(const char* name) {
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
+    "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
+    "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
+    "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
+    "         --aaclc                          Force the usage of AAC-LC (no SBR, no PS)\n"
+    "         --sbr                            Force the usage of SBR\n"
+    "         --ps                             Force the usage of PS\n"
+    "   Output and pad parameters:\n"
     "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dab')\n"
     "                                     -or- a single dash '-' to denote stdout\n"
-    "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
-    "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
-    "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name (default: /tmp/pad.fifo).\n"
-    "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
-    "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
+    "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name"
+    "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
@@ -108,11 +113,10 @@ int prepare_aac_encoder(
         int subchannel_index,
         int channels,
         int sample_rate,
-        int afterburner)
+        int afterburner,
+        int *aot)
 {
     HANDLE_AACENCODER handle = *encoder;
-
-    int aot = AOT_DABPLUS_AAC_LC;
 
     CHANNEL_MODE mode;
     switch (channels) {
@@ -131,19 +135,24 @@ int prepare_aac_encoder(
 
     *encoder = handle;
 
-    if(channels == 2 && subchannel_index <= 6)
-        aot = AOT_DABPLUS_PS;
-    else if((channels == 1 && subchannel_index <= 8) || subchannel_index <= 10)
-        aot = AOT_DABPLUS_SBR;
+    if (*aot == AOT_NONE) {
+
+        if(channels == 2 && subchannel_index <= 6) {
+            *aot = AOT_DABPLUS_PS;
+        }
+        else if((channels == 1 && subchannel_index <= 8) || subchannel_index <= 10) {
+            *aot = AOT_DABPLUS_SBR;
+        }
+    }
 
     fprintf(stderr, "Using %d subchannels. AAC type: %s%s%s. channels=%d, sample_rate=%d\n",
             subchannel_index,
-            aot == AOT_DABPLUS_PS ? "HE-AAC v2" : "",
-            aot == AOT_DABPLUS_SBR ? "HE-AAC" : "",
-            aot == AOT_DABPLUS_AAC_LC ? "AAC-LC" : "",
+            *aot == AOT_DABPLUS_PS ? "HE-AAC v2" : "",
+            *aot == AOT_DABPLUS_SBR ? "HE-AAC" : "",
+            *aot == AOT_DABPLUS_AAC_LC ? "AAC-LC" : "",
             channels, sample_rate);
 
-    if (aacEncoder_SetParam(handle, AACENC_AOT, aot) != AACENC_OK) {
+    if (aacEncoder_SetParam(handle, AACENC_AOT, *aot) != AACENC_OK) {
         fprintf(stderr, "Unable to set the AOT\n");
         return 1;
     }
@@ -221,6 +230,7 @@ int main(int argc, char *argv[])
     bool afterburner = false;
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
+    int aot = AOT_NONE;
 
     /* Keep track of peaks */
     int peak_left  = 0;
@@ -257,6 +267,9 @@ int main(int argc, char *argv[])
         {"drift-comp",    no_argument,        0, 'D'},
         {"help",          no_argument,        0, 'h'},
         {"level",         no_argument,        0, 'l'},
+        {"aaclc",         no_argument,        0, 0  },
+        {"sbr",           no_argument,        0, 1  },
+        {"ps",            no_argument,        0, 2  },
         {0,0,0,0},
     };
 
@@ -269,6 +282,15 @@ int main(int argc, char *argv[])
     while(ch != -1) {
         ch = getopt_long(argc, argv, "ahDlb:c:f:i:k:o:r:d:p:P:", longopts, &index);
         switch (ch) {
+        case 0: // AAC-LC
+            aot = AOT_DABPLUS_AAC_LC;
+            break;
+        case 1: // SBR
+            aot = AOT_DABPLUS_SBR;
+            break;
+        case 2: // PS
+            aot = AOT_DABPLUS_PS;
+            break;
         case 'a':
             afterburner = true;
             break;
@@ -339,7 +361,8 @@ int main(int argc, char *argv[])
      * frame. This information is used when the alsa drift compensation
      * is active
      */
-    const int enc_calls_per_output = sample_rate / 16000;
+    const int enc_calls_per_output =
+        (aot == AOT_DABPLUS_AAC_LC) ? sample_rate / 8000 : sample_rate / 16000;
 
     zmq::context_t zmq_ctx;
     zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
@@ -407,7 +430,7 @@ int main(int argc, char *argv[])
     HANDLE_AACENCODER encoder;
 
     if (prepare_aac_encoder(&encoder, subchannel_index, channels,
-                sample_rate, afterburner) != 0) {
+                sample_rate, afterburner, &aot) != 0) {
         fprintf(stderr, "Encoder preparation failed\n");
         return 2;
     }
@@ -646,8 +669,7 @@ int main(int argc, char *argv[])
         if (out_args.numOutBytes != 0)
         {
             // Our timing code depends on this
-            if (! ((sample_rate == 32000 && calls == 2) ||
-                   (sample_rate == 48000 && calls == 3)) ) {
+            if (calls != enc_calls_per_output) {
                 fprintf(stderr, "INTERNAL ERROR! sample rate %d, calls %d\n",
                     sample_rate, calls);
                 }
