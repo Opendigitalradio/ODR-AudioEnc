@@ -58,6 +58,19 @@ input on port 9000.
     DST="tcp://yourserver:9000"
     BITRATE=64
 
+AAC encoder confiugration
+-------------------------
+
+By default, when not overridden by the --aaclc, --sbr or --ps options,
+the encoder is configured according to bitrate and number of channels.
+
+If only one channel is used, SBR (Spectral-Band Replication, also called
+HE-AAC) is enabled up to 64kbps. AAC-LC is used for higher bitrates.
+
+If two channels are used, PS (Parametric Stereo, also called HE-AAC v2)
+is enabled up to 48kbps. Between 56kbps and 80kbps, SBR is enabled. 88kbps
+and higher are using AAC-LC.
+
 Scenario 1
 ----------
 

@@ -1,3 +1,8 @@
+2014-05-16: Matthias P. Braendli <matthias@mpb.li>
+	(v0.4.2):
+		Fix INTERNAL ERROR when the encoder was configured
+		in AAC-LC (bitrates above 80kbps)
+		Add --sbr --aaclc and --ps options to force AOT
 2014-05-14: Matthias P. Braendli <matthias@mpb.li>
 	(v0.4.1):
 		Bugfix release for the file output that
