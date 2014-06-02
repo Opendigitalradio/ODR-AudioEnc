@@ -143,6 +143,9 @@ int prepare_aac_encoder(
         else if((channels == 1 && subchannel_index <= 8) || subchannel_index <= 10) {
             *aot = AOT_DABPLUS_SBR;
         }
+        else {
+            *aot = AOT_DABPLUS_AAC_LC;
+        }
     }
 
     fprintf(stderr, "Using %d subchannels. AAC type: %s%s%s. channels=%d, sample_rate=%d\n",
@@ -356,14 +359,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* We assume that we need to call the encoder
-     * enc_calls_per_output before it gives us one encoded audio
-     * frame. This information is used when the alsa drift compensation
-     * is active
-     */
-    const int enc_calls_per_output =
-        (aot == AOT_DABPLUS_AAC_LC) ? sample_rate / 8000 : sample_rate / 16000;
-
     zmq::context_t zmq_ctx;
     zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
 
@@ -434,6 +429,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Encoder preparation failed\n");
         return 2;
     }
+
+    /* We assume that we need to call the encoder
+     * enc_calls_per_output before it gives us one encoded audio
+     * frame. This information is used when the alsa drift compensation
+     * is active
+     */
+    const int enc_calls_per_output =
+        (aot == AOT_DABPLUS_AAC_LC) ? sample_rate / 8000 : sample_rate / 16000;
+
 
     if (aacEncInfo(encoder, &info) != AACENC_OK) {
         fprintf(stderr, "Unable to get the encoder info\n");
@@ -670,9 +674,10 @@ int main(int argc, char *argv[])
         {
             // Our timing code depends on this
             if (calls != enc_calls_per_output) {
-                fprintf(stderr, "INTERNAL ERROR! sample rate %d, calls %d\n",
-                    sample_rate, calls);
-                }
+                fprintf(stderr, "INTERNAL ERROR! calls=%d"
+                        ", expected %d\n",
+                        calls, enc_calls_per_output);
+            }
             calls = 0;
 
             // ----------- RS encoding
