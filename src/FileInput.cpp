@@ -85,7 +85,7 @@ ssize_t FileInput::read(uint8_t* buf, size_t length)
             pcmread = length;
         }
         else {
-            fprintf(stderr, "Unable to read from input!\n");
+            //fprintf(stderr, "Unable to read from input!\n");
             return 0;
         }
     }

@@ -138,7 +138,19 @@ arecord.
 
 Here we are using the ALSA plughw feature.
 
+
 Scenario 5
+----------
+Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB muxer, with FIFO to odr-dabmux
+using mplayer. If there are no data in FIFO, encoder generates silence.
+
+    mplayer -quiet -loop 0 -af resample=32000:nowaveheader,format=s16le,channels=2 -ao pcm:file=/tmp/aac.fifo:fast <FILE/URL> &
+    dabplus-enc -l -f raw --fifo-silence -i /tmp/aac.fifo -r 32000 -c 2 -b 72 -o /dev/stdout \
+    mbuffer -q -m 10k -P 100 -s 1080 > station1.fifo
+
+*Note*: Do not use /dev/stdout for pcm oputput in mplayer. Mplayer log messages on stdout.
+
+Scenario 6
 ----------
 Wave file encoding, for non-realtime processing
 

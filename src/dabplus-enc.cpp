@@ -84,6 +84,7 @@ void usage(const char* name) {
     "   For the file input:\n"
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
+    "         --fifo-silence                   Input file is fifo and encoder generates silence when fifo is empty. Ignore EOF.\n"
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
@@ -231,6 +232,7 @@ int main(int argc, char *argv[])
     const int bytes_per_sample = 2;
     void *rs_handler = NULL;
     bool afterburner = false;
+    bool inFifoSilence = false;
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
@@ -273,6 +275,7 @@ int main(int argc, char *argv[])
         {"aaclc",         no_argument,        0, 0  },
         {"sbr",           no_argument,        0, 1  },
         {"ps",            no_argument,        0, 2  },
+        {"fifo-silence",   no_argument,        0, 3  },
         {0,0,0,0},
     };
 
@@ -293,6 +296,9 @@ int main(int argc, char *argv[])
             break;
         case 2: // PS
             aot = AOT_DABPLUS_PS;
+            break;
+        case 3: // FIFO SILENCE
+            inFifoSilence = true;
             break;
         case 'a':
             afterburner = true;
@@ -591,8 +597,13 @@ int main(int argc, char *argv[])
                 break;
             }
             else if (read != input_size) {
-                fprintf(stderr, "Short file read !\n");
-                break;
+                if (inFifoSilence && ((errno==EAGAIN)||(errno==0))) {
+                   memset(input_buf, 0, input_size);
+                   read = input_size;
+                } else {
+                   fprintf(stderr, "Short file read !\n");
+                   break;
+               }
             }
         }
         else if (drift_compensation) {
