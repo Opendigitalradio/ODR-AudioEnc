@@ -96,6 +96,14 @@ ssize_t FileInput::read(uint8_t* buf, size_t length)
     return pcmread;
 }
 
+int FileInput::eof()
+{
+   int eof=feof(m_in_fh);
+   clearerr(m_in_fh);
+   return eof;
+}
+
+
 FileInput::~FileInput()
 {
     if (m_raw_input && m_in_fh) {

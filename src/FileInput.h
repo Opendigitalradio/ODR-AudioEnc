@@ -45,6 +45,7 @@ class FileInput
          * Returns the number of bytes read.
          */
         ssize_t read(uint8_t* buf, size_t length);
+	int eof();
 
     protected:
         const char* m_filename;
