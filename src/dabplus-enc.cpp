@@ -598,13 +598,15 @@ int main(int argc, char *argv[])
             }
             else if (read != input_size) {
                 if (inFifoSilence && file_in.eof()) {
-                   memset(input_buf, 0, input_size);
-                   read = input_size;
-                   usleep((long int)input_size*1000000/(bytes_per_sample*channels*sample_rate));
-                } else {
-                   fprintf(stderr, "Short file read !\n");
-                   break;
-               }
+                    memset(input_buf, 0, input_size);
+                    read = input_size;
+                    usleep((long)input_size * 1000000 /
+                            (bytes_per_sample * channels * sample_rate));
+                }
+                else {
+                    fprintf(stderr, "Short file read !\n");
+                    break;
+                }
             }
         }
         else if (drift_compensation) {

@@ -98,9 +98,9 @@ ssize_t FileInput::read(uint8_t* buf, size_t length)
 
 int FileInput::eof()
 {
-   int eof=feof(m_in_fh);
-   clearerr(m_in_fh);
-   return eof;
+    int eof = feof(m_in_fh);
+    clearerr(m_in_fh);
+    return eof;
 }
 
 
