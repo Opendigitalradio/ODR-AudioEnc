@@ -60,9 +60,9 @@ dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
 						  src/utils.h \
 						  src/wavreader.c
 
-mot_encoder_CFLAGS   = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib
+mot_encoder_CXXFLAGS = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
-mot_encoder_SOURCES  = src/mot-encoder.c \
+mot_encoder_SOURCES  = src/mot-encoder.cpp \
 					   contrib/lib_crc.h \
 					   contrib/lib_crc.c
 

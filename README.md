@@ -169,14 +169,14 @@ the specified folder, and generates the PAD data for the encoder. This is
 communicated through a fifo to the encoder. It also reads DLS from a file, and
 includes this information in the PAD.
 
-*dabplus-enc-file-zmq* and *dabplus-enc-alsa-zmq* can insert the PAD data from
-mot-encoder into the bitstream.
+*dabplus-enc* can insert the PAD data from mot-encoder into the bitstream.
 The mp2 encoder [toolame-dab](https://github.com/Opendigitalradio/toolame-dab)
 can also read *mot-encoder* data.
 
 This is an ongoing development. Make sure you use the same pad length option
 for *mot-encoder* and the audio encoder. Only some pad lengths are supported,
-please see *mot-encoder*'s help.
+please see *mot-encoder*'s help. Only pad lengths 34, 42 and 58 seem to be
+working with some receivers, 23 and 26 appear to be broken.
 
 Known Limitations
 -----------------
