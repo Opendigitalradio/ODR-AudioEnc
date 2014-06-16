@@ -31,7 +31,7 @@ fdk_aacinclude_HEADERS = \
     $(top_srcdir)/libAACdec/include/aacdecoder_lib.h
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = fdk-aac.pc
+pkgconfig_DATA = fdk-aac-dabplus.pc
 
 lib_LTLIBRARIES = libfdk-aac.la
 
