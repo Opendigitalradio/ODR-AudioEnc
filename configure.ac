@@ -49,5 +49,5 @@ AC_SUBST(LIBS_PRIVATE)
 AM_CONDITIONAL([IS_GIT_REPO], [test -d '.git'])
 
 AC_CONFIG_FILES([Makefile
-                 fdk-aac.pc])
+                 fdk-aac-dabplus.pc])
 AC_OUTPUT
