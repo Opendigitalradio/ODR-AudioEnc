@@ -41,8 +41,6 @@
 
 #define DEBUG 0
 
-#define SLEEPDELAY 1
-
 extern "C" {
 #include "lib_crc.h"
 }
@@ -143,6 +141,7 @@ void usage(char* name)
                     "                        Mandatory.\n"
                     " -e, --erase            Erase slides from DIRNAME once they have\n"
                     "                        been encoded.\n"
+                    " -s, --sleep=DELAY      Wait DELAY seconds between each slide\n"
                     " -o, --output=FILENAME  Fifo to write PAD data into.\n"
                     "                        Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
@@ -164,6 +163,7 @@ int main(int argc, char *argv[])
     char dlstext[MAXDLS];
     int  padlen = 58;
     bool erase_after_tx = false;
+    int  sleepdelay = 10;
 
     char* dir = NULL;
     char* output = "/tmp/pad.fifo";
@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
         {"output",     required_argument,  0, 'o'},
         {"dls",        required_argument,  0, 't'},
         {"pad",        required_argument,  0, 'p'},
+        {"sleep",      required_argument,  0, 's'},
         {"help",       no_argument,        0, 'h'},
         {0,0,0,0},
     };
@@ -188,7 +189,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ehd:o:t:p:", longopts, &index);
+        ch = getopt_long(argc, argv, "ehd:o:s:t:p:", longopts, &index);
         switch (ch) {
             case 'd':
                 dir = optarg;
@@ -198,6 +199,9 @@ int main(int argc, char *argv[])
                 break;
             case 'o':
                 output = optarg;
+                break;
+            case 's':
+                sleepdelay = atoi(optarg);
                 break;
             case 't':
                 dls_file = optarg;
@@ -248,7 +252,7 @@ int main(int argc, char *argv[])
 
         // Add new slides to transmit to list
         while ((pDirent = readdir(pDir)) != NULL) {
-            if ( pDirent->d_name[0] != '.') {
+            if (pDirent->d_name[0] != '.') {
                 char imagepath[256];
                 sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
 
@@ -280,7 +284,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            sleep(SLEEPDELAY);
+            sleep(sleepdelay);
         }
 
         slides_to_transmit.resize(0);
@@ -288,7 +292,7 @@ int main(int argc, char *argv[])
         // Always retransmit DLS, we want it to be updated frequently
         writeDLS(output_fd, dls_file, padlen);
 
-        sleep(SLEEPDELAY);
+        sleep(sleepdelay);
 
         closedir(pDir);
     }
