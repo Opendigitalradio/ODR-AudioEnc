@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <cstring>
+#include <string>
 #include <vector>
 #include <deque>
 #include <sys/types.h>
@@ -37,6 +38,10 @@
 #include <dirent.h>
 #include <wand/magick_wand.h>
 #include <getopt.h>
+
+#define DEBUG 0
+
+#define SLEEPDELAY 1
 
 extern "C" {
 #include "lib_crc.h"
@@ -48,7 +53,7 @@ extern "C" {
 #define MAXSEGLEN 8179
 #define MAXDLS 129
 
-typedef struct {
+struct MSCDG {
     // MSC Data Group Header (extension field not supported)
     unsigned char extflag;      //  1 bit
     unsigned char crcflag;      //  1 bit
@@ -73,7 +78,15 @@ typedef struct {
     unsigned char* segdata;
     // MSC data group CRC
     unsigned short int crc;     // 16 bits
-} MSCDG;
+};
+
+struct slide_metadata_t {
+    // complete path to slide
+    std::string filepath;
+
+    // index, values from 0 to 9999, rolls over
+    int fidx;
+};
 /*
    typedef struct {
 // MOT HEADER CUSTOMIZED FOR SLIDESHOW APP
@@ -85,7 +98,7 @@ unsigned char triggertime[5];   // 0x85 0x00 0x00 0x00 0x00 => NOW
 unsigned char contname[14];     // 0xCC 0x0C 0x00 imgXXXX.jpg
 } MOTSLIDEHDR;
 */
-int encodeFile(int output_fd, char* fname, int fidx, int padlen);
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen);
 void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen);
 void createMscDG(MSCDG* msc, unsigned short int dgtype, unsigned short int cindex,
         unsigned short int lastseg, unsigned short int tid, unsigned char* data,
@@ -128,6 +141,8 @@ void usage(char* name)
     fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
     fprintf(stderr, " -d, --dir=DIRNAME      Directory to read images from.\n"
                     "                        Mandatory.\n"
+                    " -e, --erase            Erase slides from DIRNAME once they have\n"
+                    "                        been encoded.\n"
                     " -o, --output=FILENAME  Fifo to write PAD data into.\n"
                     "                        Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
@@ -146,9 +161,9 @@ int main(int argc, char *argv[])
     int len, fidx, ret;
     struct dirent *pDirent;
     DIR *pDir;
-    char imagepath[128];
     char dlstext[MAXDLS];
-    int padlen=58;
+    int  padlen = 58;
+    bool erase_after_tx = false;
 
     char* dir = NULL;
     char* output = "/tmp/pad.fifo";
@@ -156,6 +171,7 @@ int main(int argc, char *argv[])
 
     const struct option longopts[] = {
         {"dir",        required_argument,  0, 'd'},
+        {"erase",      no_argument,        0, 'e'},
         {"output",     required_argument,  0, 'o'},
         {"dls",        required_argument,  0, 't'},
         {"pad",        required_argument,  0, 'p'},
@@ -172,10 +188,13 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "hd:o:t:p:", longopts, &index);
+        ch = getopt_long(argc, argv, "ehd:o:t:p:", longopts, &index);
         switch (ch) {
             case 'd':
                 dir = optarg;
+                break;
+            case 'e':
+                erase_after_tx = true;
                 break;
             case 'o':
                 output = optarg;
@@ -195,7 +214,7 @@ int main(int argc, char *argv[])
 
     if (get_xpadlengthmask(padlen) == -1) {
         fprintf(stderr, "Error: pad length %d invalid: Possible values: "
-                    ALLOWED_PADLEN "\n",
+                ALLOWED_PADLEN "\n",
                 padlen);
         return 2;
     }
@@ -214,6 +233,8 @@ int main(int argc, char *argv[])
 
     MagickWandGenesis();
 
+    std::deque<slide_metadata_t> slides_to_transmit;
+
     fidx = 0;
     while(1) {
         pDir = opendir(dir);
@@ -225,26 +246,56 @@ int main(int argc, char *argv[])
             fidx = 0;
         }
 
+        // Add new slides to transmit to list
         while ((pDirent = readdir(pDir)) != NULL) {
-            if (pDirent->d_type != DT_UNKNOWN && pDirent->d_name[0] != '.') {
+            if ( pDirent->d_name[0] != '.') {
+                char imagepath[256];
                 sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
-                ret = encodeFile(output_fd, imagepath, fidx, padlen);
-                if (ret != 1) {
-                    fprintf(stderr, "Error - Cannot encode file %s\n", pDirent->d_name);
-                }
-                else {
-                    fidx++;
-                    writeDLS(output_fd, dls_file, padlen);
-                    sleep(10);
-                }
+
+                slide_metadata_t md;
+                md.filepath = imagepath;
+                md.fidx     = fidx;
+
+                slides_to_transmit.push_back(md);
+
+                fprintf(stderr, "Found slide %s\n", imagepath);
+
+                fidx++;
             }
         }
+
+        std::deque<slide_metadata_t>::iterator it;
+        for (it = slides_to_transmit.begin();
+                it != slides_to_transmit.end();
+                ++it) {
+            ret = encodeFile(output_fd, it->filepath, it->fidx, padlen);
+            if (ret != 1) {
+                fprintf(stderr, "Error - Cannot encode file %s\n", it->filepath.c_str());
+            }
+
+            if (erase_after_tx) {
+                if (unlink(it->filepath.c_str()) == -1) {
+                    fprintf(stderr, "Erasing file %s failed: ", it->filepath.c_str());
+                    perror("");
+                }
+            }
+
+            sleep(SLEEPDELAY);
+        }
+
+        slides_to_transmit.resize(0);
+
+        // Always retransmit DLS, we want it to be updated frequently
+        writeDLS(output_fd, dls_file, padlen);
+
+        sleep(SLEEPDELAY);
+
         closedir(pDir);
     }
     return 1;
 }
 
-int encodeFile(int output_fd, char* fname, int fidx, int padlen)
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
 {
     int fd=0, ret, mothdrlen, nseg, lastseglen, i, last, curseglen;
     unsigned char mothdr[32];
@@ -262,9 +313,9 @@ int encodeFile(int output_fd, char* fname, int fidx, int padlen)
     p_wand = NewPixelWand();
     PixelSetColor(p_wand, "black");
 
-    err = MagickReadImage(m_wand, fname);
+    err = MagickReadImage(m_wand, fname.c_str());
     if (err == MagickFalse) {
-        fprintf(stderr, "Error - Unable to load image %s\n", fname);
+        fprintf(stderr, "Error - Unable to load image %s\n", fname.c_str());
         ret = 0;
         goto RETURN;
     }
@@ -274,7 +325,7 @@ int encodeFile(int output_fd, char* fname, int fidx, int padlen)
     //aspectRatio = (width * 1.0)/height;
 
     fprintf(stderr, "Image: %s (id=%d). Original size: %zu x %zu. ",
-            fname, fidx, width, height);
+            fname.c_str(), fidx, width, height);
 
     while (height > 240 || width > 320) {
         if (height/240.0 > width/320.0) {
@@ -289,8 +340,6 @@ int encodeFile(int output_fd, char* fname, int fidx, int padlen)
         }
         MagickResizeImage(m_wand, width, height, LanczosFilter, 1);
     }
-
-
 
     height = MagickGetImageHeight(m_wand);
     width  = MagickGetImageWidth(m_wand);
@@ -431,12 +480,11 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
     *bsize = 9 + msc->seglen + 1 + 1;
 
     //write(1,b,9+msc->seglen+1+1);
-
 }
 
 
-
-void writeDLS(int output_fd, const char* dls_file, int padlen) {
+void writeDLS(int output_fd, const char* dls_file, int padlen)
+{
     char dlstext[MAXDLS];
     int dlslen;
     int i;
@@ -453,6 +501,8 @@ void writeDLS(int output_fd, const char* dls_file, int padlen) {
 
     dlslen = read(dlsfd, dlstext, MAXDLS);
     dlstext[dlslen] = 0x00;
+    fprintf(stderr, "Writing DLS text \"%s\"\n", dlstext);
+
     create_dls_datagroup(dlstext, padlen);
     for (i = 0; i < dlsdg.size(); i++) {
         write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
@@ -460,8 +510,8 @@ void writeDLS(int output_fd, const char* dls_file, int padlen) {
 
 }
 
-void create_dls_datagroup(char* text, int padlen) {
-
+void create_dls_datagroup(char* text, int padlen)
+{
     int numdg = 0;            // Number of data groups
     int numseg;               // Number of DSL segments
     int lastseglen;           // Length of the last segment
@@ -501,10 +551,12 @@ void create_dls_datagroup(char* text, int padlen) {
         }
     }
 
+#if DEBUG
     fprintf(stderr, "PAD Length: %d\n", padlen);
     fprintf(stderr, "DLS text: %s\n", text);
     fprintf(stderr, "Number of DLS segments: %d\n", numseg);
     fprintf(stderr, "Number of DLS data groups: %d\n", numdg);
+#endif
 
     xpadlengthmask = get_xpadlengthmask(padlen);
 
@@ -518,7 +570,9 @@ void create_dls_datagroup(char* text, int padlen) {
         uint8_t firstseg, lastseg;
 
         curseg = &text[z * 16];
+#if DEBUG
         fprintf(stderr, "Segment number %d\n", z+1);
+#endif
 
         if (z == 0) {             // First segment
             firstseg = 1;
@@ -586,7 +640,9 @@ void create_dls_datagroup(char* text, int padlen) {
             }
 
             dlscrc = ~dlscrc;
+#if DEBUG
             fprintf(stderr, "crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
+#endif
 
             dlsdg[i][padlen-7-curseglen]   = (dlscrc & 0xFF00) >> 8;  // HI CRC
             dlsdg[i][padlen-7-curseglen-1] = dlscrc & 0x00FF;         // LO CRC
@@ -596,10 +652,12 @@ void create_dls_datagroup(char* text, int padlen) {
                 dlsdg[i][j]=0x00;
             }
 
+#if DEBUG
             fprintf(stderr, "Data group: ");
             for (j = 0; j < padlen; j++)
                 fprintf(stderr, "%x ", dlsdg[i][j]);
             fprintf(stderr, "\n");
+#endif
             i++;
 
         }
@@ -659,11 +717,13 @@ void create_dls_datagroup(char* text, int padlen) {
             }
             dlsdg[i][0]=0x00;
 
+#if DEBUG
             fprintf(stderr, "First Data group: ");
             for (j = 0; j < padlen; j++) {
                 fprintf(stderr, "%x ", dlsdg[i][j]);
             }
             fprintf(stderr,"\n");
+#endif
 
             // SECOND DG (NO CI, NO PREFIX)
             i++;
