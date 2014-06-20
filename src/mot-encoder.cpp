@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
     while(1) {
         pDir = opendir(dir);
         if (pDir == NULL) {
-            printf ("Cannot open directory '%s'\n", dir);
+            fprintf(stderr, "Cannot open directory '%s'\n", dir);
             return 1;
         }
         if (fidx == 9999) {
@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
         }
 
         while ((pDirent = readdir(pDir)) != NULL) {
-            if (pDirent->d_name[0] != '.') {
+            if (pDirent->d_type != DT_UNKNOWN && pDirent->d_name[0] != '.') {
                 sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
                 ret = encodeFile(output_fd, imagepath, fidx, padlen);
                 if (ret != 1) {
