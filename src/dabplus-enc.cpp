@@ -19,6 +19,7 @@
 
 #include "AlsaInput.h"
 #include "FileInput.h"
+#include "JackInput.h"
 #include "SampleQueue.h"
 #include "zmq.hpp"
 
@@ -49,7 +50,12 @@ using namespace std;
 void usage(const char* name) {
     fprintf(stderr,
     "dabplus-enc %s is a HE-AACv2 encoder for DAB+\n"
-    "based on fdk-aac-dabplus that can read from a ALSA or file source\n"
+    "based on fdk-aac-dabplus that can read from"
+#if HAVE_JACK
+    " JACK, ALSA or a file source\n"
+#else
+    " a ALSA or file source\n"
+#endif
     "and encode to a ZeroMQ output for ODR-DabMux.\n"
     "\n"
     "The -D option enables experimental sound card clock drift compensation.\n"
@@ -85,6 +91,10 @@ void usage(const char* name) {
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
     "         --fifo-silence                   Input file is fifo and encoder generates silence when fifo is empty. Ignore EOF.\n"
+#if HAVE_JACK
+    "   For the JACK input:\n"
+    "     -j, --jack=name                      Enable JACK input, and define our name\n"
+#endif
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
@@ -94,7 +104,7 @@ void usage(const char* name) {
     "         --sbr                            Force the usage of SBR\n"
     "         --ps                             Force the usage of PS\n"
     "   Output and pad parameters:\n"
-    "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://*:9000')\n"
+    "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://localhost:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dab')\n"
     "                                     -or- a single dash '-' to denote stdout\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
@@ -227,6 +237,8 @@ int main(int argc, char *argv[])
     // For the file output
     FILE *out_fh = NULL;
 
+    const char *jack_name = NULL;
+
     const char *outuri = NULL;
     int sample_rate=48000, channels=2;
     const int bytes_per_sample = 2;
@@ -263,6 +275,9 @@ int main(int argc, char *argv[])
         {"device",        required_argument,  0, 'd'},
         {"format",        required_argument,  0, 'f'},
         {"input",         required_argument,  0, 'i'},
+#if HAVE_JACK
+        {"jack",          required_argument,  0, 'j'},
+#endif
         {"output",        required_argument,  0, 'o'},
         {"pad",           required_argument,  0, 'p'},
         {"pad-fifo",      required_argument,  0, 'P'},
@@ -286,7 +301,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ahDlb:c:f:i:k:o:r:d:p:P:", longopts, &index);
+        ch = getopt_long(argc, argv, "ahDlb:c:f:i:j:k:o:r:d:p:P:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -324,6 +339,11 @@ int main(int argc, char *argv[])
         case 'i':
             infile = optarg;
             break;
+#if HAVE_JACK
+        case 'j':
+            jack_name = optarg;
+            break;
+#endif
         case 'k':
             keyfile = optarg;
             break;
@@ -349,8 +369,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (alsa_device && infile) {
-        fprintf(stderr, "You must define either alsa or file input, not both\n");
+    if (alsa_device && infile && jack_name) {
+        fprintf(stderr, "You must define only one possible input, not several!\n");
         return 1;
     }
 
@@ -478,6 +498,9 @@ int main(int argc, char *argv[])
     AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
     AlsaInputDirect   alsa_in_direct(alsa_device, channels, sample_rate);
     FileInput         file_in(infile, raw_input, sample_rate);
+#if HAVE_JACK
+    JackInput         jack_in(jack_name, channels, sample_rate, queue);
+#endif
 
     if (infile) {
         if (file_in.prepare() != 0) {
@@ -485,6 +508,14 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+#if HAVE_JACK
+    else if (jack_name) {
+        if (jack_in.prepare() != 0) {
+            fprintf(stderr, "JACK preparation failed\n");
+            return 1;
+        }
+    }
+#endif
     else if (drift_compensation) {
         if (alsa_in_threaded.prepare() != 0) {
             fprintf(stderr, "Alsa preparation failed\n");
@@ -531,7 +562,7 @@ int main(int argc, char *argv[])
 
 
         // -------------- wait the right amount of time
-        if (drift_compensation) {
+        if (drift_compensation || jack_name) {
             struct timespec tp_now;
             clock_gettime(CLOCK_MONOTONIC, &tp_now);
 
@@ -609,8 +640,8 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        else if (drift_compensation) {
-            if (alsa_in_threaded.fault_detected()) {
+        else if (drift_compensation || jack_name) {
+            if (drift_compensation && alsa_in_threaded.fault_detected()) {
                 fprintf(stderr, "Detected fault in alsa input!\n");
                 break;
             }

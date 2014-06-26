@@ -5,12 +5,16 @@ This package contains several tools that use the standalone library
 of the Fraunhofer FDK AAC code from Android, patched for
 960-transform to do DAB+ broadcast encoding.
 
-The main tool is the *dabplus-enc* encoder, which can encode from
-a file (raw or wav) or from an ALSA source to a file or a pipe, and
-to a ZeroMQ output compatible with ODR-DabMux.
+The main tool is the *dabplus-enc* encoder, which can read audio from
+a file (raw or wav), from an ALSA source or from JACK, and encode
+to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
 
 The ALSA input supports experimental sound card clock drift compensation, that
 can compensate for imprecise sound card clocks.
+
+The JACK input does not automatically connect to anything. The encoder runs
+at the rate defined by the system clock, and therefore sound
+card clock drift compensation is also used.
 
 *dabplus-enc* includes support for DAB MOT Slideshow and DLS, written by
 [CSP](http://rd.csp.it).
@@ -34,6 +38,7 @@ Requirements:
 * The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
 * Download and install ZeroMQ from http://download.zeromq.org/zeromq-4.0.3.tar.gz
+* JACK audio connection kit (optional)
 
 This package:
 

@@ -43,15 +43,24 @@ libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
 #aac_enc_SOURCES = src/aac-enc.c \
 #				  src/wavreader.c
 
+if HAVE_JACK
+dabplus_enc_LDADD_JACK  = -ljack -lpthread
+else
+dabplus_enc_LDADD_JACK  =
+endif
+
+
 dabplus_enc_LDFLAGS     = -no-install
 dabplus_enc_LDADD       = libfdk-aac.la -lfec -lzmq -lasound \
-								   -lrt -lboost_thread
-dabplus_enc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS)
+						  -lrt -lboost_thread $(dabplus_enc_LDADD_JACK)
+dabplus_enc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb
 dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
 						  src/FileInput.cpp \
 						  src/FileInput.h \
 						  src/AlsaInput.cpp \
 						  src/AlsaInput.h \
+						  src/JackInput.cpp \
+						  src/JackInput.h \
 						  src/SampleQueue.h \
 						  src/encryption.c \
 						  src/encryption.h \
