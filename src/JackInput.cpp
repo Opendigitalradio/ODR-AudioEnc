@@ -38,7 +38,7 @@ int JackInput::prepare()
     jack_status_t status;
     const char *server_name = NULL;
 
-    m_client = jack_client_open(m_jack_name.c_str(), options, &status, server_name);
+    m_client = jack_client_open(m_jack_name, options, &status, server_name);
     if (m_client == NULL) {
         fprintf(stderr, "jack_client_open() failed, "
                 "status = 0x%2.0x\n", status);
@@ -53,7 +53,7 @@ int JackInput::prepare()
     }
 
     if (status & JackNameNotUnique) {
-        fprintf(stderr, "JACK name '%s' not unique!\n", m_jack_name.c_str());
+        fprintf(stderr, "JACK name '%s' not unique!\n", m_jack_name);
         return -1;
     }
 

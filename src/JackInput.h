@@ -37,7 +37,7 @@ extern "C" {
 class JackInput
 {
     public:
-        JackInput(const std::string& jack_name,
+        JackInput(const char* jack_name,
                 unsigned int channels,
                 unsigned int samplerate,
                 SampleQueue<uint8_t>& queue) :
@@ -63,7 +63,7 @@ class JackInput
 
         std::vector<jack_port_t*> m_input_ports;
 
-        std::string m_jack_name;
+        const char* m_jack_name;
         unsigned int m_channels;
         unsigned int m_rate;
 
