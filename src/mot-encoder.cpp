@@ -171,7 +171,6 @@ int main(int argc, char *argv[])
     int len, fidx, ret;
     struct dirent *pDirent;
     DIR *pDir;
-    char dlstext[MAXDLS];
     int  padlen = 58;
     bool erase_after_tx = false;
     int  sleepdelay = 10;
@@ -425,7 +424,6 @@ RETURN:
 
 void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen)
 {
-    int ret;
     struct stat s;
     char MotHeaderCore[7] = {0x00,0x00,0x00,0x00,0x0D,0x04,0x01};
     char MotHeaderExt[19] = {0x85,0x00,0x00,0x00,0x00,0xcc,0x0c,
@@ -813,7 +811,7 @@ void writeMotPAD(int output_fd,
 {
 
     unsigned char pad[128];
-    int xpadlengthmask, i, j,k, numseg, lastseglen;
+    int xpadlengthmask, i, j, k;
     unsigned short int crc;
 
     xpadlengthmask = get_xpadlengthmask(padlen);
