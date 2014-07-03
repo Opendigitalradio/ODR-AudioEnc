@@ -530,6 +530,17 @@ void writeDLS(int output_fd, const char* dls_file, int padlen)
 
     dlslen = read(dlsfd, dlstext, MAXDLS);
     dlstext[dlslen] = 0x00;
+
+    // Remove trailing line breaks from the file
+    char* endp = dlstext + dlslen;
+    while (   endp > dlstext &&
+            (*endp == '\0' || *endp == '\n')) {
+        if (*endp == '\n') {
+            *endp == '\0';
+        }
+        endp--;
+    }
+
     fprintf(stderr, "mot-encoder writing DLS text \"%s\"\n", dlstext);
 
     create_dls_datagroup(dlstext, padlen);
