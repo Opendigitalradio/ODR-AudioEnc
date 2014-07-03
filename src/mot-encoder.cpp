@@ -41,12 +41,17 @@
 
 #define DEBUG 0
 
+#define SLEEPDELAY_DEFAULT 10 //seconds
+
 extern "C" {
 #include "lib_crc.h"
 }
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
+
+#define XSTR(x) #x
+#define STR(x) XSTR(x)
 
 #define MAXSEGLEN 8179
 #define MAXDLS 129
@@ -125,10 +130,10 @@ static int dlsfd = 0;
 void usage(char* name)
 {
     fprintf(stderr, "DAB MOT encoder %s for slideshow and DLS\n\n"
-                    "By CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/)\n\n"
-                    "Reads image data from the specified directory, and outputs PAD data\n"
-                    "on standard output\n"
-                    "Reads DLS from /tmp/dls.file\n\n"
+                    "By CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/) and\n"
+                    "Opendigitalradio.org\n\n"
+                    "Reads image data from the specified directory, DLS text from a file,\n"
+                    "and outputs PAD data to the given FIFO.\n"
                     "  http://opendigitalradio.org\n\n",
 #if defined(GITVERSION)
                     GITVERSION
@@ -138,14 +143,13 @@ void usage(char* name)
                     );
     fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
     fprintf(stderr, " -d, --dir=DIRNAME      Directory to read images from.\n"
-                    "                        Mandatory.\n"
                     " -e, --erase            Erase slides from DIRNAME once they have\n"
                     "                        been encoded.\n"
                     " -s, --sleep=DELAY      Wait DELAY seconds between each slide\n"
+                    "                        Default: " STR(SLEEPDELAY_DEFAULT) "\n"
                     " -o, --output=FILENAME  Fifo to write PAD data into.\n"
                     "                        Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
-                    "                        Default: /tmp/dls.txt\n"
                     " -p, --pad=LENGTH       Set the pad length.\n"
                     "                        Possible values: " ALLOWED_PADLEN "\n"
                     "                        Default: 58\n"
@@ -165,9 +169,9 @@ int main(int argc, char *argv[])
     bool erase_after_tx = false;
     int  sleepdelay = 10;
 
-    char* dir = NULL;
-    char* output = "/tmp/pad.fifo";
-    char* dls_file = "/tmp/dls.txt";
+    const char* dir = NULL;
+    const char* output = "/tmp/pad.fifo";
+    const char* dls_file = NULL;
 
     const struct option longopts[] = {
         {"dir",        required_argument,  0, 'd'},
@@ -179,12 +183,6 @@ int main(int argc, char *argv[])
         {"help",       no_argument,        0, 'h'},
         {0,0,0,0},
     };
-
-    if (argc < 2) {
-        fprintf(stderr, "Error: too few arguments!\n");
-        usage(argv[0]);
-        return 2;
-    }
 
     int ch=0;
     int index;
@@ -217,21 +215,33 @@ int main(int argc, char *argv[])
     }
 
     if (get_xpadlengthmask(padlen) == -1) {
-        fprintf(stderr, "Error: pad length %d invalid: Possible values: "
+        fprintf(stderr, "mot-encoder Error: pad length %d invalid: Possible values: "
                 ALLOWED_PADLEN "\n",
                 padlen);
         return 2;
     }
 
-    if (!dir) {
-        fprintf(stderr, "Error: image directory not defined!\n");
+    if (dir && dls_file) {
+        fprintf(stderr, "mot-encoder encoding Slideshow from %s and DLS from %s to %s\n",
+                dir, dls_file, output);
+    }
+    else if (dir) {
+        fprintf(stderr, "mot-encoder encoding Slideshow from %s to %s. No DLS.\n",
+                dir, output);
+    }
+    else if (dls_file) {
+        fprintf(stderr, "mot-encoder encoding DLS from %s to %s. No Slideshow.\n",
+                dls_file, output);
+    }
+    else {
+        fprintf(stderr, "mot-encoder Error: No DLS nor slideshow to encode !\n");
         usage(argv[0]);
-        return 2;
+        return 1;
     }
 
     int output_fd = open(output, O_WRONLY);
     if (output_fd == -1) {
-        perror("Failed to open output");
+        perror("mot-encoder failed to open output");
         return 3;
     }
 
@@ -241,56 +251,60 @@ int main(int argc, char *argv[])
 
     fidx = 0;
     while(1) {
-        pDir = opendir(dir);
-        if (pDir == NULL) {
-            fprintf(stderr, "Cannot open directory '%s'\n", dir);
-            return 1;
-        }
-        if (fidx == 9999) {
-            fidx = 0;
-        }
-
-        // Add new slides to transmit to list
-        while ((pDirent = readdir(pDir)) != NULL) {
-            if (pDirent->d_name[0] != '.') {
-                char imagepath[256];
-                sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
-
-                slide_metadata_t md;
-                md.filepath = imagepath;
-                md.fidx     = fidx;
-
-                slides_to_transmit.push_back(md);
-
-                fprintf(stderr, "Found slide %s\n", imagepath);
-
-                fidx++;
+        if (dir) {
+            pDir = opendir(dir);
+            if (pDir == NULL) {
+                fprintf(stderr, "Cannot open directory '%s'\n", dir);
+                return 1;
             }
-        }
-
-        std::deque<slide_metadata_t>::iterator it;
-        for (it = slides_to_transmit.begin();
-                it != slides_to_transmit.end();
-                ++it) {
-            ret = encodeFile(output_fd, it->filepath, it->fidx, padlen);
-            if (ret != 1) {
-                fprintf(stderr, "Error - Cannot encode file %s\n", it->filepath.c_str());
+            if (fidx == 9999) {
+                fidx = 0;
             }
 
-            if (erase_after_tx) {
-                if (unlink(it->filepath.c_str()) == -1) {
-                    fprintf(stderr, "Erasing file %s failed: ", it->filepath.c_str());
-                    perror("");
+            // Add new slides to transmit to list
+            while ((pDirent = readdir(pDir)) != NULL) {
+                if (pDirent->d_name[0] != '.') {
+                    char imagepath[256];
+                    sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
+
+                    slide_metadata_t md;
+                    md.filepath = imagepath;
+                    md.fidx     = fidx;
+
+                    slides_to_transmit.push_back(md);
+
+                    fprintf(stderr, "Found slide %s\n", imagepath);
+
+                    fidx++;
                 }
             }
 
-            sleep(sleepdelay);
+            std::deque<slide_metadata_t>::iterator it;
+            for (it = slides_to_transmit.begin();
+                    it != slides_to_transmit.end();
+                    ++it) {
+                ret = encodeFile(output_fd, it->filepath, it->fidx, padlen);
+                if (ret != 1) {
+                    fprintf(stderr, "Error - Cannot encode file %s\n", it->filepath.c_str());
+                }
+
+                if (erase_after_tx) {
+                    if (unlink(it->filepath.c_str()) == -1) {
+                        fprintf(stderr, "Erasing file %s failed: ", it->filepath.c_str());
+                        perror("");
+                    }
+                }
+
+                sleep(sleepdelay);
+            }
+
+            slides_to_transmit.resize(0);
         }
 
-        slides_to_transmit.resize(0);
-
-        // Always retransmit DLS, we want it to be updated frequently
-        writeDLS(output_fd, dls_file, padlen);
+        if (dls_file) {
+            // Always retransmit DLS, we want it to be updated frequently
+            writeDLS(output_fd, dls_file, padlen);
+        }
 
         sleep(sleepdelay);
 
