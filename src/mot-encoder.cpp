@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 
     int output_fd = open(output, O_WRONLY);
     if (output_fd == -1) {
-        perror("mot-encoder failed to open output");
+        perror("mot-encoder Error: failed to open output");
         return 3;
     }
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
         if (dir) {
             pDir = opendir(dir);
             if (pDir == NULL) {
-                fprintf(stderr, "Cannot open directory '%s'\n", dir);
+                fprintf(stderr, "mot-encoder Error: cannot open directory '%s'\n", dir);
                 return 1;
             }
             if (fidx == 9999) {
@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
 
                     slides_to_transmit.push_back(md);
 
-                    fprintf(stderr, "Found slide %s\n", imagepath);
+                    fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
 
                     fidx++;
                 }
@@ -296,12 +296,12 @@ int main(int argc, char *argv[])
                     ++it) {
                 ret = encodeFile(output_fd, it->filepath, it->fidx, padlen);
                 if (ret != 1) {
-                    fprintf(stderr, "Error - Cannot encode file %s\n", it->filepath.c_str());
+                    fprintf(stderr, "mot-encoder Error: cannot encode file %s\n", it->filepath.c_str());
                 }
 
                 if (erase_after_tx) {
                     if (unlink(it->filepath.c_str()) == -1) {
-                        fprintf(stderr, "Erasing file %s failed: ", it->filepath.c_str());
+                        fprintf(stderr, "mot-encoder Error: erasing file %s failed: ", it->filepath.c_str());
                         perror("");
                     }
                 }
@@ -353,7 +353,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     width  = MagickGetImageWidth(m_wand);
     //aspectRatio = (width * 1.0)/height;
 
-    fprintf(stderr, "Image: %s (id=%d). Original size: %zu x %zu. ",
+    fprintf(stderr, "mot-encoder image: %s (id=%d). Original size: %zu x %zu. ",
             fname.c_str(), fidx, width, height);
 
     while (height > 240 || width > 320) {
@@ -378,7 +378,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     MagickSetImageCompressionQuality(m_wand, 75);
     MagickSetImageFormat(m_wand, "jpg");
     blob = MagickGetImagesBlob(m_wand, &blobsize);
-    fprintf(stderr, "Resized to %zu x %zu. Size after compression %zu bytes\n",
+    fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes\n",
             width, height, blobsize);
 
     nseg = blobsize / MAXSEGLEN;
@@ -524,19 +524,18 @@ void writeDLS(int output_fd, const char* dls_file, int padlen)
 
     dlsfd = open(dls_file, O_RDONLY);
     if (dlsfd == -1) {
-        fprintf(stderr,"Error - Cannot open dls file\n");
+        fprintf(stderr, "mot-encoder Error: Cannot open dls file\n");
         return;
     }
 
     dlslen = read(dlsfd, dlstext, MAXDLS);
     dlstext[dlslen] = 0x00;
-    fprintf(stderr, "Writing DLS text \"%s\"\n", dlstext);
+    fprintf(stderr, "mot-encoder writing DLS text \"%s\"\n", dlstext);
 
     create_dls_datagroup(dlstext, padlen);
     for (i = 0; i < dlsdg.size(); i++) {
         write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
     }
-
 }
 
 void create_dls_datagroup(char* text, int padlen)
@@ -738,15 +737,15 @@ void create_dls_datagroup(char* text, int padlen)
             if (curseglen == padlen-8) {
                 dlscrc = ~dlscrc;
                 dlsdg[i][1] = (dlscrc & 0xFF00) >> 8;     // HI CRC
-                fprintf(stderr, "crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
             }
             else if (curseglen == padlen-7) {
                 dlscrc = ~dlscrc;
-                fprintf(stderr, "crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
             }
             dlsdg[i][0]=0x00;
 
 #if DEBUG
+            fprintf(stderr, "crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
+
             fprintf(stderr, "First Data group: ");
             for (j = 0; j < padlen; j++) {
                 fprintf(stderr, "%x ", dlsdg[i][j]);
@@ -782,7 +781,7 @@ void create_dls_datagroup(char* text, int padlen)
                 dlsdg[i][padlen-3-curseglen+k] =  (dlscrc & 0xFF00) >> 8;    // HI CRC
                 dlsdg[i][padlen-3-curseglen+k-1] = dlscrc & 0x00FF;          // LO CRC
             }
-
+#if DEBUG
             fprintf(stderr, "Second Data group: ");
             for (j = 0; j < padlen; j++) {
                 fprintf(stderr, "%x ", dlsdg[i][j]);
@@ -790,6 +789,7 @@ void create_dls_datagroup(char* text, int padlen)
 
             fprintf(stderr, "\n");
             fprintf(stderr, "**** crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
+#endif
             i++;
         }
     }
