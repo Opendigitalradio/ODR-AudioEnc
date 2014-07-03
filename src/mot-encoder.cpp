@@ -32,6 +32,7 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include <list>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -89,6 +90,12 @@ struct slide_metadata_t {
 
     // index, values from 0 to 9999, rolls over
     int fidx;
+
+    // This is used to define the order in which several discovered
+    // slides are transmitted
+    bool operator<(const slide_metadata_t& other) const {
+        return this->filepath < other.filepath;
+    }
 };
 /*
    typedef struct {
@@ -247,7 +254,7 @@ int main(int argc, char *argv[])
 
     MagickWandGenesis();
 
-    std::deque<slide_metadata_t> slides_to_transmit;
+    std::list<slide_metadata_t> slides_to_transmit;
 
     fidx = 0;
     while(1) {
@@ -279,7 +286,11 @@ int main(int argc, char *argv[])
                 }
             }
 
-            std::deque<slide_metadata_t>::iterator it;
+            // Sort the list in alphabetic order
+            slides_to_transmit.sort();
+
+            // Encode the slides
+            std::list<slide_metadata_t>::iterator it;
             for (it = slides_to_transmit.begin();
                     it != slides_to_transmit.end();
                     ++it) {
