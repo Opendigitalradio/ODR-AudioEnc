@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
 {
     int len, fidx, ret;
     struct dirent *pDirent;
-    DIR *pDir;
+    DIR *pDir = NULL;
     int  padlen = 58;
     bool erase_after_tx = false;
     int  sleepdelay = 10;
@@ -318,7 +318,9 @@ int main(int argc, char *argv[])
 
         sleep(sleepdelay);
 
-        closedir(pDir);
+        if (pDir) {
+            closedir(pDir);
+        }
     }
     return 1;
 }
