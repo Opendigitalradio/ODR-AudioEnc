@@ -75,13 +75,7 @@ mot_encoder_SOURCES  = src/mot-encoder.cpp \
 					   contrib/lib_crc.h \
 					   contrib/lib_crc.c
 
-dls_encoder_CFLAGS   = $(GITVERSION_FLAGS) -Icontrib
-dls_encoder_SOURCES  = src/dls.c \
-					   contrib/lib_crc.h \
-					   contrib/lib_crc.c
-
 bin_PROGRAMS =  dabplus-enc$(EXEEXT) \
-				dls-encoder$(EXEEXT) \
 				mot-encoder$(EXEEXT)
 
 noinst_HEADERS = src/wavreader.h
