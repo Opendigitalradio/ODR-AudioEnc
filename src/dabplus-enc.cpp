@@ -17,6 +17,7 @@
  * -------------------------------------------------------------------
  */
 
+#include "config.h"
 #include "AlsaInput.h"
 #include "FileInput.h"
 #include "JackInput.h"

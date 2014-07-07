@@ -39,6 +39,7 @@
 #include <dirent.h>
 #include <wand/magick_wand.h>
 #include <getopt.h>
+#include "config.h"
 
 #define DEBUG 0
 
