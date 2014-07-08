@@ -1,12 +1,30 @@
+2014-07-08: Matthias P. Braendli <matthias@mpb.li>
+	(v0.5.0):
+	* dabplus-enc:
+		Add support for JACK
+		Add EOF fifo silence inserter
+		Minor corrections in the encoder (granule length)
+	* mot-encoder:
+		Can do only DLS, only slideshow or both
+		Can erase slides once transmitted
+		Fixed the memory allocation issues.
+		Removed obsolete dls-encoder
+
+		Known bugs:
+		PAD lengths 23 and 26 don't work.
+		Some older receivers don't like the encoded bitstream
+
 2014-05-16: Matthias P. Braendli <matthias@mpb.li>
 	(v0.4.2):
 		Fix INTERNAL ERROR when the encoder was configured
 		in AAC-LC (bitrates above 80kbps)
 		Add --sbr --aaclc and --ps options to force AOT
+
 2014-05-14: Matthias P. Braendli <matthias@mpb.li>
 	(v0.4.1):
 		Bugfix release for the file output that
 		was non-functional in v0.4.0
+
 2014-04-25: Matthias P. Braendli <matthias@mpb.li>
 	(v0.4.0):
 		Merge of dabplus-enc-file-zmq and dabplus-enc-alsa-zmq
@@ -28,6 +46,7 @@
 		Fix insertion of PAD data (must be in first AU)
 	* mot-encoder:
 		Correct X-PAD encoding
+
 2014-03-19: Matthias P. Braendli <matthias@mpb.li>
 	(v0.2.2):
 	* README:

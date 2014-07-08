@@ -134,6 +134,7 @@ static uint8_t dls_toggle = 0;
 std::deque<std::vector<uint8_t> > dlsdg;
 static int dlsfd = 0;
 
+static int verbose = 0;
 
 void usage(char* name)
 {
@@ -161,6 +162,7 @@ void usage(char* name)
                     " -p, --pad=LENGTH       Set the pad length.\n"
                     "                        Possible values: " ALLOWED_PADLEN "\n"
                     "                        Default: 58\n"
+                    " -v, --verbose          Print more information to the console\n"
            );
 }
 
@@ -188,13 +190,14 @@ int main(int argc, char *argv[])
         {"pad",        required_argument,  0, 'p'},
         {"sleep",      required_argument,  0, 's'},
         {"help",       no_argument,        0, 'h'},
+        {"verbose",    no_argument,        0, 'v'},
         {0,0,0,0},
     };
 
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ehd:o:s:t:p:", longopts, &index);
+        ch = getopt_long(argc, argv, "ehd:o:s:t:p:v", longopts, &index);
         switch (ch) {
             case 'd':
                 dir = optarg;
@@ -213,6 +216,9 @@ int main(int argc, char *argv[])
                 break;
             case 'p':
                 padlen = atoi(optarg);
+                break;
+            case 'v':
+                verbose++;
                 break;
             case '?':
             case 'h':
@@ -280,7 +286,9 @@ int main(int argc, char *argv[])
 
                     slides_to_transmit.push_back(md);
 
-                    fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
+                    if (verbose) {
+                        fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
+                    }
 
                     fidx++;
                 }
@@ -355,8 +363,10 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     width  = MagickGetImageWidth(m_wand);
     //aspectRatio = (width * 1.0)/height;
 
-    fprintf(stderr, "mot-encoder image: %s (id=%d). Original size: %zu x %zu. ",
-            fname.c_str(), fidx, width, height);
+    if (verbose) {
+        fprintf(stderr, "mot-encoder image: %s (id=%d). Original size: %zu x %zu. ",
+                fname.c_str(), fidx, width, height);
+    }
 
     while (height > 240 || width > 320) {
         if (height/240.0 > width/320.0) {
@@ -380,8 +390,10 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     MagickSetImageCompressionQuality(m_wand, 75);
     MagickSetImageFormat(m_wand, "jpg");
     blob = MagickGetImagesBlob(m_wand, &blobsize);
-    fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes\n",
-            width, height, blobsize);
+    if (verbose) {
+        fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes\n",
+                width, height, blobsize);
+    }
 
     nseg = blobsize / MAXSEGLEN;
     lastseglen = blobsize % MAXSEGLEN;
@@ -542,7 +554,9 @@ void writeDLS(int output_fd, const char* dls_file, int padlen)
         endp--;
     }
 
-    fprintf(stderr, "mot-encoder writing DLS text \"%s\"\n", dlstext);
+    if (verbose) {
+        fprintf(stderr, "mot-encoder writing DLS text \"%s\"\n", dlstext);
+    }
 
     create_dls_datagroup(dlstext, padlen);
     for (i = 0; i < dlsdg.size(); i++) {
@@ -826,7 +840,9 @@ void writeMotPAD(int output_fd,
         uint8_t  firstseg;
 
         curseg = &mscdg[i];
-        //fprintf(stderr,"Segment offset %d\n",i);
+#if DEBUG
+        fprintf(stderr,"Segment offset %d\n",i);
+#endif
 
         if (i == 0) {             // First segment
             firstseg = 1;
@@ -852,7 +868,7 @@ void writeMotPAD(int output_fd,
             // CI for data group length indicator: data length=4, Application Type=1
             pad[padlen-3]=0x01;
             // CI for data group length indicator: Application Type=12 (Start of MOT)
-            pad[padlen-4]=(xpadlengthmask<<5) | 12; 
+            pad[padlen-4]=(xpadlengthmask<<5) | 12;
             // End of CI list
             pad[padlen-5]=0x00;
             // RFA+HI Data group length
@@ -884,10 +900,12 @@ void writeMotPAD(int output_fd,
         }
 
         write(output_fd, pad, padlen);
-        //fprintf(stderr,"MSC Data Group - Segment %d: ",i);
-        //for (j=0;j<padlen;j++) fprintf(stderr,"%02x ",pad[j]);
-        //        fprintf(stderr,"\n");
-
+#if DEBUG
+        fprintf(stderr,"MSC Data Group - Segment %d: ",i);
+        for (j=0;j<padlen;j++)
+            fprintf(stderr,"%02x ",pad[j]);
+        fprintf(stderr,"\n");
+#endif
     }
 }
 
