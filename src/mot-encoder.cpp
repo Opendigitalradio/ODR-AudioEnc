@@ -57,6 +57,11 @@ extern "C" {
 
 #define MAXSEGLEN 8179
 #define MAXDLS 129
+#define MAXSLIDESIZE 50000
+
+// Do not allow the image compressor to go below
+// JPEG quality 40
+#define MINQUALITY 40
 
 struct MSCDG {
     // MSC Data Group Header (extension field not supported)
@@ -336,7 +341,8 @@ int main(int argc, char *argv[])
 
 int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
 {
-    int fd=0, ret, mothdrlen, nseg, lastseglen, i, last, curseglen;
+    int ret = 0;
+    int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
     unsigned char mothdr[32];
     MagickWand *m_wand = NULL;
     PixelWand  *p_wand = NULL;
@@ -346,7 +352,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     MSCDG msc;
     unsigned char mscblob[8200];
     unsigned short int mscblobsize;
-    //float aspectRatio;
+    int quality = 100;
 
     m_wand = NewMagickWand();
     p_wand = NewPixelWand();
@@ -355,8 +361,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     err = MagickReadImage(m_wand, fname.c_str());
     if (err == MagickFalse) {
         fprintf(stderr, "Error - Unable to load image %s\n", fname.c_str());
-        ret = 0;
-        goto RETURN;
+        goto encodefile_out;
     }
 
     height = MagickGetImageHeight(m_wand);
@@ -387,12 +392,24 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
 
     MagickBorderImage(m_wand, p_wand, (320-width)/2, (240-height)/2);
 
-    MagickSetImageCompressionQuality(m_wand, 75);
     MagickSetImageFormat(m_wand, "jpg");
-    blob = MagickGetImagesBlob(m_wand, &blobsize);
+
+    do {
+        quality -= 5;
+
+        MagickSetImageCompressionQuality(m_wand, quality);
+        blob = MagickGetImagesBlob(m_wand, &blobsize);
+    } while (blobsize > MAXSLIDESIZE && quality > MINQUALITY);
+
+    if (blobsize > MAXSLIDESIZE) {
+        fprintf(stderr, "mot-encoder: Image Size too large after compression: %zu bytes\n",
+                blobsize);
+        goto encodefile_out;
+    }
+
     if (verbose) {
-        fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes\n",
-                width, height, blobsize);
+        fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes (q=%d)\n",
+                width, height, blobsize, quality);
     }
 
     nseg = blobsize / MAXSEGLEN;
@@ -426,7 +443,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
 
     ret = 1;
 
-RETURN:
+encodefile_out:
     if (m_wand) {
         m_wand = DestroyMagickWand(m_wand);
     }
