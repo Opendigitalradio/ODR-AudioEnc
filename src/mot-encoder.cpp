@@ -319,18 +319,21 @@ int main(int argc, char *argv[])
                     }
                 }
 
+                // Always retransmit DLS after each slide, we want it to be updated frequently
+                writeDLS(output_fd, dls_file, padlen);
+
                 sleep(sleepdelay);
             }
 
             slides_to_transmit.resize(0);
         }
-
-        if (dls_file) {
+        else if (dls_file) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
             writeDLS(output_fd, dls_file, padlen);
-        }
 
-        sleep(sleepdelay);
+            sleep(sleepdelay);
+
+        }
 
         if (pDir) {
             closedir(pDir);
