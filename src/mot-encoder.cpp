@@ -339,48 +339,26 @@ int main(int argc, char *argv[])
     return 1;
 }
 
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
+// Resize the image or add a black border around it
+// so that it is 320x240 pixels.
+// Automatically reduce the quality to make sure the
+// blobsize is not too large.
+//
+// Returns: the blobsize
+size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
 {
-    int ret = 0;
-    int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
-    unsigned char mothdr[32];
-    MagickWand *m_wand = NULL;
+    size_t blobsize;
+    size_t height = MagickGetImageHeight(m_wand);
+    size_t width  = MagickGetImageWidth(m_wand);
+
     PixelWand  *p_wand = NULL;
-    size_t blobsize, height, width;
-    unsigned char *blob = NULL, *curseg = NULL;
-    MagickBooleanType err;
-    MSCDG msc;
-    unsigned char mscblob[8200];
-    unsigned short int mscblobsize;
-    int quality = 100;
-
-    m_wand = NewMagickWand();
-    p_wand = NewPixelWand();
-    PixelSetColor(p_wand, "black");
-
-    err = MagickReadImage(m_wand, fname.c_str());
-    if (err == MagickFalse) {
-        fprintf(stderr, "Error - Unable to load image %s\n", fname.c_str());
-        goto encodefile_out;
-    }
-
-    height = MagickGetImageHeight(m_wand);
-    width  = MagickGetImageWidth(m_wand);
-    //aspectRatio = (width * 1.0)/height;
-
-    if (verbose) {
-        fprintf(stderr, "mot-encoder image: %s (id=%d). Original size: %zu x %zu. ",
-                fname.c_str(), fidx, width, height);
-    }
 
     while (height > 240 || width > 320) {
         if (height/240.0 > width/320.0) {
-            //width = height * aspectRatio;
             width = width * 240.0 / height;
             height = 240;
         }
         else {
-            //height = width * (1.0/aspectRatio);
             height = height * 320.0 / width;
             width = 320;
         }
@@ -390,63 +368,164 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     height = MagickGetImageHeight(m_wand);
     width  = MagickGetImageWidth(m_wand);
 
+    // Make sure smaller images are 320x240 pixels, and
+    // add a black border
+    p_wand = NewPixelWand();
+    PixelSetColor(p_wand, "black");
     MagickBorderImage(m_wand, p_wand, (320-width)/2, (240-height)/2);
+    DestroyPixelWand(p_wand);
 
     MagickSetImageFormat(m_wand, "jpg");
+
+    int quality = 100;
 
     do {
         quality -= 5;
 
         MagickSetImageCompressionQuality(m_wand, quality);
-        blob = MagickGetImagesBlob(m_wand, &blobsize);
+        *blob = MagickGetImagesBlob(m_wand, &blobsize);
     } while (blobsize > MAXSLIDESIZE && quality > MINQUALITY);
 
     if (blobsize > MAXSLIDESIZE) {
         fprintf(stderr, "mot-encoder: Image Size too large after compression: %zu bytes\n",
                 blobsize);
-        goto encodefile_out;
+
+        return 0;
     }
 
     if (verbose) {
         fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes (q=%d)\n",
                 width, height, blobsize, quality);
     }
+    return blobsize;
+}
 
-    nseg = blobsize / MAXSEGLEN;
-    lastseglen = blobsize % MAXSEGLEN;
-    if (lastseglen != 0) {
-        nseg++;
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
+{
+    int ret = 0;
+    int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
+    unsigned char mothdr[32];
+    MagickWand *m_wand = NULL;
+    size_t blobsize, height, width;
+    unsigned char *blob = NULL;
+    unsigned char *curseg = NULL;
+    MagickBooleanType err;
+    MSCDG msc;
+    unsigned char mscblob[8200];
+    unsigned short int mscblobsize;
+
+    size_t orig_quality;
+    char*  orig_format = NULL;
+    /* We handle JPEG differently, because we want to avoid recompressing the
+     * image if it is suitable as is
+     */
+    bool   orig_is_jpeg = false;
+
+    /* By default, we do resize the image to 320x240, with a quality such that
+     * the blobsize is at most MAXSLIDESIZE.
+     *
+     * For JPEG input files that are already at the right resolution and at the
+     * right blobsize, we disable this to avoid quality loss due to recompression
+     */
+    bool resize_required = true;
+
+    m_wand = NewMagickWand();
+
+    err = MagickReadImage(m_wand, fname.c_str());
+    if (err == MagickFalse) {
+        fprintf(stderr, "mot-encoder Error: Unable to load image %s\n",
+                fname.c_str());
+
+        goto encodefile_out;
     }
 
-    createMotHeader(blobsize, fidx, mothdr, &mothdrlen);
-    // Create the MSC Data Group C-Structure
-    createMscDG(&msc, 3, 0, 1, fidx, mothdr, mothdrlen);
-    // Generate the MSC DG frame (Figure 9 en 300 401)
-    packMscDG(mscblob, &msc, &mscblobsize);
-    writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
+    height       = MagickGetImageHeight(m_wand);
+    width        = MagickGetImageWidth(m_wand);
+    orig_format  = MagickGetImageFormat(m_wand);
 
-    for (i = 0; i < nseg; i++) {
-        curseg = blob + i * MAXSEGLEN;
-        if (i == nseg-1) {
-            curseglen = lastseglen;
-            last = 1;
+    // By default assume that the image has full quality and can be reduced
+    orig_quality = 100;
+
+    if (orig_format) {
+        if (strcmp(orig_format, "JPEG") == 0) {
+            orig_quality = MagickGetImageCompressionQuality(m_wand);
+            orig_is_jpeg = true;
+
+            if (verbose) {
+                fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                        " Original size: %zu x %zu. (%s, q=%zu)\n",
+                        fname.c_str(), fidx, width, height, orig_format, orig_quality);
+            }
         }
-        else {
-            curseglen = MAXSEGLEN;
-            last = 0;
+        else if (verbose) {
+            fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                    " Original size: %zu x %zu. (%s)\n",
+                    fname.c_str(), fidx, width, height, orig_format);
         }
 
-        createMscDG(&msc, 4, i, last, fidx, curseg, curseglen);
+        free(orig_format);
+    }
+    else {
+        fprintf(stderr, "mot-encoder Warning: Unable to detect image format %s\n",
+                fname.c_str());
+
+        fprintf(stderr, "mot-encoder image: %s (id=%d).  Original size: %zu x %zu.\n",
+                fname.c_str(), fidx, width, height);
+    }
+
+    if (orig_is_jpeg && height == 240 && width == 320) {
+        // Don't recompress the image and check if the blobsize is suitable
+        blob = MagickGetImagesBlob(m_wand, &blobsize);
+
+        if (blobsize < MAXSLIDESIZE) {
+            fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
+                    fname.c_str(), fidx, blobsize);
+            resize_required = false;
+        }
+    }
+
+    if (resize_required) {
+        blobsize = resizeImage(m_wand, &blob);
+    }
+
+    if (blobsize) {
+        nseg = blobsize / MAXSEGLEN;
+        lastseglen = blobsize % MAXSEGLEN;
+        if (lastseglen != 0) {
+            nseg++;
+        }
+
+        createMotHeader(blobsize, fidx, mothdr, &mothdrlen);
+        // Create the MSC Data Group C-Structure
+        createMscDG(&msc, 3, 0, 1, fidx, mothdr, mothdrlen);
+        // Generate the MSC DG frame (Figure 9 en 300 401)
         packMscDG(mscblob, &msc, &mscblobsize);
         writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
-    }
 
-    ret = 1;
+        for (i = 0; i < nseg; i++) {
+            curseg = blob + i * MAXSEGLEN;
+            if (i == nseg-1) {
+                curseglen = lastseglen;
+                last = 1;
+            }
+            else {
+                curseglen = MAXSEGLEN;
+                last = 0;
+            }
+
+            createMscDG(&msc, 4, i, last, fidx, curseg, curseglen);
+            packMscDG(mscblob, &msc, &mscblobsize);
+            writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
+        }
+
+        ret = 1;
+    }
 
 encodefile_out:
     if (m_wand) {
         m_wand = DestroyMagickWand(m_wand);
     }
+
     if (blob) {
         free(blob);
     }
