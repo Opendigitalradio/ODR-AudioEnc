@@ -302,6 +302,12 @@ int main(int argc, char *argv[])
             // Sort the list in alphabetic order
             slides_to_transmit.sort();
 
+            if (dls_file) {
+                // Maybe we have no slides, always update DLS
+                writeDLS(output_fd, dls_file, padlen);
+                sleep(sleepdelay);
+            }
+
             // Encode the slides
             std::list<slide_metadata_t>::iterator it;
             for (it = slides_to_transmit.begin();
@@ -320,7 +326,9 @@ int main(int argc, char *argv[])
                 }
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
-                writeDLS(output_fd, dls_file, padlen);
+                if (dls_file) {
+                    writeDLS(output_fd, dls_file, padlen);
+                }
 
                 sleep(sleepdelay);
             }
