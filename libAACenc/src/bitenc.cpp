@@ -1302,41 +1302,6 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
 
   frameBits = bitMarkUp = alignAnchor;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///  Block moved in order to write DSE at the beginning of the bit stream -  Sergio Sagliocco (CSP)
-
-  /* Add fill data / stuffing bits */
-  n = qcOut->nExtensions;
-
-//  if (!(syntaxFlags & AC_DAB)) {
-          qcOut->extension[n].type = EXT_FILL_DATA;
-          qcOut->extension[n].nPayloadBits = qcOut->totFillBits;
-          qcOut->nExtensions++;
-//  } else {
-//        doByteAlign = 0;
-//  }
-  if (syntaxFlags & AC_DAB)
-          doByteAlign = 0;
-
-  /* Write global extension payload and fill data */
-  for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
-  {
-    //fprintf(stderr,"SERGIO FDKaacEnc_WriteBitstream: call FDKaacEnc_writeExtensionData - 3 (%d)\n",n);
-
-    FDKaacEnc_writeExtensionData( hTpEnc,
-                                 &qcOut->extension[n],
-                                  0,
-                                  alignAnchor,
-                                  syntaxFlags,
-                                  aot,
-                                  epConfig );
-
-    /* For EXT_FIL or EXT_FILL_DATA we could do an additional sanity check here */
-  }
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
   /* Channel element loop */
   for (i=0; i<channelMapping->nElements; i++) {
@@ -1397,7 +1362,7 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
 
   if ( (syntaxFlags & AC_ER) && !(syntaxFlags & AC_DRM) )
   {
-    UCHAR channelElementExtensionWritten[(6)][(1)]; /* 0: extension not touched, 1: extension already written */
+    UCHAR channelElementExtensionWritten[(8)][(1)]; /* 0: extension not touched, 1: extension already written */
 
     FDKmemclear(channelElementExtensionWritten, sizeof(channelElementExtensionWritten));
 
@@ -1463,6 +1428,33 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
     doByteAlign = 0;
 
   } /* AC_DRM */
+
+  /* Add fill data / stuffing bits */
+  n = qcOut->nExtensions;
+
+//  if (!(syntaxFlags & AC_DAB)) {
+	  qcOut->extension[n].type = EXT_FILL_DATA;
+	  qcOut->extension[n].nPayloadBits = qcOut->totFillBits;
+	  qcOut->nExtensions++;
+//  } else {
+//	  doByteAlign = 0;
+//  }
+  if (syntaxFlags & AC_DAB)
+	  doByteAlign = 0;
+
+  /* Write global extension payload and fill data */
+  for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
+  {
+    FDKaacEnc_writeExtensionData( hTpEnc,
+                                 &qcOut->extension[n],
+                                  0,
+                                  alignAnchor,
+                                  syntaxFlags,
+                                  aot,
+                                  epConfig );
+
+    /* For EXT_FIL or EXT_FILL_DATA we could do an additional sanity check here */
+  }
 
   if (!(syntaxFlags & (AC_SCALABLE|AC_ER|AC_DAB))) {
     FDKwriteBits(hBs, ID_END, EL_ID_BITS);
