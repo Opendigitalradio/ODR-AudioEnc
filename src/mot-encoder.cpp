@@ -56,7 +56,7 @@ extern "C" {
 #define STR(x) XSTR(x)
 
 #define MAXSEGLEN 8179
-#define MAXDLS 129
+#define MAXDLS 128 //  limit defined in ETSI TS 102 980
 #define MAXSLIDESIZE 50000
 
 // Do not allow the image compressor to go below
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     DIR *pDir = NULL;
     int  padlen = 58;
     bool erase_after_tx = false;
-    int  sleepdelay = 10;
+    int  sleepdelay = SLEEPDELAY_DEFAULT; // apply the default delay
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
@@ -334,6 +334,7 @@ int main(int argc, char *argv[])
             }
 
             slides_to_transmit.resize(0);
+            fidx = 0; // avoid increasing constantly TID
         }
         else if (dls_file) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
