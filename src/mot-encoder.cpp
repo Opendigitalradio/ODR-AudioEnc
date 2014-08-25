@@ -279,9 +279,9 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "mot-encoder Error: cannot open directory '%s'\n", dir);
                 return 1;
             }
-            if (fidx == MAXSLIDEID) {
-                fidx = 0;
-                transmission_history.clear();
+            
+            if (transmission_history.size() >= MAXSLIDEID) {
+            	transmission_history.clear();
             }
 
             // Add new slides to transmit to list
@@ -303,7 +303,12 @@ int main(int argc, char *argv[])
 						
 						// update transmission history
 						transmission_history[pDirent->d_name] = md.fidx;
-						fidx++;
+						
+						if (fidx == MAXSLIDEID) {
+                			fidx = 0;
+            			else {
+            				fidx++;
+            			}
 					}
 
                     slides_to_transmit.push_back(md);
