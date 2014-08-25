@@ -59,6 +59,7 @@ extern "C" {
 #define MAXSEGLEN 8179
 #define MAXDLS 128 //  limit defined in ETSI TS 102 980
 #define MAXSLIDESIZE 50000
+#define MAXSLIDEID 9999
 
 // Do not allow the image compressor to go below
 // JPEG quality 40
@@ -95,7 +96,7 @@ struct slide_metadata_t {
     // complete path to slide
     std::string filepath;
 
-    // index, values from 0 to 9999, rolls over
+    // index, values from 0 to MAXSLIDEID, rolls over
     int fidx;
 
     // This is used to define the order in which several discovered
@@ -278,8 +279,9 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "mot-encoder Error: cannot open directory '%s'\n", dir);
                 return 1;
             }
-            if (fidx == 9999) {
+            if (fidx == MAXSLIDEID) {
                 fidx = 0;
+                transmission_history.clear();
             }
 
             // Add new slides to transmit to list
