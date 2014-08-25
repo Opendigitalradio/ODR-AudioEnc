@@ -294,22 +294,23 @@ int main(int argc, char *argv[])
                     md.filepath = imagepath;
                     
                     // if an image was transmitted before, it resumes its old file identity
-                    it_transmission_history = transmission_history.find(pDirent->d_name); 
-                    if (it_transmission_history != transmission_history.end()) {
-						md.fidx = it_transmission_history->second;
-					} 
-					else {
-						md.fidx = fidx;
+                    	it_transmission_history = transmission_history.find(pDirent->d_name); 
+                    	if (it_transmission_history != transmission_history.end()) {
+				md.fidx = it_transmission_history->second;
+			} 
+			else {
+				md.fidx = fidx;
 						
-						// update transmission history
-						transmission_history[pDirent->d_name] = md.fidx;
+				// update transmission history
+				transmission_history[pDirent->d_name] = md.fidx;
 						
-						if (fidx == MAXSLIDEID) {
+				if (fidx == MAXSLIDEID) {
                 			fidx = 0;
+				}
             			else {
             				fidx++;
             			}
-					}
+			}
 
                     slides_to_transmit.push_back(md);
 
