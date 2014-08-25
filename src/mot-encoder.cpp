@@ -33,6 +33,7 @@
 #include <vector>
 #include <deque>
 #include <list>
+#include <map> // for transmission history
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -266,6 +267,8 @@ int main(int argc, char *argv[])
     MagickWandGenesis();
 
     std::list<slide_metadata_t> slides_to_transmit;
+    std::map<std::string, int> transmission_history;
+    std::map<std::string, int>::iterator it_transmission_history;
 
     fidx = 0;
     while(1) {
@@ -287,7 +290,19 @@ int main(int argc, char *argv[])
 
                     slide_metadata_t md;
                     md.filepath = imagepath;
-                    md.fidx     = fidx;
+                    
+                    // if an image was transmitted before, it resumes its old file identity
+                    it_transmission_history = transmission_history.find(pDirent->d_name); 
+                    if (it_transmission_history != transmission_history.end()) {
+						md.fidx = it_transmission_history->second;
+					} 
+					else {
+						md.fidx = fidx;
+						
+						// update transmission history
+						transmission_history[pDirent->d_name] = md.fidx;
+						fidx++;
+					}
 
                     slides_to_transmit.push_back(md);
 
@@ -295,7 +310,6 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
                     }
 
-                    fidx++;
                 }
             }
 
@@ -334,7 +348,7 @@ int main(int argc, char *argv[])
             }
 
             slides_to_transmit.resize(0);
-            fidx = 0; // avoid increasing constantly TID
+
         }
         else if (dls_file) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
