@@ -41,7 +41,7 @@
 #include <getopt.h>
 #include "config.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 #define SLEEPDELAY_DEFAULT 10 //seconds
 
@@ -123,7 +123,7 @@ unsigned char triggertime[5];   // 0x85 0x00 0x00 0x00 0x00 => NOW
 unsigned char contname[14];     // 0xCC 0x0C 0x00 imgXXXX.jpg
 } MOTSLIDEHDR;
 */
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen);
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool file_on_sls);
 void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen);
 void createMscDG(MSCDG* msc, unsigned short int dgtype, unsigned short int cindex,
         unsigned short int lastseg, unsigned short int tid, unsigned char* data,
@@ -183,6 +183,10 @@ void usage(char* name)
                     " -p, --pad=LENGTH       Set the pad length.\n"
                     "                        Possible values: " ALLOWED_PADLEN "\n"
                     "                        Default: 58\n"
+                    " -f, --file             Warning, this is an option used for experimental \n"
+                    "                        purpose. It allows you to skip all processing \n"
+                    "                        on the files in the directory specified by option -d \n"
+                    "                        It is useful only when with -d \n"
                     " -v, --verbose          Print more information to the console\n"
            );
 }
@@ -198,10 +202,12 @@ int main(int argc, char *argv[])
     int  padlen = 58;
     bool erase_after_tx = false;
     int  sleepdelay = SLEEPDELAY_DEFAULT;
+	bool file_on_sls = false;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
     const char* dls_file = NULL;
+    
 
     const struct option longopts[] = {
         {"dir",        required_argument,  0, 'd'},
@@ -210,6 +216,7 @@ int main(int argc, char *argv[])
         {"dls",        required_argument,  0, 't'},
         {"pad",        required_argument,  0, 'p'},
         {"sleep",      required_argument,  0, 's'},
+        {"file",       no_argument,        0, 'f'},
         {"help",       no_argument,        0, 'h'},
         {"verbose",    no_argument,        0, 'v'},
         {0,0,0,0},
@@ -218,7 +225,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ehd:o:s:t:p:v", longopts, &index);
+        ch = getopt_long(argc, argv, "fehd:o:s:t:p:v", longopts, &index);
         switch (ch) {
             case 'd':
                 dir = optarg;
@@ -237,6 +244,9 @@ int main(int argc, char *argv[])
                 break;
             case 'p':
                 padlen = atoi(optarg);
+                break;
+            case 'f':
+                file_on_sls = true;
                 break;
             case 'v':
                 verbose++;
@@ -306,7 +316,7 @@ int main(int argc, char *argv[])
                     slide_metadata_t md;
                     md.filepath = imagepath;                    
                     
-                    // gestion du fidx
+                    // Management of fidx
 					make_footprint(imagepath, footprint);
 					if (!find_footprint(slide_history, footprint, fidx)) {
 						add_foorprint(slide_history, footprint, fidx, MAXSLIDEID);
@@ -338,7 +348,7 @@ int main(int argc, char *argv[])
             for (it = slides_to_transmit.begin();
                     it != slides_to_transmit.end();
                     ++it) {
-                ret = encodeFile(output_fd, it->filepath, it->fidx, padlen);
+                ret = encodeFile(output_fd, it->filepath, it->fidx, padlen, file_on_sls);
                 if (ret != 1) {
                     fprintf(stderr, "mot-encoder Error: cannot encode file %s\n", it->filepath.c_str());
                 }
@@ -436,7 +446,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
     return blobsize;
 }
 
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool file_on_sls)
 {
     int ret = 0;
     int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
@@ -446,7 +456,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
     MagickBooleanType err;
-    MSCDG msc;
+    MSCDG msc;    
     unsigned char mscblob[8200];
     unsigned short int mscblobsize;
 
@@ -465,64 +475,94 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen)
      */
     bool resize_required = true;
 
-    m_wand = NewMagickWand();
 
-    err = MagickReadImage(m_wand, fname.c_str());
-    if (err == MagickFalse) {
-        fprintf(stderr, "mot-encoder Error: Unable to load image %s\n",
-                fname.c_str());
+	if (!file_on_sls) { 
+		
+		m_wand = NewMagickWand();
 
-        goto encodefile_out;
-    }
+		err = MagickReadImage(m_wand, fname.c_str());
+		if (err == MagickFalse) {
+			fprintf(stderr, "mot-encoder Error: Unable to load image %s\n",
+					fname.c_str());
 
-    height       = MagickGetImageHeight(m_wand);
-    width        = MagickGetImageWidth(m_wand);
-    orig_format  = MagickGetImageFormat(m_wand);
+			goto encodefile_out;
+		}
 
-    // By default assume that the image has full quality and can be reduced
-    orig_quality = 100;
+		height       = MagickGetImageHeight(m_wand);
+		width        = MagickGetImageWidth(m_wand);
+		orig_format  = MagickGetImageFormat(m_wand);
 
-    if (orig_format) {
-        if (strcmp(orig_format, "JPEG") == 0) {
-            orig_quality = MagickGetImageCompressionQuality(m_wand);
-            orig_is_jpeg = true;
+		// By default assume that the image has full quality and can be reduced
+		orig_quality = 100;
 
-            if (verbose) {
-                fprintf(stderr, "mot-encoder image: %s (id=%d)."
-                        " Original size: %zu x %zu. (%s, q=%zu)\n",
-                        fname.c_str(), fidx, width, height, orig_format, orig_quality);
-            }
-        }
-        else if (verbose) {
-            fprintf(stderr, "mot-encoder image: %s (id=%d)."
-                    " Original size: %zu x %zu. (%s)\n",
-                    fname.c_str(), fidx, width, height, orig_format);
-        }
+		if (orig_format) {
+			if (strcmp(orig_format, "JPEG") == 0) {
+				orig_quality = MagickGetImageCompressionQuality(m_wand);
+				orig_is_jpeg = true;
 
-        free(orig_format);
-    }
-    else {
-        fprintf(stderr, "mot-encoder Warning: Unable to detect image format %s\n",
-                fname.c_str());
+				if (verbose) {
+					fprintf(stderr, "mot-encoder image: %s (id=%d)."
+							" Original size: %zu x %zu. (%s, q=%zu)\n",
+							fname.c_str(), fidx, width, height, orig_format, orig_quality);
+				}
+			}
+			else if (verbose) {
+				fprintf(stderr, "mot-encoder image: %s (id=%d)."
+						" Original size: %zu x %zu. (%s)\n",
+						fname.c_str(), fidx, width, height, orig_format);
+			}
 
-        fprintf(stderr, "mot-encoder image: %s (id=%d).  Original size: %zu x %zu.\n",
-                fname.c_str(), fidx, width, height);
-    }
+			free(orig_format);
+		}
+		else {
+			fprintf(stderr, "mot-encoder Warning: Unable to detect image format %s\n",
+					fname.c_str());
 
-    if (orig_is_jpeg && height == 240 && width == 320) {
-        // Don't recompress the image and check if the blobsize is suitable
-        blob = MagickGetImagesBlob(m_wand, &blobsize);
+			fprintf(stderr, "mot-encoder image: %s (id=%d).  Original size: %zu x %zu.\n",
+					fname.c_str(), fidx, width, height);
+		}
 
-        if (blobsize < MAXSLIDESIZE) {
-            fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
-                    fname.c_str(), fidx, blobsize);
-            resize_required = false;
-        }
-    }
+		if (orig_is_jpeg && height == 240 && width == 320) {
+			// Don't recompress the image and check if the blobsize is suitable
+			blob = MagickGetImagesBlob(m_wand, &blobsize);
 
-    if (resize_required) {
-        blobsize = resizeImage(m_wand, &blob);
-    }
+			if (blobsize < MAXSLIDESIZE) {
+				fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
+						fname.c_str(), fidx, blobsize);
+				resize_required = false;
+			}
+		}
+
+		if (resize_required) {
+			blobsize = resizeImage(m_wand, &blob);
+		}
+    
+	} else {
+		
+		// read file
+		FILE * pFile = fopen (fname.c_str(), "rb" );
+		if (pFile == NULL) {
+			fprintf (stderr, "mot-encoder Error: Unable to load file %s\n", fname.c_str()); 
+		}
+
+		  // obtain file size:
+		  fseek (pFile , 0 , SEEK_END);
+		  blobsize = ftell (pFile);
+		  rewind (pFile);
+
+		  // allocate memory to contain the whole file:
+		  blob = (unsigned char*) malloc (sizeof(char) * blobsize);
+		  if (blob == NULL) {
+			  fprintf (stderr, "mot-encoder Error: Memory allocation error \n");  
+		  }
+
+		  // copy the file into the buffer:
+		  size_t dummy = fread (blob, 1, blobsize, pFile);
+		
+		if (pFile != NULL) {
+			fclose (pFile);
+		}
+	}
 
     if (blobsize) {
         nseg = blobsize / MAXSEGLEN;
@@ -692,7 +732,7 @@ void writeDLS(int output_fd, const char* dls_file, int padlen)
 
     create_dls_datagroup(dlstext, padlen);
     for (i = 0; i < dlsdg.size(); i++) {
-        write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
+        size_t dummy = write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
     }
 }
 
@@ -1031,7 +1071,7 @@ void writeMotPAD(int output_fd,
             pad[j] = 0x00;
         }
 
-        write(output_fd, pad, padlen);
+        size_t dummy = write(output_fd, pad, padlen);
 #if DEBUG
         fprintf(stderr,"MSC Data Group - Segment %d: ",i);
         for (j=0;j<padlen;j++)
