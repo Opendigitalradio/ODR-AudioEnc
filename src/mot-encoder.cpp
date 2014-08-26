@@ -33,7 +33,6 @@
 #include <vector>
 #include <deque>
 #include <list>
-#include <map> // for transmission history
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -57,7 +56,7 @@ extern "C" {
 #define STR(x) XSTR(x)
 
 #define MAXSEGLEN 8179
-#define MAXDLS 128 //  limit defined in ETSI TS 102 980
+#define MAXDLS 128
 #define MAXSLIDESIZE 50000
 #define MAXSLIDEID 9999
 
@@ -105,6 +104,14 @@ struct slide_metadata_t {
         return this->filepath < other.filepath;
     }
 };
+struct history_t {
+	// footprints to slide
+	std::vector<std::string> footprints;
+	
+	// position to the last added
+	unsigned int cursor;
+};
+
 /*
    typedef struct {
 // MOT HEADER CUSTOMIZED FOR SLIDESHOW APP
@@ -130,6 +137,13 @@ void writeMotPAD(int output_fd,
 
 void create_dls_datagroup(char* text, int padlen);
 void writeDLS(int output_fd, const char* dls_file, int padlen);
+
+bool find_footprint(const struct history_t & slide_history, const std::string & footprint, 
+				     int & fidx);
+void add_foorprint(struct history_t & slide_history, const std::string & footprint,  
+		               int & fidx, unsigned int max_len_history);	
+void make_footprint(const char * filepath, std::string & footprint);			    
+				    
 
 int get_xpadlengthmask(int padlen);
 #define ALLOWED_PADLEN "23, 26, 34, 42, 58"
@@ -183,7 +197,7 @@ int main(int argc, char *argv[])
     DIR *pDir = NULL;
     int  padlen = 58;
     bool erase_after_tx = false;
-    int  sleepdelay = SLEEPDELAY_DEFAULT; // apply the default delay
+    int  sleepdelay = SLEEPDELAY_DEFAULT;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
@@ -268,10 +282,10 @@ int main(int argc, char *argv[])
     MagickWandGenesis();
 
     std::list<slide_metadata_t> slides_to_transmit;
-    std::map<std::string, int> transmission_history;
-    std::map<std::string, int>::iterator it_transmission_history;
+    struct history_t slide_history;
 
     fidx = 0;
+    slide_history.cursor = fidx;
     while(1) {
         if (dir) {
             pDir = opendir(dir);
@@ -280,9 +294,7 @@ int main(int argc, char *argv[])
                 return 1;
             }
             
-            if (transmission_history.size() >= MAXSLIDEID) {
-            	transmission_history.clear();
-            }
+            // 
 
             // Add new slides to transmit to list
             while ((pDirent = readdir(pDir)) != NULL) {
@@ -290,27 +302,17 @@ int main(int argc, char *argv[])
                     char imagepath[256];
                     sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
 
+					std::string footprint;
                     slide_metadata_t md;
-                    md.filepath = imagepath;
+                    md.filepath = imagepath;                    
                     
-                    // if an image was transmitted before, it resumes its old file identity
-                    	it_transmission_history = transmission_history.find(pDirent->d_name); 
-                    	if (it_transmission_history != transmission_history.end()) {
-				md.fidx = it_transmission_history->second;
-			} 
-			else {
-				md.fidx = fidx;
-						
-				// update transmission history
-				transmission_history[pDirent->d_name] = md.fidx;
-						
-				if (fidx == MAXSLIDEID) {
-                			fidx = 0;
-				}
-            			else {
-            				fidx++;
-            			}
-			}
+                    // gestion du fidx
+					make_footprint(imagepath, footprint);
+					if (!find_footprint(slide_history, footprint, fidx)) {
+						add_foorprint(slide_history, footprint, fidx, MAXSLIDEID);
+					}
+                    
+                    md.fidx     = fidx;
 
                     slides_to_transmit.push_back(md);
 
@@ -318,6 +320,7 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
                     }
 
+                    fidx++;
                 }
             }
 
@@ -356,7 +359,6 @@ int main(int argc, char *argv[])
             }
 
             slides_to_transmit.resize(0);
-
         }
         else if (dls_file) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
@@ -1063,3 +1065,71 @@ int get_xpadlengthmask(int padlen)
     return xpadlengthmask;
 }
 
+bool find_footprint(const struct history_t & slide_history, const std::string & footprint, 
+						 int & fidx) {
+	
+	bool found = false;
+	
+	for (unsigned int cursor(0); 
+	         cursor < slide_history.footprints.size(); 
+	         cursor++) {
+				 
+		if (slide_history.footprints[cursor] == footprint) {
+				
+			found = true;
+			fidx = (int) cursor;
+			break;
+		}
+	}
+		
+	return found;
+}
+
+void add_foorprint(struct history_t & slide_history, const std::string & footprint,  
+		               int & fidx, unsigned int max_len_history) {
+	
+	if (slide_history.footprints.size() > max_len_history) {		
+		slide_history.footprints[slide_history.cursor] = footprint;
+	}
+	else {
+		slide_history.footprints.push_back(footprint);
+	}
+	
+	fidx = (int) slide_history.cursor;
+
+	// update cursor
+	slide_history.cursor = (slide_history.cursor == max_len_history) ? 0 : slide_history.cursor + 1;
+}
+
+void make_footprint(const char * filepath, std::string & footprint) {
+	
+	char footprint_str[256];
+	int len_path = strlen(filepath);
+	struct stat attrib;
+	int cursor;
+	int cursor2;
+
+	// obtenir le nom du fichier
+	for (cursor = len_path - 1; 
+	         cursor >= 0; 
+	         cursor--) {			
+				 
+		if (filepath[cursor] == '/') {
+			break;
+		} 
+	}
+	
+	cursor2 = 0;
+	for (cursor++; cursor < len_path; cursor++) {			
+			
+				footprint_str[cursor2] = filepath[cursor];
+				cursor2++;
+	}
+	footprint_str[cursor2]='\0';
+	
+	// footprint = filename + size + last modification time
+	stat(filepath, &attrib);
+	sprintf(footprint_str, "%s_%d_%d", footprint_str, (int)attrib.st_size, (int)attrib.st_mtime);
+	footprint.assign(footprint_str);
+
+}
