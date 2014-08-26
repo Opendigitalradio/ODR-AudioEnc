@@ -105,10 +105,10 @@ struct slide_metadata_t {
     }
 };
 struct history_t {
-	// footprints to slide
+	// slide footprints 
 	std::vector<std::string> footprints;
 	
-	// position to the last added
+	// position marking the last added footprint 
 	unsigned int cursor;
 };
 
@@ -1109,7 +1109,7 @@ void make_footprint(const char * filepath, std::string & footprint) {
 	int cursor;
 	int cursor2;
 
-	// obtenir le nom du fichier
+	// get filename
 	for (cursor = len_path - 1; 
 	         cursor >= 0; 
 	         cursor--) {			
