@@ -55,10 +55,15 @@ extern "C" {
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define MAXSEGLEN 8179
-#define MAXDLS 128
-#define MAXSLIDESIZE 50000
+#define MAXSEGLEN 8179 // Bytes
+#define MAXDLS 128 // chars
+#define MAXSLIDESIZE 50000 // Bytes
+
+// Roll-over value for fidx
 #define MAXSLIDEID 9999
+
+// How many slides to keep in history
+#define MAXHISTORYLEN 50
 
 // Do not allow the image compressor to go below
 // JPEG quality 40
@@ -91,6 +96,9 @@ struct MSCDG {
     unsigned short int crc;     // 16 bits
 };
 
+/* Between collection of slides and transmission, the slide data is saved
+ * in this structure.
+ */
 struct slide_metadata_t {
     // complete path to slide
     std::string filepath;
@@ -101,51 +109,79 @@ struct slide_metadata_t {
     // This is used to define the order in which several discovered
     // slides are transmitted
     bool operator<(const slide_metadata_t& other) const {
-        return this->filepath < other.filepath;
+        return this->fidx < other.fidx;
     }
 };
 
-struct fingerprint {
+/* A simple fingerprint for each slide transmitted.
+ * Allows us to reuse the same fidx if the same slide
+ * is transmitted more than once.
+ */
+struct fingerprint_t {
     // file name
     std::string s_name;
     // file size, in bytes
-    unsigned int s_size;
+    off_t s_size;
     // time of last modification
-    unsigned int s_mtime;
+    unsigned long s_mtime;
 
-    bool operator==(struct fingerprint other) const {
+    // assigned fidx, -1 means invalid
+    int fidx;
+
+    // The comparison is not done on fidx, only
+    // on the file-specific data
+    bool operator==(const fingerprint_t& other) const {
         return (((s_name == other.s_name &&
                  s_size == other.s_size) &&
                 s_mtime == other.s_mtime));
     }
+
+    void disp(void) {
+        printf("%s_%d_%d:%d\n", s_name.c_str(), s_size, s_mtime, fidx);
+    }
+
+    void load_from_file(const char* filepath)
+    {
+        struct stat file_attribue;
+        const char * final_slash;
+
+        stat(filepath, &file_attribue);
+        final_slash = strrchr(filepath, '/');
+
+        // load filename, size and mtime
+        // Save only the basename of the filepath
+        this->s_name.assign((final_slash == NULL) ? filepath : final_slash + 1);
+        this->s_size = file_attribue.st_size;
+        this->s_mtime = file_attribue.st_mtime;
+
+        this->fidx = -1;
+    }
 };
 
-class history {
+class History {
     public:
-        history(size_t hist_size);
-        ~history();
+        History(size_t hist_size) :
+            m_hist_size(hist_size),
+            m_last_given_fidx(0) {}
         void disp_database();
         // controller of id base on database
-        size_t get_id(const char * filepath);
+        int get_fidx(const char* filepath);
 
     private:
-        struct fingerprint fp;
-        std::vector<struct fingerprint> database;
+        std::deque<fingerprint_t> database;
 
-        struct cursor {
-            size_t cur_pos;
-            size_t max_pos;
-        } write_cursor;
+        size_t m_hist_size;
 
-        void update_cursor();
-        void disp_fp(const struct fingerprint & in_fp);
+        int m_last_given_fidx;
 
-        // make fingerprint et load it as fp
-        void make(const char * filepath);
-        // find the same fingerprint in database
-        int find();
-        // add new fingerprint in database
-        int add();
+        // find the fingerprint fp in database.
+        // returns the fidx when found,
+        //    or   -1 if not found
+        int find(const fingerprint_t& fp) const;
+
+        // add a new fingerprint into database
+        // returns its fidx
+        void add(fingerprint_t& fp);
 };
 
 
@@ -160,7 +196,7 @@ unsigned char triggertime[5];   // 0x85 0x00 0x00 0x00 0x00 => NOW
 unsigned char contname[14];     // 0xCC 0x0C 0x00 imgXXXX.jpg
 } MOTSLIDEHDR;
 */
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool file_on_sls);
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw_slides);
 void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen);
 void createMscDG(MSCDG* msc, unsigned short int dgtype, unsigned short int cindex,
         unsigned short int lastseg, unsigned short int tid, unsigned char* data,
@@ -175,12 +211,6 @@ void writeMotPAD(int output_fd,
 void create_dls_datagroup(char* text, int padlen);
 void writeDLS(int output_fd, const char* dls_file, int padlen);
 
-bool find_footprint(const struct history_t & slide_history, const std::string & footprint, 
-				     int & fidx);
-void add_foorprint(struct history_t & slide_history, const std::string & footprint,  
-		               int & fidx, unsigned int max_len_history);	
-void make_footprint(const char * filepath, std::string & footprint);			    
-				    
 
 int get_xpadlengthmask(int padlen);
 #define ALLOWED_PADLEN "23, 26, 34, 42, 58"
@@ -220,10 +250,9 @@ void usage(char* name)
                     " -p, --pad=LENGTH       Set the pad length.\n"
                     "                        Possible values: " ALLOWED_PADLEN "\n"
                     "                        Default: 58\n"
-                    " -f, --file             Warning, this is an option used for experimental \n"
-                    "                        purpose. It allows you to skip all processing \n"
-                    "                        on the files in the directory specified by option -d \n"
-                    "                        It is useful only when with -d \n"
+                    " -R, --raw-slides       Do not process slides. Integrity checks and resizing\n"
+                    "                        slides is skipped. Use this if you know what you are doing !\n"
+                    "                        It is useful only when -d is used\n"
                     " -v, --verbose          Print more information to the console\n"
            );
 }
@@ -233,13 +262,13 @@ void usage(char* name)
 #define optional_argument 2
 int main(int argc, char *argv[])
 {
-    int len, fidx, ret;
+    int len, ret;
     struct dirent *pDirent;
     DIR *pDir = NULL;
     int  padlen = 58;
     bool erase_after_tx = false;
     int  sleepdelay = SLEEPDELAY_DEFAULT;
-	bool file_on_sls = false;
+    bool raw_slides = false;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
@@ -253,7 +282,7 @@ int main(int argc, char *argv[])
         {"dls",        required_argument,  0, 't'},
         {"pad",        required_argument,  0, 'p'},
         {"sleep",      required_argument,  0, 's'},
-        {"file",       no_argument,        0, 'f'},
+        {"raw-slides", no_argument,        0, 'R'},
         {"help",       no_argument,        0, 'h'},
         {"verbose",    no_argument,        0, 'v'},
         {0,0,0,0},
@@ -262,7 +291,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "fehd:o:s:t:p:v", longopts, &index);
+        ch = getopt_long(argc, argv, "ehRd:o:p:s:t:v", longopts, &index);
         switch (ch) {
             case 'd':
                 dir = optarg;
@@ -282,8 +311,8 @@ int main(int argc, char *argv[])
             case 'p':
                 padlen = atoi(optarg);
                 break;
-            case 'f':
-                file_on_sls = true;
+            case 'R':
+                raw_slides = true;
                 break;
             case 'v':
                 verbose++;
@@ -329,7 +358,7 @@ int main(int argc, char *argv[])
     MagickWandGenesis();
 
     std::list<slide_metadata_t> slides_to_transmit;
-    class history slides_history(MAXSLIDEID);
+    History slides_history(MAXHISTORYLEN);
 
     while(1) {
         if (dir) {
@@ -338,8 +367,6 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "mot-encoder Error: cannot open directory '%s'\n", dir);
                 return 1;
             }
-            
-            // 
 
             // Add new slides to transmit to list
             while ((pDirent = readdir(pDir)) != NULL) {
@@ -348,20 +375,21 @@ int main(int argc, char *argv[])
                     sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
 
                     slide_metadata_t md;
-                    md.filepath = imagepath;                  
-                    fidx        = slides_history.get_id(imagepath);                                  
-                    md.fidx     = fidx;
-
+                    md.filepath = imagepath;
+                    md.fidx     = slides_history.get_fidx(imagepath);
                     slides_to_transmit.push_back(md);
 
                     if (verbose) {
-                        fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
+                        fprintf(stderr, "mot-encoder found slide %s, fidx %d\n", imagepath, md.fidx);
                     }
-
                 }
             }
 
-            // Sort the list in alphabetic order
+#ifdef DEBUG
+            slides_history.disp_database();
+#endif
+
+            // Sort the list in fidx order
             slides_to_transmit.sort();
 
             if (dls_file) {
@@ -375,7 +403,8 @@ int main(int argc, char *argv[])
             for (it = slides_to_transmit.begin();
                     it != slides_to_transmit.end();
                     ++it) {
-                ret = encodeFile(output_fd, it->filepath, it->fidx, padlen, file_on_sls);
+
+                ret = encodeFile(output_fd, it->filepath, it->fidx, padlen, raw_slides);
                 if (ret != 1) {
                     fprintf(stderr, "mot-encoder Error: cannot encode file %s\n", it->filepath.c_str());
                 }
@@ -392,6 +421,10 @@ int main(int argc, char *argv[])
                     writeDLS(output_fd, dls_file, padlen);
                 }
 
+                sleep(sleepdelay);
+            }
+
+            if (slides_to_transmit.size() == 0) {
                 sleep(sleepdelay);
             }
 
@@ -473,7 +506,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
     return blobsize;
 }
 
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool file_on_sls)
+int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw_slides)
 {
     int ret = 0;
     int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
@@ -483,7 +516,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool fil
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
     MagickBooleanType err;
-    MSCDG msc;    
+    MSCDG msc;
     unsigned char mscblob[8200];
     unsigned short int mscblobsize;
 
@@ -492,7 +525,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool fil
     /* We handle JPEG differently, because we want to avoid recompressing the
      * image if it is suitable as is
      */
-    bool   orig_is_jpeg = false;
+    bool orig_is_jpeg = false;
 
     /* By default, we do resize the image to 320x240, with a quality such that
      * the blobsize is at most MAXSLIDESIZE.
@@ -503,93 +536,101 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool fil
     bool resize_required = true;
 
 
-	if (!file_on_sls) { 
-		
-		m_wand = NewMagickWand();
+    if (!raw_slides) {
 
-		err = MagickReadImage(m_wand, fname.c_str());
-		if (err == MagickFalse) {
-			fprintf(stderr, "mot-encoder Error: Unable to load image %s\n",
-					fname.c_str());
+        m_wand = NewMagickWand();
 
-			goto encodefile_out;
-		}
+        err = MagickReadImage(m_wand, fname.c_str());
+        if (err == MagickFalse) {
+            fprintf(stderr, "mot-encoder Error: Unable to load image %s\n",
+                    fname.c_str());
 
-		height       = MagickGetImageHeight(m_wand);
-		width        = MagickGetImageWidth(m_wand);
-		orig_format  = MagickGetImageFormat(m_wand);
+            goto encodefile_out;
+        }
 
-		// By default assume that the image has full quality and can be reduced
-		orig_quality = 100;
+        height       = MagickGetImageHeight(m_wand);
+        width        = MagickGetImageWidth(m_wand);
+        orig_format  = MagickGetImageFormat(m_wand);
 
-		if (orig_format) {
-			if (strcmp(orig_format, "JPEG") == 0) {
-				orig_quality = MagickGetImageCompressionQuality(m_wand);
-				orig_is_jpeg = true;
+        // By default assume that the image has full quality and can be reduced
+        orig_quality = 100;
 
-				if (verbose) {
-					fprintf(stderr, "mot-encoder image: %s (id=%d)."
-							" Original size: %zu x %zu. (%s, q=%zu)\n",
-							fname.c_str(), fidx, width, height, orig_format, orig_quality);
-				}
-			}
-			else if (verbose) {
-				fprintf(stderr, "mot-encoder image: %s (id=%d)."
-						" Original size: %zu x %zu. (%s)\n",
-						fname.c_str(), fidx, width, height, orig_format);
-			}
+        if (orig_format) {
+            if (strcmp(orig_format, "JPEG") == 0) {
+                orig_quality = MagickGetImageCompressionQuality(m_wand);
+                orig_is_jpeg = true;
 
-			free(orig_format);
-		}
-		else {
-			fprintf(stderr, "mot-encoder Warning: Unable to detect image format %s\n",
-					fname.c_str());
+                if (verbose) {
+                    fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                            " Original size: %zu x %zu. (%s, q=%zu)\n",
+                            fname.c_str(), fidx, width, height, orig_format, orig_quality);
+                }
+            }
+            else if (verbose) {
+                fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                        " Original size: %zu x %zu. (%s)\n",
+                        fname.c_str(), fidx, width, height, orig_format);
+            }
 
-			fprintf(stderr, "mot-encoder image: %s (id=%d).  Original size: %zu x %zu.\n",
-					fname.c_str(), fidx, width, height);
-		}
+            free(orig_format);
+        }
+        else {
+            fprintf(stderr, "mot-encoder Warning: Unable to detect image format %s\n",
+                    fname.c_str());
 
-		if (orig_is_jpeg && height == 240 && width == 320) {
-			// Don't recompress the image and check if the blobsize is suitable
-			blob = MagickGetImagesBlob(m_wand, &blobsize);
+            fprintf(stderr, "mot-encoder image: %s (id=%d).  Original size: %zu x %zu.\n",
+                    fname.c_str(), fidx, width, height);
+        }
 
-			if (blobsize < MAXSLIDESIZE) {
-				fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
-						fname.c_str(), fidx, blobsize);
-				resize_required = false;
-			}
-		}
+        if (orig_is_jpeg && height == 240 && width == 320) {
+            // Don't recompress the image and check if the blobsize is suitable
+            blob = MagickGetImagesBlob(m_wand, &blobsize);
 
-		if (resize_required) {
-			blobsize = resizeImage(m_wand, &blob);
-		}
-    
-	} else {
-		
-		// read file
-		FILE * pFile = fopen (fname.c_str(), "rb" );
-		if (pFile == NULL) {
-			fprintf (stderr, "mot-encoder Error: Unable to load file %s\n", fname.c_str()); 
-		}
+            if (blobsize < MAXSLIDESIZE) {
+                fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
+                        fname.c_str(), fidx, blobsize);
+                resize_required = false;
+            }
+        }
 
-		  // obtain file size:
-		  fseek (pFile , 0 , SEEK_END);
-		  blobsize = ftell (pFile);
-		  rewind (pFile);
+        if (resize_required) {
+            blobsize = resizeImage(m_wand, &blob);
+        }
 
-		  // allocate memory to contain the whole file:
-		  blob = (unsigned char*) malloc (sizeof(char) * blobsize);
-		  if (blob == NULL) {
-			  fprintf (stderr, "mot-encoder Error: Memory allocation error \n");  
-		  }
+    }
+    else {
+        // read file
+        FILE* pFile = fopen(fname.c_str(), "rb");
+        if (pFile == NULL) {
+            fprintf(stderr, "mot-encoder Error: Unable to load file %s\n",
+                    fname.c_str());
+            goto encodefile_out;
+        }
 
-		  // copy the file into the buffer:
-		  size_t dummy = fread (blob, 1, blobsize, pFile);
-		
-		if (pFile != NULL) {
-			fclose (pFile);
-		}
-	}
+        // obtain file size:
+        fseek(pFile, 0, SEEK_END);
+        blobsize = ftell(pFile);
+        rewind(pFile);
+
+        if (blobsize > MAXSLIDESIZE) {
+            fprintf(stderr, "mot-encoder Warning: blob in raw-slide %s too large\n",
+                    fname.c_str());
+        }
+
+        // allocate memory to contain the whole file:
+        blob = (unsigned char*)malloc(sizeof(char) * blobsize);
+        if (blob == NULL) {
+            fprintf(stderr, "mot-encoder Error: Memory allocation error \n");
+            goto encodefile_out;
+        }
+
+        // copy the file into the buffer:
+        size_t dummy = fread(blob, 1, blobsize, pFile);
+
+        if (pFile != NULL) {
+            fclose(pFile);
+        }
+    }
 
     if (blobsize) {
         nseg = blobsize / MAXSEGLEN;
@@ -1108,7 +1149,6 @@ void writeMotPAD(int output_fd,
     }
 }
 
-
 int get_xpadlengthmask(int padlen)
 {
     int xpadlengthmask;
@@ -1132,93 +1172,64 @@ int get_xpadlengthmask(int padlen)
     return xpadlengthmask;
 }
 
-history::history(size_t hist_size) {
-    write_cursor.cur_pos = 0;
-    write_cursor.max_pos = hist_size;
-}
-
-void history::make(const char * filepath) {
-    struct stat file_attribue;
-    const char * final_slash;
-
-    stat(filepath, & file_attribue);
-    final_slash = strrchr(filepath, '/');
-
-    // load filename, size and mtime in fp
-    fp.s_name.assign((final_slash == NULL) ? filepath : final_slash + 1);
-    fp.s_size = file_attribue.st_size;
-    fp.s_mtime = file_attribue.st_mtime;
-}
-
-void history::disp_fp(const struct fingerprint & in_fp) {
-    printf("%s_%d_%d", in_fp.s_name.c_str(), in_fp.s_size, in_fp.s_mtime);
-}
-
-int history::find() {
-    size_t id;
-    for (id = 0; id < database.size(); id++) {
-        if (database[id] == fp) {
-
+int History::find(const fingerprint_t& fp) const
+{
+    size_t i;
+    for (i = 0; i < database.size(); i++) {
+        if (database[i] == fp) {
             // return the id of fingerprint found
-            return (int) id;
+            return database[i].fidx;
         }
     }
 
-    // return -1 when there is the same fingerprint in database
+    // return -1 when the database doesn't contain this fingerprint
     return -1;
 }
 
-void history::update_cursor() {
-    if (write_cursor.cur_pos == write_cursor.max_pos) {
-        write_cursor.cur_pos = 0;
-    }
-    else {
-        write_cursor.cur_pos++;
+void History::add(fingerprint_t& fp)
+{
+    database.push_back(fp);
+
+    if (database.size() > m_hist_size) {
+        database.pop_front();
     }
 }
 
-int history::add() {
-
-    size_t cur_pos_save = write_cursor.cur_pos;
-
-    if (database.size() < write_cursor.max_pos + 1) {
-        //
-        database.push_back(fp);
-    }
-    else {
-        // overwrite database when database size reach its max quantity write_cursor or max_pos + 1
-        database[cur_pos_save] = fp;
-    }
-    update_cursor();
-    return cur_pos_save;
-}
-
-void history::disp_database() {
+void History::disp_database()
+{
     size_t id;
+    printf("HISTORY DATABASE:\n");
     if (database.size() == 0) {
-        printf("empty\n");
+        printf(" empty\n");
     }
     else {
         for (id = 0; id < database.size(); id++) {
-            printf("id %4d: ", id);
-            disp_fp(database[id]);
-            printf("\n");
+            printf(" id %4d: ", id);
+            database[id].disp();
         }
     }
+    printf("-----------------\n");
 }
 
-size_t history::get_id(const char * filepath) {
+int History::get_fidx(const char* filepath)
+{
+    fingerprint_t fp;
 
-    int ret;
+    fp.load_from_file(filepath);
 
-    make(filepath);
-    ret = find();
-    if (ret < 0) {
-        return add();
+    int idx = find(fp);
+
+    if (idx < 0) {
+        idx = m_last_given_fidx++;
+        fp.fidx = idx;
+
+        if (m_last_given_fidx > MAXSLIDEID) {
+            m_last_given_fidx = 0;
+        }
+
+        add(fp);
     }
-    else {
-        return ret;
-    }
+
+    return idx;
 }
 
-history::~history(){}
