@@ -104,13 +104,50 @@ struct slide_metadata_t {
         return this->filepath < other.filepath;
     }
 };
-struct history_t {
-	// slide footprints 
-	std::vector<std::string> footprints;
-	
-	// position marking the last added footprint 
-	unsigned int cursor;
+
+struct fingerprint {
+    // file name
+    std::string s_name;
+    // file size, in bytes
+    unsigned int s_size;
+    // time of last modification
+    unsigned int s_mtime;
+
+    bool operator==(struct fingerprint other) const {
+        return (((s_name == other.s_name &&
+                 s_size == other.s_size) &&
+                s_mtime == other.s_mtime));
+    }
 };
+
+class history {
+    public:
+        history(size_t hist_size);
+        ~history();
+        void disp_database();
+        // controller of id base on database
+        size_t get_id(const char * filepath);
+
+    private:
+        struct fingerprint fp;
+        std::vector<struct fingerprint> database;
+
+        struct cursor {
+            size_t cur_pos;
+            size_t max_pos;
+        } write_cursor;
+
+        void update_cursor();
+        void disp_fp(const struct fingerprint & in_fp);
+
+        // make fingerprint et load it as fp
+        void make(const char * filepath);
+        // find the same fingerprint in database
+        int find();
+        // add new fingerprint in database
+        int add();
+};
+
 
 /*
    typedef struct {
@@ -292,10 +329,8 @@ int main(int argc, char *argv[])
     MagickWandGenesis();
 
     std::list<slide_metadata_t> slides_to_transmit;
-    struct history_t slide_history;
+    class history slides_history(MAXSLIDEID);
 
-    fidx = 0;
-    slide_history.cursor = fidx;
     while(1) {
         if (dir) {
             pDir = opendir(dir);
@@ -312,16 +347,9 @@ int main(int argc, char *argv[])
                     char imagepath[256];
                     sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
 
-					std::string footprint;
                     slide_metadata_t md;
-                    md.filepath = imagepath;                    
-                    
-                    // Management of fidx
-					make_footprint(imagepath, footprint);
-					if (!find_footprint(slide_history, footprint, fidx)) {
-						add_foorprint(slide_history, footprint, fidx, MAXSLIDEID);
-					}
-                    
+                    md.filepath = imagepath;                  
+                    fidx        = slides_history.get_id(imagepath);                                  
                     md.fidx     = fidx;
 
                     slides_to_transmit.push_back(md);
@@ -330,7 +358,6 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "mot-encoder found slide %s\n", imagepath);
                     }
 
-                    fidx++;
                 }
             }
 
@@ -1105,71 +1132,93 @@ int get_xpadlengthmask(int padlen)
     return xpadlengthmask;
 }
 
-bool find_footprint(const struct history_t & slide_history, const std::string & footprint, 
-						 int & fidx) {
-	
-	bool found = false;
-	
-	for (unsigned int cursor(0); 
-	         cursor < slide_history.footprints.size(); 
-	         cursor++) {
-				 
-		if (slide_history.footprints[cursor] == footprint) {
-				
-			found = true;
-			fidx = (int) cursor;
-			break;
-		}
-	}
-		
-	return found;
+history::history(size_t hist_size) {
+    write_cursor.cur_pos = 0;
+    write_cursor.max_pos = hist_size;
 }
 
-void add_foorprint(struct history_t & slide_history, const std::string & footprint,  
-		               int & fidx, unsigned int max_len_history) {
-	
-	if (slide_history.footprints.size() > max_len_history) {		
-		slide_history.footprints[slide_history.cursor] = footprint;
-	}
-	else {
-		slide_history.footprints.push_back(footprint);
-	}
-	
-	fidx = (int) slide_history.cursor;
+void history::make(const char * filepath) {
+    struct stat file_attribue;
+    const char * final_slash;
 
-	// update cursor
-	slide_history.cursor = (slide_history.cursor == max_len_history) ? 0 : slide_history.cursor + 1;
+    stat(filepath, & file_attribue);
+    final_slash = strrchr(filepath, '/');
+
+    // load filename, size and mtime in fp
+    fp.s_name.assign((final_slash == NULL) ? filepath : final_slash + 1);
+    fp.s_size = file_attribue.st_size;
+    fp.s_mtime = file_attribue.st_mtime;
 }
 
-void make_footprint(const char * filepath, std::string & footprint) {
-	
-	char footprint_str[256];
-	int len_path = strlen(filepath);
-	struct stat attrib;
-	int cursor;
-	int cursor2;
-
-	// get filename
-	for (cursor = len_path - 1; 
-	         cursor >= 0; 
-	         cursor--) {			
-				 
-		if (filepath[cursor] == '/') {
-			break;
-		} 
-	}
-	
-	cursor2 = 0;
-	for (cursor++; cursor < len_path; cursor++) {			
-			
-				footprint_str[cursor2] = filepath[cursor];
-				cursor2++;
-	}
-	footprint_str[cursor2]='\0';
-	
-	// footprint = filename + size + last modification time
-	stat(filepath, &attrib);
-	sprintf(footprint_str, "%s_%d_%d", footprint_str, (int)attrib.st_size, (int)attrib.st_mtime);
-	footprint.assign(footprint_str);
-
+void history::disp_fp(const struct fingerprint & in_fp) {
+    printf("%s_%d_%d", in_fp.s_name.c_str(), in_fp.s_size, in_fp.s_mtime);
 }
+
+int history::find() {
+    size_t id;
+    for (id = 0; id < database.size(); id++) {
+        if (database[id] == fp) {
+
+            // return the id of fingerprint found
+            return (int) id;
+        }
+    }
+
+    // return -1 when there is the same fingerprint in database
+    return -1;
+}
+
+void history::update_cursor() {
+    if (write_cursor.cur_pos == write_cursor.max_pos) {
+        write_cursor.cur_pos = 0;
+    }
+    else {
+        write_cursor.cur_pos++;
+    }
+}
+
+int history::add() {
+
+    size_t cur_pos_save = write_cursor.cur_pos;
+
+    if (database.size() < write_cursor.max_pos + 1) {
+        //
+        database.push_back(fp);
+    }
+    else {
+        // overwrite database when database size reach its max quantity write_cursor or max_pos + 1
+        database[cur_pos_save] = fp;
+    }
+    update_cursor();
+    return cur_pos_save;
+}
+
+void history::disp_database() {
+    size_t id;
+    if (database.size() == 0) {
+        printf("empty\n");
+    }
+    else {
+        for (id = 0; id < database.size(); id++) {
+            printf("id %4d: ", id);
+            disp_fp(database[id]);
+            printf("\n");
+        }
+    }
+}
+
+size_t history::get_id(const char * filepath) {
+
+    int ret;
+
+    make(filepath);
+    ret = find();
+    if (ret < 0) {
+        return add();
+    }
+    else {
+        return ret;
+    }
+}
+
+history::~history(){}
