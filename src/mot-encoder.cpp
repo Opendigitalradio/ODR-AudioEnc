@@ -41,7 +41,7 @@
 #include <getopt.h>
 #include "config.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define SLEEPDELAY_DEFAULT 10 //seconds
 
