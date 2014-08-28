@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-#ifdef DEBUG
+#if DEBUG
             slides_history.disp_database();
 #endif
 
