@@ -49,6 +49,10 @@ This package:
     make
     sudo make install
 
+If you want to use the JACK input, please use
+
+    ./configure --enable-jack
+
 * See the possible scenarios below on how to use the tools
 * use mot-encoder to encode images into MOT Slideshow
 
@@ -63,7 +67,7 @@ input on port 9000.
     DST="tcp://yourserver:9000"
     BITRATE=64
 
-AAC encoder confiugration
+AAC encoder configuration
 -------------------------
 
 By default, when not overridden by the --aaclc, --sbr or --ps options,
@@ -160,6 +164,15 @@ Scenario 6
 Wave file encoding, for non-realtime processing
 
     dabplus-enc -a -b $BITRATE -i wave_file.wav -o station1.dabp
+
+Scenario 7
+----------
+JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
+name for the encoder:
+
+    dabplus-enc -j myenc -l -b $BITRATE -f raw -a -o $DST
+
+The samplerate of the JACK server should be 32kHz or 48kHz.
 
 
 Usage of MOT Slideshow and DLS
