@@ -202,6 +202,11 @@ Known Limitations
 *mot-encoder* encodes slides in a 10 second interval, which is not linked
 to the rate at which the encoder reads the PAD data.
 
+Some receivers did not decode audio anymore between v0.3.0 and v0.5.0, because of
+a change implemented to get PAD to work. The change was subsequently reverted in
+v0.5.1 because it was deemed essential that audio decoding works on all receivers.
+Work to get both functional audio and PAD on all receivers is ongoing.
+
 Version 0.4.0 of the encoder changed the ZeroMQ framing. It will only work with
 ODR-DabMux v0.7.0 and later.
 

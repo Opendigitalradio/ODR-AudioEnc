@@ -1,3 +1,12 @@
+2014-09-26: Matthias P. Braendli <matthias@mpb.li>
+	(v0.5.1):
+	* dabplus-enc:
+		Revert change that broke audio decoding on some
+		receivers, at the price of reducing support for PAD.
+		Add JACK example to README.
+	* mot-encoder:
+		Improve slide selection and transmission handling.
+		Add ability to send slides without doing pre-processing.
 2014-07-08: Matthias P. Braendli <matthias@mpb.li>
 	(v0.5.0):
 	* dabplus-enc:
