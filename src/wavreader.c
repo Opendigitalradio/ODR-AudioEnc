@@ -34,6 +34,8 @@ struct wav_reader {
     int channels;
     int byte_rate;
     int block_align;
+
+    int streamed;
 };
 
 static uint32_t read_tag(struct wav_reader* wr) {
@@ -61,12 +63,21 @@ static uint16_t read_int16(struct wav_reader* wr) {
     return value;
 }
 
+static void skip(FILE *f, int n) {
+    int i;
+    for (i = 0; i < n; i++)
+        fgetc(f);
+}
+
 void* wav_read_open(const char *filename) {
     struct wav_reader* wr = (struct wav_reader*) malloc(sizeof(*wr));
     long data_pos = 0;
     memset(wr, 0, sizeof(*wr));
 
-    wr->wav = fopen(filename, "rb");
+    if (!strcmp(filename, "-"))
+        wr->wav = stdin;
+    else
+        wr->wav = fopen(filename, "rb");
     if (wr->wav == NULL) {
         free(wr);
         return NULL;
@@ -78,6 +89,10 @@ void* wav_read_open(const char *filename) {
         if (feof(wr->wav))
             break;
         length = read_int32(wr);
+        if (!length || length >= 0x7fff0000) {
+            wr->streamed = 1;
+            length = ~0;
+        }
         if (tag != TAG('R', 'I', 'F', 'F') || length < 4) {
             fseek(wr->wav, length, SEEK_CUR);
             continue;
@@ -109,13 +124,27 @@ void* wav_read_open(const char *filename) {
                 wr->byte_rate       = read_int32(wr);
                 wr->block_align     = read_int16(wr);
                 wr->bits_per_sample = read_int16(wr);
-                fseek(wr->wav, sublength - 16, SEEK_CUR);
+                if (wr->format == 0xfffe) {
+                    if (sublength < 28) {
+                        // Insufficient data for waveformatex
+                        break;
+                    }
+                    skip(wr->wav, 8);
+                    wr->format = read_int32(wr);
+                    skip(wr->wav, sublength - 28);
+                } else {
+                    skip(wr->wav, sublength - 16);
+                }
             } else if (subtag == TAG('d', 'a', 't', 'a')) {
                 data_pos = ftell(wr->wav);
                 wr->data_length = sublength;
+                if (!wr->data_length || wr->streamed) {
+                    wr->streamed = 1;
+                    return wr;
+                }
                 fseek(wr->wav, sublength, SEEK_CUR);
             } else {
-                fseek(wr->wav, sublength, SEEK_CUR);
+                skip(wr->wav, sublength);
             }
             length -= sublength;
         }
@@ -130,7 +159,8 @@ void* wav_read_open(const char *filename) {
 
 void wav_read_close(void* obj) {
     struct wav_reader* wr = (struct wav_reader*) obj;
-    fclose(wr->wav);
+    if (wr->wav != stdin)
+        fclose(wr->wav);
     free(wr);
 }
 
@@ -154,7 +184,7 @@ int wav_read_data(void* obj, unsigned char* data, unsigned int length) {
     int n;
     if (wr->wav == NULL)
         return -1;
-    if (length > wr->data_length)
+    if (length > wr->data_length && !wr->streamed)
         length = wr->data_length;
     n = fread(data, 1, length, wr->wav);
     wr->data_length -= length;
