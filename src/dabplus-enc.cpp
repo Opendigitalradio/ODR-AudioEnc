@@ -98,7 +98,7 @@ void usage(const char* name) {
 #endif
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
-    "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
+    "     -A, --no-afterburner                 Disable AAC encoder quality increaser.\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
     "         --aaclc                          Force the usage of AAC-LC (no SBR, no PS)\n"
@@ -209,6 +209,9 @@ int prepare_aac_encoder(
         fprintf(stderr, "Unable to set the afterburner mode\n");
         return 1;
     }
+    if (!afterburner) {
+        fprintf(stderr, "Warning: Afterburned disabled!\n");
+    }
     if (aacEncEncode(handle, NULL, NULL, NULL, NULL) != AACENC_OK) {
         fprintf(stderr, "Unable to initialize the encoder\n");
         return 1;
@@ -245,7 +248,7 @@ int main(int argc, char *argv[])
     int sample_rate=48000, channels=2;
     const int bytes_per_sample = 2;
     void *rs_handler = NULL;
-    bool afterburner = false;
+    bool afterburner = true;
     bool inFifoSilence = false;
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
@@ -291,6 +294,7 @@ int main(int argc, char *argv[])
         {"rate",          required_argument,  0, 'r'},
         {"silence",       required_argument,  0, 's'},
         {"secret-key",    required_argument,  0, 'k'},
+        {"no-afterburner",no_argument,        0, 'A'},
         {"afterburner",   no_argument,        0, 'a'},
         {"drift-comp",    no_argument,        0, 'D'},
         {"help",          no_argument,        0, 'h'},
@@ -309,7 +313,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ahDlb:c:f:i:j:k:o:r:d:p:P:s:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlb:c:f:i:j:k:o:r:d:p:P:s:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -324,7 +328,10 @@ int main(int argc, char *argv[])
             inFifoSilence = true;
             break;
         case 'a':
-            afterburner = true;
+            fprintf(stderr, "Warning, -a option does not exist anymore!\n");
+            break;
+        case 'A':
+            afterburner = false;
             break;
         case 'b':
             subchannel_index = atoi(optarg) / 8;

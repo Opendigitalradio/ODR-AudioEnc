@@ -130,7 +130,7 @@ This illustrates the fifo input over standard input of *dabplus-enc*.
 
     sox -t alsa $ALSASRC -b 16 -t raw - rate 32k channels 2 | \
     dabplus-enc -r 32000 -l \
-    -i - -b $BITRATE -f raw -a -o $DST -p 53
+    -i - -b $BITRATE -f raw -o $DST -p 53
 
 The -p 53 sets the padlen, compatible with the default mot-encoder setting. mot-encoder needs
 to be given the same value for this option.
@@ -142,7 +142,7 @@ Live Stream encoding and preparing for DAB muxer, with FIFO to odr-dabmux, 48kHz
 arecord.
 
     arecord -t raw -f S16_LE -c 2 -r 48000 -D plughw:CARD=Loopback,DEV=0,SUBDEV=0 | \
-    dabplus-enc -l -a -b $BITRATE -f raw -c 2 -r 48000 -i /dev/stdin -o - | \
+    dabplus-enc -l -b $BITRATE -f raw -c 2 -r 48000 -i /dev/stdin -o - | \
     mbuffer -q -m 10k -P 100 -s 360 > station1.fifo
 
 Here we are using the ALSA plughw feature.
@@ -163,14 +163,14 @@ Scenario 6
 ----------
 Wave file encoding, for non-realtime processing
 
-    dabplus-enc -a -b $BITRATE -i wave_file.wav -o station1.dabp
+    dabplus-enc -b $BITRATE -i wave_file.wav -o station1.dabp
 
 Scenario 7
 ----------
 JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
 name for the encoder:
 
-    dabplus-enc -j myenc -l -b $BITRATE -f raw -a -o $DST
+    dabplus-enc -j myenc -l -b $BITRATE -f raw -o $DST
 
 The samplerate of the JACK server should be 32kHz or 48kHz.
 
