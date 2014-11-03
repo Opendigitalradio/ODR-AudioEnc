@@ -188,12 +188,12 @@ INT dabWrite_Init(HANDLE_DAB hDab, CODER_CONFIG *config)
   if(config->channelMode == MODE_2)
 	  hDab->aac_channel_mode =  1;
 
-  fprintf(stderr, "hDab->dac_rate=%d\n", hDab->dac_rate);
-  fprintf(stderr, "hDab->sbr_flag=%d\n", hDab->sbr_flag);
-  fprintf(stderr, "hDab->ps_flag=%d\n", hDab->ps_flag);
-  fprintf(stderr, "hDab->aac_channel_mode=%d\n", hDab->aac_channel_mode);
-  fprintf(stderr, "hDab->subchannels_num=%d\n", hDab->subchannels_num);
-  fprintf(stderr, "cc->nSubFrames=%d\n", config->nSubFrames);
+  //fprintf(stderr, "hDab->dac_rate=%d\n", hDab->dac_rate);
+  //fprintf(stderr, "hDab->sbr_flag=%d\n", hDab->sbr_flag);
+  //fprintf(stderr, "hDab->ps_flag=%d\n", hDab->ps_flag);
+  //fprintf(stderr, "hDab->aac_channel_mode=%d\n", hDab->aac_channel_mode);
+  //fprintf(stderr, "hDab->subchannels_num=%d\n", hDab->subchannels_num);
+  //fprintf(stderr, "cc->nSubFrames=%d\n", config->nSubFrames);
 
   hDab->num_raw_blocks=config->nSubFrames-1; /* 0 means 1 raw data block */
 

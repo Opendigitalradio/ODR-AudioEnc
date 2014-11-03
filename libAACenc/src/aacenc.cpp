@@ -137,7 +137,7 @@ INT FDKaacEnc_LimitBitrate(
   do {
     prevBitRate = bitRate;
      averageBitsPerFrame = (bitRate*(frameLength>>shift)) / (coreSamplingRate>>shift) / nSubFrames;
-     fprintf(stderr, "FDKaacEnc_LimitBitrate(): averageBitsPerFrame=%d, prevBitRate=%d, nSubFrames=%d\n", averageBitsPerFrame, prevBitRate, bitRate);
+     //fprintf(stderr, "FDKaacEnc_LimitBitrate(): averageBitsPerFrame=%d, prevBitRate=%d, nSubFrames=%d\n", averageBitsPerFrame, prevBitRate, bitRate);
 
     if (pAverageBitsPerFrame != NULL) {
       *pAverageBitsPerFrame = averageBitsPerFrame;
@@ -145,27 +145,23 @@ INT FDKaacEnc_LimitBitrate(
 
     if (hTpEnc != NULL) {
       transportBits = transportEnc_GetStaticBits(hTpEnc, averageBitsPerFrame);
-      //if(hTpEnc->transportFmt == TT_DABPLUS) {
-    	fprintf(stderr, "FDKaacEnc_LimitBitrate(): hTpEnc != NULL\n");
-    	  //transportBits +=
-      //}
     } else {
       /* Assume some worst case */
       transportBits = 208;
     }
 
-    fprintf(stderr, "FDKaacEnc_LimitBitrate(): transportBits=%d, FDKmax(%d, %d)\n", transportBits, bitRate,
-    		((((40 * nChannels) + transportBits) * (coreSamplingRate)) / frameLength));
+    //fprintf(stderr, "FDKaacEnc_LimitBitrate(): transportBits=%d, FDKmax(%d, %d)\n", transportBits, bitRate,
+    //        ((((40 * nChannels) + transportBits) * (coreSamplingRate)) / frameLength));
     bitRate = FDKmax(bitRate, ((((40 * nChannels) + transportBits) * (coreSamplingRate)) / frameLength) );
     FDK_ASSERT(bitRate >= 0);
 
-    fprintf(stderr, "FDKaacEnc_LimitBitrate(): FDKmin(%d, %d)\n", bitRate, ((nChannelsEff * MIN_BUFSIZE_PER_EFF_CHAN)*(coreSamplingRate>>shift)) / (frameLength>>shift));
+    //fprintf(stderr, "FDKaacEnc_LimitBitrate(): FDKmin(%d, %d)\n", bitRate, ((nChannelsEff * MIN_BUFSIZE_PER_EFF_CHAN)*(coreSamplingRate>>shift)) / (frameLength>>shift));
     bitRate = FDKmin(bitRate, ((nChannelsEff * MIN_BUFSIZE_PER_EFF_CHAN)*(coreSamplingRate>>shift)) / (frameLength>>shift)) ;
     FDK_ASSERT(bitRate >= 0);
 
   } while (prevBitRate != bitRate && iter++ < 3) ;
 
-  fprintf(stderr, "FDKaacEnc_LimitBitrate(): bitRate=%d\n", bitRate);
+  //fprintf(stderr, "FDKaacEnc_LimitBitrate(): bitRate=%d\n", bitRate);
   return bitRate;
 }
 
@@ -452,13 +448,13 @@ AAC_ENCODER_ERROR FDKaacEnc_Initialize(HANDLE_AAC_ENC      hAacEnc,
      }
 
      //config->nSubFrames = frames_per_superframe;
-     fprintf(stderr, "DAB+ superframe size=%d\n", superframe_size);
-   	 config->bitRate = (superframe_size - 16*(frames_per_superframe-1) - staticBits) * 1000/120;
-   	 fprintf(stderr, "DAB+ tuned bitrate=%d\n", config->bitRate);
-   	 config->maxBitsPerFrame  = (superframe_size - 16*(frames_per_superframe-1) - staticBits) / frames_per_superframe;
-   	 config->maxBitsPerFrame += 7; /*padding*/
+     //fprintf(stderr, "DAB+ superframe size=%d\n", superframe_size);
+     config->bitRate = (superframe_size - 16*(frames_per_superframe-1) - staticBits) * 1000/120;
+     //fprintf(stderr, "DAB+ tuned bitrate=%d\n", config->bitRate);
+     config->maxBitsPerFrame  = (superframe_size - 16*(frames_per_superframe-1) - staticBits) / frames_per_superframe;
+     config->maxBitsPerFrame += 7; /*padding*/
      //config->bitreservoir=(superframe_size - 16*(frames_per_superframe-1) - staticBits - 2*8)/frames_per_superframe;
-   	 fprintf(stderr, "DAB+ tuned maxBitsPerFrame=%d\n", (superframe_size - 16*(frames_per_superframe-1) - staticBits)/frames_per_superframe);
+     //fprintf(stderr, "DAB+ tuned maxBitsPerFrame=%d\n", (superframe_size - 16*(frames_per_superframe-1) - staticBits)/frames_per_superframe);
   }
 
   /* check bit rate */
@@ -610,15 +606,15 @@ AAC_ENCODER_ERROR FDKaacEnc_Initialize(HANDLE_AAC_ENC      hAacEnc,
       qcInit.averageBits     = (averageBitsPerFrame+7)&~7;
       maxBitres              = (MIN_BUFSIZE_PER_EFF_CHAN*cm->nChannelsEff) - qcInit.averageBits;
       qcInit.bitRes          = (config->bitreservoir!=-1) ? FDKmin(config->bitreservoir, maxBitres) : maxBitres;
-      fprintf(stderr, "qcInit.bitRes=%d\n", qcInit.bitRes);
+      //fprintf(stderr, "qcInit.bitRes=%d\n", qcInit.bitRes);
 
       qcInit.maxBits         = fixMin(MIN_BUFSIZE_PER_EFF_CHAN*cm->nChannelsEff, ((averageBitsPerFrame+7)&~7)+qcInit.bitRes);
       qcInit.maxBits         = (config->maxBitsPerFrame!=-1) ? fixMin(qcInit.maxBits, config->maxBitsPerFrame) : qcInit.maxBits;
-      fprintf(stderr, "qcInit.maxBits=%d\n", qcInit.maxBits);
+      //fprintf(stderr, "qcInit.maxBits=%d\n", qcInit.maxBits);
 
       qcInit.minBits         = fixMax(0, ((averageBitsPerFrame-1)&~7)-qcInit.bitRes-transportEnc_GetStaticBits(hTpEnc, ((averageBitsPerFrame+7)&~7)+qcInit.bitRes));
       qcInit.minBits         = (config->minBitsPerFrame!=-1) ? fixMax(qcInit.minBits, config->minBitsPerFrame) : qcInit.minBits;
-      fprintf(stderr, "qcInit.minBits=%d\n", qcInit.minBits);
+      //fprintf(stderr, "qcInit.minBits=%d\n", qcInit.minBits);
   }
 
   qcInit.sampleRate          = config->sampleRate;

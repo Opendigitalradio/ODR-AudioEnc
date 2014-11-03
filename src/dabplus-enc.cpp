@@ -74,8 +74,6 @@ void usage(const char* name) {
     "\n"
     "This encoder includes PAD (DLS and MOT Slideshow) support by\n"
     "http://rd.csp.it to be used with mot-encoder\n"
-    "\n"
-    "  http://opendigitalradio.org\n"
     "\nUsage:\n"
     "%s (-i file|-d alsa_device) [OPTION...]\n",
 #if defined(GITVERSION)
@@ -305,6 +303,19 @@ int main(int argc, char *argv[])
         {"fifo-silence",   no_argument,        0, 3  },
         {0,0,0,0},
     };
+
+    fprintf(stderr,
+            "Welcome to %s %s, compiled at %s, %s",
+            PACKAGE_NAME,
+#if defined(GITVERSION)
+            GITVERSION,
+#else
+            PACKAGE_VERSION,
+#endif
+            __DATE__, __TIME__);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  http://opendigitalradio.org\n\n");
+
 
     if (argc < 2) {
         usage(argv[0]);

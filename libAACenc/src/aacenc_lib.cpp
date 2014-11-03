@@ -486,21 +486,21 @@ static void FDKaacEnc_MapConfig(
   cc->channelMode     = hAacConfig->channelMode;
 
   if(extCfg->userTpType == TT_DABPLUS && hAacConfig->nSubFrames==1) {
-	  switch(hAacConfig->sampleRate) {
-		  case 48000:
-			  cc->nSubFrames=6;
-			break;
-		  case 32000:
-			  cc->nSubFrames=4;
-			break;
-		  case 24000:
-			  cc->nSubFrames=3;
-			break;
-		  case 16000:
-			  cc->nSubFrames=2;
-			break;
-	  }
-	  fprintf(stderr, "hAacConfig->nSubFrames=%d hAacConfig->sampleRate=%d\n", hAacConfig->nSubFrames, hAacConfig->sampleRate);
+    switch(hAacConfig->sampleRate) {
+      case 48000:
+        cc->nSubFrames=6;
+        break;
+      case 32000:
+        cc->nSubFrames=4;
+        break;
+      case 24000:
+        cc->nSubFrames=3;
+        break;
+      case 16000:
+        cc->nSubFrames=2;
+        break;
+    }
+    //fprintf(stderr, "hAacConfig->nSubFrames=%d hAacConfig->sampleRate=%d\n", hAacConfig->nSubFrames, hAacConfig->sampleRate);
   } else {
       cc->nSubFrames = (hAacConfig->nSubFrames > 1 && extCfg->userTpNsubFrames == 1)
                  ? hAacConfig->nSubFrames
@@ -770,7 +770,7 @@ INT aacEncoder_LimitBitrate(
 
   FDK_ASSERT(bitRate > 0);
 
-  fprintf(stderr, "aacEncoder_LimitBitrate(): bitRate=%d\n", bitRate);
+  //fprintf(stderr, "aacEncoder_LimitBitrate(): bitRate=%d\n", bitRate);
   return bitRate;
 }
 
@@ -981,7 +981,7 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
 
 
 
-    fprintf(stderr, "config->userBitrate=%d\n", config->userBitrate);
+    //fprintf(stderr, "config->userBitrate=%d\n", config->userBitrate);
     /* We need the frame length to call aacEncoder_LimitBitrate() */
     hAacConfig->bitRate = aacEncoder_LimitBitrate(
               NULL,
@@ -995,7 +995,7 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
               hAacConfig->sbrRatio,
               hAacConfig->audioObjectType
               );
-    fprintf(stderr, "hAacConfig->bitRate=%d\n", hAacConfig->bitRate);
+    //fprintf(stderr, "hAacConfig->bitRate=%d\n", hAacConfig->bitRate);
 
     /* Configure PNS */
     if ( ((hAacConfig->bitrateMode>=1) && (hAacConfig->bitrateMode<=5)) /* VBR without PNS. */
@@ -1040,7 +1040,7 @@ AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
         hAacEncoder->metaDataAllowed = 0;
     }
 
-    fprintf(stderr, "hAacEncoder->metaDataAllowed=%d\n", hAacEncoder->metaDataAllowed);
+    //fprintf(stderr, "hAacEncoder->metaDataAllowed=%d\n", hAacEncoder->metaDataAllowed);
     return err;
 }
 
