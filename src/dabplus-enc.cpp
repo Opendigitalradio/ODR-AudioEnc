@@ -97,7 +97,7 @@ void usage(const char* name) {
     "     -j, --jack=name                      Enable JACK input, and define our name\n"
 #endif
     "   Encoder parameters:\n"
-    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be 8 multiple.\n"
+    "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
     "     -a, --afterburner                    Turn on AAC encoder quality increaser.\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
@@ -113,6 +113,7 @@ void usage(const char* name) {
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name"
     "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
+    "     -s, --silence=TIMEOUT                Abort encoding after TIMEOUT seconds of silence.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
     " but epgm:// and pgm:// are also accepted\n"
@@ -192,7 +193,7 @@ int prepare_aac_encoder(
         return 1;
     }
 
-    /*if (aacEncoder_SetParam(handle, AACENC_BITRATEMODE, 7 *AACENC_BR_MODE_SFR*)
+    /*if (aacEncoder_SetParam(handle, AACENC_BITRATEMODE, AACENC_BR_MODE_SFR)
      * != AACENC_OK) {
         fprintf(stderr, "Unable to set the bitrate mode\n");
         return 1;
@@ -254,6 +255,11 @@ int main(int argc, char *argv[])
     int peak_left  = 0;
     int peak_right = 0;
 
+    /* On silence, die after the silence_timeout expires */
+    bool die_on_silence = false;
+    int silence_timeout = 0;
+    int measured_silence_ms = 0;
+
     /* For MOT Slideshow and DLS insertion */
     const char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
@@ -283,6 +289,7 @@ int main(int argc, char *argv[])
         {"pad",           required_argument,  0, 'p'},
         {"pad-fifo",      required_argument,  0, 'P'},
         {"rate",          required_argument,  0, 'r'},
+        {"silence",       required_argument,  0, 's'},
         {"secret-key",    required_argument,  0, 'k'},
         {"afterburner",   no_argument,        0, 'a'},
         {"drift-comp",    no_argument,        0, 'D'},
@@ -302,7 +309,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ahDlb:c:f:i:j:k:o:r:d:p:P:", longopts, &index);
+        ch = getopt_long(argc, argv, "ahDlb:c:f:i:j:k:o:r:d:p:P:s:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -362,6 +369,17 @@ int main(int argc, char *argv[])
             break;
         case 'r':
             sample_rate = atoi(optarg);
+            break;
+        case 's':
+            silence_timeout = atoi(optarg);
+            if (silence_timeout > 0 && silence_timeout < 3600*24*30) {
+                die_on_silence = true;
+            }
+            else {
+                fprintf(stderr, "Invalid silence timeout (%d) given!\n");
+                return 1;
+            }
+
             break;
         case '?':
         case 'h':
@@ -454,7 +472,7 @@ int main(int argc, char *argv[])
     if (prepare_aac_encoder(&encoder, subchannel_index, channels,
                 sample_rate, afterburner, &aot) != 0) {
         fprintf(stderr, "Encoder preparation failed\n");
-        return 2;
+        return 1;
     }
 
     /* We assume that we need to call the encoder
@@ -545,6 +563,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Starting encoding\n");
 
+    int retval = 0;
     int send_error_count = 0;
     struct timespec tp_next;
     clock_gettime(CLOCK_MONOTONIC, &tp_next);
@@ -644,6 +663,7 @@ int main(int argc, char *argv[])
         else if (drift_compensation || jack_name) {
             if (drift_compensation && alsa_in_threaded.fault_detected()) {
                 fprintf(stderr, "Detected fault in alsa input!\n");
+                retval = 5;
                 break;
             }
 
@@ -673,6 +693,25 @@ int main(int argc, char *argv[])
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
             peak_left  = MAX(peak_left,  l);
             peak_right = MAX(peak_right, r);
+        }
+
+        /* Silence detection */
+        if (die_on_silence && MAX(peak_left, peak_right) == 0) {
+            const unsigned int dabplus_superframe_msec = 120ul;
+            const unsigned int frame_time_msec =
+                dabplus_superframe_msec / enc_calls_per_output;
+
+            measured_silence_ms += frame_time_msec;
+
+            if (measured_silence_ms > 1000*silence_timeout) {
+                fprintf(stderr, "Silence detected for %d seconds, aborting.\n",
+                        silence_timeout);
+                retval = 2;
+                break;
+            }
+        }
+        else {
+            measured_silence_ms = 0;
         }
 
         // -------------- AAC Encoding
@@ -711,6 +750,7 @@ int main(int argc, char *argv[])
                 break;
             }
             fprintf(stderr, "Encoding failed (%d)\n", err);
+            retval = 3;
             break;
         }
         calls++;
@@ -771,6 +811,7 @@ int main(int argc, char *argv[])
                 if (send_error_count > 10)
                 {
                     fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
+                    retval = 4;
                     break;
                 }
             }
@@ -810,5 +851,7 @@ int main(int argc, char *argv[])
     free_rs_char(rs_handler);
 
     aacEncClose(&encoder);
+
+    return retval;
 }
 

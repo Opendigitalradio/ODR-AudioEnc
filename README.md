@@ -174,6 +174,16 @@ name for the encoder:
 
 The samplerate of the JACK server should be 32kHz or 48kHz.
 
+Return values
+-------------
+dabplus-enc returns:
+
+ * 0 if it encoded the whole input file
+ * 1 if some options were not understood, or encoder initialisation failed
+ * 2 if the silence timeout was reached
+ * 3 if the AAC encoder failed
+ * 4 it the ZeroMQ send failed
+ * 5 if the ALSA input had a fault
 
 Usage of MOT Slideshow and DLS
 ==============================
