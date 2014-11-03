@@ -583,8 +583,8 @@ int main(int argc, char *argv[])
                 usleep(waiting / 1000);
             }
 
-            // Move our time_counter 60ms into the future.
-            // The encoder needs two calls for one frame
+            // Move our time_counter into the future, for
+            // the next frame.
             tp_next.tv_nsec += wait_time;
             if (tp_next.tv_nsec >  1000000000L) {
                 tp_next.tv_nsec -= 1000000000L;
