@@ -1303,6 +1303,23 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
   frameBits = bitMarkUp = alignAnchor;
 
 
+  /* Write DSEs first in case of DAB */
+  for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
+  {
+      if ( (syntaxFlags & AC_DAB) &&
+         (qcOut->extension[n].type == EXT_DATA_ELEMENT) ) {
+        FDKaacEnc_writeExtensionData( hTpEnc,
+                                     &qcOut->extension[n],
+                                      0,
+                                      alignAnchor,
+                                      syntaxFlags,
+                                      aot,
+                                      epConfig );
+      }
+
+    /* For EXT_FIL or EXT_FILL_DATA we could do an additional sanity check here */
+  }
+
   /* Channel element loop */
   for (i=0; i<channelMapping->nElements; i++) {
 
@@ -1445,13 +1462,16 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
   /* Write global extension payload and fill data */
   for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
   {
-    FDKaacEnc_writeExtensionData( hTpEnc,
-                                 &qcOut->extension[n],
-                                  0,
-                                  alignAnchor,
-                                  syntaxFlags,
-                                  aot,
-                                  epConfig );
+      if ( (syntaxFlags & AC_DAB) &&
+         (qcOut->extension[n].type != EXT_DATA_ELEMENT) ) {
+        FDKaacEnc_writeExtensionData( hTpEnc,
+                                     &qcOut->extension[n],
+                                      0,
+                                      alignAnchor,
+                                      syntaxFlags,
+                                      aot,
+                                      epConfig );
+      }
 
     /* For EXT_FIL or EXT_FILL_DATA we could do an additional sanity check here */
   }
