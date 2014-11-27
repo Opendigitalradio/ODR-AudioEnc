@@ -197,7 +197,14 @@ unsigned char contname[14];     // 0xCC 0x0C 0x00 imgXXXX.jpg
 } MOTSLIDEHDR;
 */
 int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw_slides);
-void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen);
+
+void createMotHeader(
+        size_t blobsize,
+        int fidx,
+        unsigned char* mothdr,
+        int* mothdrlen,
+        bool jfif_not_png);
+
 void createMscDG(MSCDG* msc, unsigned short int dgtype, unsigned short int cindex,
         unsigned short int lastseg, unsigned short int tid, unsigned char* data,
         unsigned short int datalen);
@@ -525,6 +532,11 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
      */
     bool orig_is_jpeg = false;
 
+    /* If the original is a PNG, we transmit it as is, if the resolution is correct
+     * and the file is not too large. Otherwise it gets resized and sent as JPEG.
+     */
+    bool orig_is_png = false;
+
     /* By default, we do resize the image to 320x240, with a quality such that
      * the blobsize is at most MAXSLIDESIZE.
      *
@@ -533,6 +545,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
      */
     bool resize_required = true;
 
+    bool jfif_not_png = true;
 
     if (!raw_slides) {
 
@@ -564,6 +577,16 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
                             fname.c_str(), fidx, width, height, orig_format, orig_quality);
                 }
             }
+            else if (strcmp(orig_format, "PNG") == 0) {
+                orig_is_png = true;
+                jfif_not_png = false;
+
+                if (verbose) {
+                    fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                            " Original size: %zu x %zu. (%s)\n",
+                            fname.c_str(), fidx, width, height, orig_format);
+                }
+            }
             else if (verbose) {
                 fprintf(stderr, "mot-encoder image: %s (id=%d)."
                         " Original size: %zu x %zu. (%s)\n",
@@ -580,23 +603,28 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
                     fname.c_str(), fidx, width, height);
         }
 
-        if (orig_is_jpeg && height == 240 && width == 320) {
+        if ((orig_is_jpeg || orig_is_png) && height == 240 && width == 320) {
             // Don't recompress the image and check if the blobsize is suitable
             blob = MagickGetImagesBlob(m_wand, &blobsize);
 
             if (blobsize < MAXSLIDESIZE) {
-                fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
-                        fname.c_str(), fidx, blobsize);
+                if (verbose) {
+                    fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
+                            fname.c_str(), fidx, blobsize);
+                }
                 resize_required = false;
             }
         }
 
         if (resize_required) {
             blobsize = resizeImage(m_wand, &blob);
+
+            // resizeImage always creates a jpg output
+            jfif_not_png = true;
         }
 
     }
-    else {
+    else { // Use RAW data, it might not even be a jpg !
         // read file
         FILE* pFile = fopen(fname.c_str(), "rb");
         if (pFile == NULL) {
@@ -625,6 +653,20 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
         // copy the file into the buffer:
         size_t dummy = fread(blob, 1, blobsize, pFile);
 
+        size_t last_dot = fname.rfind(".");
+
+        // default:
+        jfif_not_png = true; // This is how we did it in the past.
+                             // It's wrong anyway, so we're at least compatible
+
+        if (last_dot != std::string::npos) {
+            std::string file_extension = fname.substr(last_dot, std::string::npos);
+
+            if (file_extension == ".png") {
+                jfif_not_png = false;
+            }
+        }
+
         if (pFile != NULL) {
             fclose(pFile);
         }
@@ -637,7 +679,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
             nseg++;
         }
 
-        createMotHeader(blobsize, fidx, mothdr, &mothdrlen);
+        createMotHeader(blobsize, fidx, mothdr, &mothdrlen, jfif_not_png);
         // Create the MSC Data Group C-Structure
         createMscDG(&msc, 3, 0, 1, fidx, mothdr, mothdrlen);
         // Generate the MSC DG frame (Figure 9 en 300 401)
@@ -675,21 +717,34 @@ encodefile_out:
 }
 
 
-void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen)
+void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen, bool jfif_not_png)
 {
     struct stat s;
-    uint8_t MotHeaderCore[7] = {0x00,0x00,0x00,0x00,0x0D,0x04,0x01};
+    uint8_t MotHeaderCore[7] = {0x00,0x00,0x00,0x00,0x0D,0x04,0x00};
     uint8_t MotHeaderExt[19] = {0x85,0x00,0x00,0x00,0x00,0xcc,0x0c,
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
     char cntemp[12];
     int i;
+
+    // Set correct content subtype
+    //  ETSI TS 101 756 V1.2.1 Clause 6.1 Table 17
+    if (jfif_not_png) {
+        MotHeaderCore[6] = 0x01;
+    }
+    else {
+        MotHeaderCore[6] = 0x03;
+    }
 
     MotHeaderCore[0] = (blobsize<<4 & 0xFF000000) >> 24;
     MotHeaderCore[1] = (blobsize<<4 & 0x00FF0000) >> 16;
     MotHeaderCore[2] = (blobsize<<4 & 0x0000FF00) >> 8;
     MotHeaderCore[3] = (blobsize<<4 & 0x000000FF);
 
-    sprintf(cntemp, "img%04d.jpg", fidx);
+    sprintf(cntemp,
+            "img%04d.%s",
+            fidx,
+            jfif_not_png ? "jpg" : "png" );
+
     for (i = 0; i < strlen(cntemp); i++) {
         MotHeaderExt[8+i] = cntemp[i];
     }

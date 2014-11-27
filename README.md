@@ -16,7 +16,7 @@ The JACK input does not automatically connect to anything. The encoder runs
 at the rate defined by the system clock, and therefore sound
 card clock drift compensation is also used.
 
-*dabplus-enc* includes support for DAB MOT Slideshow and DLS, written by
+*dabplus-enc* includes support for DAB MOT Slideshow and DLS, contributed by
 [CSP](http://rd.csp.it).
 
 To encode DLS and Slideshow data, the *mot-encoder* tool reads images
@@ -188,14 +188,15 @@ dabplus-enc returns:
 Usage of MOT Slideshow and DLS
 ==============================
 
-MOT Slideshow is a new feature, which has been tested on several receivers and
-using [XPADxpert](http://www.basicmaster.de/xpadxpert/), but is still a work
-in progress.
+*mot-encoder* reads images from the specified folder, and generates the PAD
+data for the encoder. This is communicated through a fifo to the encoder. It
+also reads DLS from a file, and includes this information in the PAD.
 
-*mot-encoder* reads images from
-the specified folder, and generates the PAD data for the encoder. This is
-communicated through a fifo to the encoder. It also reads DLS from a file, and
-includes this information in the PAD.
+It can read all file formats supported by ImageMagick, and by default resizes
+them to 320x240 pixels, and compresses them as JPEG. If the input file is already
+a JPEG file of the correct size, and smaller than 50kB, it is sent without further
+compression. If the input file is a PNG that satisfies the same criteria, it is
+transmitted as PNG without any recompression.
 
 *dabplus-enc* can insert the PAD data from mot-encoder into the bitstream.
 The mp2 encoder [toolame-dab](https://github.com/Opendigitalradio/toolame-dab)
