@@ -168,7 +168,7 @@ class History {
         int get_fidx(const char* filepath);
 
     private:
-        std::deque<fingerprint_t> database;
+        std::deque<fingerprint_t> m_database;
 
         size_t m_hist_size;
 
@@ -273,7 +273,6 @@ int main(int argc, char *argv[])
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
     const char* dls_file = NULL;
-    
 
     const struct option longopts[] = {
         {"dir",        required_argument,  0, 'd'},
@@ -424,7 +423,7 @@ int main(int argc, char *argv[])
                 sleep(sleepdelay);
             }
 
-            if (slides_to_transmit.size() == 0) {
+            if (slides_to_transmit.empty()) {
                 sleep(sleepdelay);
             }
 
@@ -435,7 +434,6 @@ int main(int argc, char *argv[])
             writeDLS(output_fd, dls_file, padlen);
 
             sleep(sleepdelay);
-
         }
 
         if (pDir) {
@@ -1175,10 +1173,10 @@ int get_xpadlengthmask(int padlen)
 int History::find(const fingerprint_t& fp) const
 {
     size_t i;
-    for (i = 0; i < database.size(); i++) {
-        if (database[i] == fp) {
+    for (i = 0; i < m_database.size(); i++) {
+        if (m_database[i] == fp) {
             // return the id of fingerprint found
-            return database[i].fidx;
+            return m_database[i].fidx;
         }
     }
 
@@ -1188,10 +1186,10 @@ int History::find(const fingerprint_t& fp) const
 
 void History::add(fingerprint_t& fp)
 {
-    database.push_back(fp);
+    m_database.push_back(fp);
 
-    if (database.size() > m_hist_size) {
-        database.pop_front();
+    if (m_database.size() > m_hist_size) {
+        m_database.pop_front();
     }
 }
 
@@ -1199,13 +1197,13 @@ void History::disp_database()
 {
     size_t id;
     printf("HISTORY DATABASE:\n");
-    if (database.size() == 0) {
+    if (m_database.empty()) {
         printf(" empty\n");
     }
     else {
-        for (id = 0; id < database.size(); id++) {
+        for (id = 0; id < m_database.size(); id++) {
             printf(" id %4d: ", id);
-            database[id].disp();
+            m_database[id].disp();
         }
     }
     printf("-----------------\n");
