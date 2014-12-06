@@ -69,6 +69,13 @@ extern "C" {
 // JPEG quality 40
 #define MINQUALITY 40
 
+// Charsets from TS 101 756
+#define CHARSET_COMPLETE_EBU_LATIN 0 // Complete EBU Latin based repertoire
+#define CHARSET_EBU_LATIN_CY_GR 1 // EBU Latin based common core, Cyrillic, Greek
+#define CHARSET_EBU_LATIN_AR_HE_CY_GR 2 // EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek
+#define CHARSET_ISO_LATIN_ALPHABET_2 3 // ISO Latin Alphabet No 2
+#define CHARSET_UTF8 15 // ISO Latin Alphabet No 2
+
 struct MSCDG {
     // MSC Data Group Header (extension field not supported)
     unsigned char extflag;      //  1 bit
@@ -215,8 +222,8 @@ void writeMotPAD(int output_fd,
         unsigned short int mscdgsize,
         unsigned short int padlen);
 
-void create_dls_datagroup(char* text, int padlen);
-void writeDLS(int output_fd, const char* dls_file, int padlen);
+void create_dls_datagroup(char* text, int padlen, uint8_t charset);
+void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset);
 
 
 int get_xpadlengthmask(int padlen);
@@ -248,18 +255,25 @@ void usage(char* name)
     fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
     fprintf(stderr, " -d, --dir=DIRNAME      Directory to read images from.\n"
                     " -e, --erase            Erase slides from DIRNAME once they have\n"
-                    "                        been encoded.\n"
+                    "                          been encoded.\n"
                     " -s, --sleep=DELAY      Wait DELAY seconds between each slide\n"
-                    "                        Default: " STR(SLEEPDELAY_DEFAULT) "\n"
+                    "                          Default: " STR(SLEEPDELAY_DEFAULT) "\n"
                     " -o, --output=FILENAME  Fifo to write PAD data into.\n"
-                    "                        Default: /tmp/pad.fifo\n"
+                    "                          Default: /tmp/pad.fifo\n"
                     " -t, --dls=FILENAME     Fifo or file to read DLS text from.\n"
                     " -p, --pad=LENGTH       Set the pad length.\n"
-                    "                        Possible values: " ALLOWED_PADLEN "\n"
-                    "                        Default: 58\n"
+                    "                          Possible values: " ALLOWED_PADLEN "\n"
+                    "                          Default: 58\n"
+                    " -c, --charset=ID       Signal the character set encoding defined by ID\n"
+                    "                          ID = 0: Complete EBU Latin based repertoire\n"
+                    "                          ID = 1: Latin based common core, Cyrillic, Greek\n"
+                    "                          ID = 2: EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek\n"
+                    "                          ID = 3: ISO Latin Alphabet No 2\n"
+                    "                          ID = 15: ISO/IEC 10646 using UTF-8\n"
+                    "                          Default: 0\n"
                     " -R, --raw-slides       Do not process slides. Integrity checks and resizing\n"
-                    "                        slides is skipped. Use this if you know what you are doing !\n"
-                    "                        It is useful only when -d is used\n"
+                    "                          slides is skipped. Use this if you know what you are doing !\n"
+                    "                          It is useful only when -d is used\n"
                     " -v, --verbose          Print more information to the console\n"
            );
 }
@@ -276,12 +290,14 @@ int main(int argc, char *argv[])
     bool erase_after_tx = false;
     int  sleepdelay = SLEEPDELAY_DEFAULT;
     bool raw_slides = false;
+    int  charset = CHARSET_COMPLETE_EBU_LATIN;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
     const char* dls_file = NULL;
 
     const struct option longopts[] = {
+        {"charset",    required_argument,  0, 'c'},
         {"dir",        required_argument,  0, 'd'},
         {"erase",      no_argument,        0, 'e'},
         {"output",     required_argument,  0, 'o'},
@@ -297,8 +313,11 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ehRd:o:p:s:t:v", longopts, &index);
+        ch = getopt_long(argc, argv, "ehRc:d:o:p:s:t:v", longopts, &index);
         switch (ch) {
+            case 'c':
+                charset = atoi(optarg);
+                break;
             case 'd':
                 dir = optarg;
                 break;
@@ -355,6 +374,39 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    const char* user_charset;
+    switch (charset) {
+        case CHARSET_COMPLETE_EBU_LATIN:
+            user_charset = "Complete EBU Latin";
+            break;
+        case CHARSET_EBU_LATIN_CY_GR:
+            user_charset = "EBU Latin core, Cyrillic, Greek";
+            break;
+        case CHARSET_EBU_LATIN_AR_HE_CY_GR:
+            user_charset = "EBU Latin core, Arabic, Hebrew, Cyrillic, Greek";
+            break;
+        case CHARSET_ISO_LATIN_ALPHABET_2:
+            user_charset = "ISO Latin Alphabet 2";
+            break;
+        case CHARSET_UTF8:
+            user_charset = "UTF-8";
+            break;
+        default:
+            user_charset = "Invalid";
+            charset = -1;
+            break;
+    }
+
+    if (charset == -1) {
+        fprintf(stderr, "mot-encoder Error: Invalid charset!\n");
+        usage(argv[0]);
+        return 1;
+    }
+    else {
+        fprintf(stderr, "mot-encoder using charset %s (%d)\n",
+               user_charset, charset);
+    }
+
     int output_fd = open(output, O_WRONLY);
     if (output_fd == -1) {
         perror("mot-encoder Error: failed to open output");
@@ -400,7 +452,7 @@ int main(int argc, char *argv[])
 
             if (dls_file) {
                 // Maybe we have no slides, always update DLS
-                writeDLS(output_fd, dls_file, padlen);
+                writeDLS(output_fd, dls_file, padlen, charset);
                 sleep(sleepdelay);
             }
 
@@ -424,7 +476,7 @@ int main(int argc, char *argv[])
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
                 if (dls_file) {
-                    writeDLS(output_fd, dls_file, padlen);
+                    writeDLS(output_fd, dls_file, padlen, charset);
                 }
 
                 sleep(sleepdelay);
@@ -438,7 +490,7 @@ int main(int argc, char *argv[])
         }
         else if (dls_file) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
-            writeDLS(output_fd, dls_file, padlen);
+            writeDLS(output_fd, dls_file, padlen, charset);
 
             sleep(sleepdelay);
         }
@@ -818,7 +870,7 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
 }
 
 
-void writeDLS(int output_fd, const char* dls_file, int padlen)
+void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
 {
     char dlstext[MAXDLS];
     int dlslen;
@@ -851,13 +903,13 @@ void writeDLS(int output_fd, const char* dls_file, int padlen)
         fprintf(stderr, "mot-encoder writing DLS text \"%s\"\n", dlstext);
     }
 
-    create_dls_datagroup(dlstext, padlen);
+    create_dls_datagroup(dlstext, padlen, charset);
     for (i = 0; i < dlsdg.size(); i++) {
         size_t dummy = write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
     }
 }
 
-void create_dls_datagroup(char* text, int padlen)
+void create_dls_datagroup(char* text, int padlen, uint8_t charset)
 {
     int numdg = 0;            // Number of data groups
     int numseg;               // Number of DSL segments
@@ -964,7 +1016,7 @@ void create_dls_datagroup(char* text, int padlen)
 
             if (firstseg==1) {
                 // DLS Prefix (Charset standard)
-                dlsdg[i][padlen-6]=0x00;
+                dlsdg[i][padlen-6] = charset << 4;
             }
             else {
                 // DLS SegNum
@@ -1035,7 +1087,7 @@ void create_dls_datagroup(char* text, int padlen)
 
             if (firstseg == 1) {
                 // DLS Prefix (Charset standard)
-                dlsdg[i][padlen-6] = 0x00;
+                dlsdg[i][padlen-6] = charset << 4;
             }
             else {
                 // DLS SegNum
