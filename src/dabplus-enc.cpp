@@ -52,11 +52,7 @@ void usage(const char* name) {
     fprintf(stderr,
     "dabplus-enc %s is a HE-AACv2 encoder for DAB+\n"
     "based on fdk-aac-dabplus that can read from"
-#if HAVE_JACK
-    " JACK, ALSA or a file source\n"
-#else
-    " a ALSA or file source\n"
-#endif
+    "JACK, ALSA or a file source\n"
     "and encode to a ZeroMQ output for ODR-DabMux.\n"
     "\n"
     "The -D option enables experimental sound card clock drift compensation.\n"
@@ -90,9 +86,11 @@ void usage(const char* name) {
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
     "         --fifo-silence                   Input file is fifo and encoder generates silence when fifo is empty. Ignore EOF.\n"
-#if HAVE_JACK
     "   For the JACK input:\n"
+#if HAVE_JACK
     "     -j, --jack=name                      Enable JACK input, and define our name\n"
+#else
+    "     The JACK input was disabled at compile-time\n"
 #endif
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
@@ -282,9 +280,7 @@ int main(int argc, char *argv[])
         {"device",         required_argument,  0, 'd'},
         {"format",         required_argument,  0, 'f'},
         {"input",          required_argument,  0, 'i'},
-#if HAVE_JACK
         {"jack",           required_argument,  0, 'j'},
-#endif
         {"output",         required_argument,  0, 'o'},
         {"pad",            required_argument,  0, 'p'},
         {"pad-fifo",       required_argument,  0, 'P'},
@@ -364,11 +360,14 @@ int main(int argc, char *argv[])
         case 'i':
             infile = optarg;
             break;
-#if HAVE_JACK
         case 'j':
+#if HAVE_JACK
             jack_name = optarg;
-            break;
+#else
+            fprintf(stderr, "JACK disabled at compile time!\n");
+            return 1;
 #endif
+            break;
         case 'k':
             keyfile = optarg;
             break;
