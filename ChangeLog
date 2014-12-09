@@ -1,3 +1,13 @@
+2014-12-09: Matthias P. Braendli <matthias@mpb.li>
+	(v0.6.0):
+	* dabplus-enc:
+		Fix crashes with high bitrates
+		Improve wav input
+		Add option to quit on silence
+		Enable afterburner by default
+		Fix PAD insertion
+	* mot-encoder:
+		Add support for PNG slides
 2014-09-26: Matthias P. Braendli <matthias@mpb.li>
 	(v0.5.1):
 	* dabplus-enc:

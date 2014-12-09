@@ -1,7 +1,7 @@
 fdk-aac-dabplus Package
 =======================
 
-This package contains several tools that use the standalone library
+This package contains an DAB+ encoder that uses the standalone library
 of the Fraunhofer FDK AAC code from Android, patched for
 960-transform to do DAB+ broadcast encoding.
 
@@ -69,7 +69,6 @@ input on port 9000.
 
 AAC encoder configuration
 -------------------------
-
 By default, when not overridden by the --aaclc, --sbr or --ps options,
 the encoder is configured according to bitrate and number of channels.
 
@@ -82,7 +81,6 @@ and higher are using AAC-LC.
 
 Scenario 1
 ----------
-
 Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:
 
     dabplus-enc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -l
@@ -99,7 +97,6 @@ High occurrence of these will lead to audible artifacts.
 
 Scenario 2
 ----------
-
 Play some local audio source from a file, with ZMQ output for ODR-DabMux. The problem with
 playing a file is that *dabplus-enc* cannot directly be used, because ODR-DabMux
 does not back-pressure the encoder, which will therefore encode much faster than realtime.
@@ -126,7 +123,6 @@ Scenario 3
 ----------
 Live Stream encoding and preparing for DAB muxer, with ZMQ output, at 32kHz, using sox.
 This illustrates the fifo input over standard input of *dabplus-enc*.
-
 
     sox -t alsa $ALSASRC -b 16 -t raw - rate 32k channels 2 | \
     dabplus-enc -r 32000 -l \
@@ -209,9 +205,9 @@ working with some receivers, 23 and 26 appear to be broken.
 
 Known Limitations
 -----------------
-
 *mot-encoder* encodes slides in a 10 second interval, which is not linked
-to the rate at which the encoder reads the PAD data.
+to the rate at which the encoder reads the PAD data. It also doesn't prioritise
+DLS transmission over Slides.
 
 Some receivers did not decode audio anymore between v0.3.0 and v0.5.0, because of
 a change implemented to get PAD to work. The change was subsequently reverted in
