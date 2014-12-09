@@ -244,7 +244,6 @@ int main(int argc, char *argv[])
 
     const char *outuri = NULL;
     int sample_rate=48000, channels=2;
-    const int bytes_per_sample = 2;
     void *rs_handler = NULL;
     bool afterburner = true;
     bool inFifoSilence = false;
@@ -508,7 +507,7 @@ int main(int argc, char *argv[])
     }
 
     // Each DAB+ frame will need input_size audio bytes
-    const int input_size = channels * bytes_per_sample * info.frameLength;
+    const int input_size = channels * BYTES_PER_SAMPLE * info.frameLength;
     fprintf(stderr, "DAB+ Encoding: framelen=%d (%dB)\n",
             info.frameLength,
             input_size);
@@ -670,7 +669,7 @@ int main(int argc, char *argv[])
                     memset(input_buf, 0, input_size);
                     read = input_size;
                     usleep((long)input_size * 1000000 /
-                            (bytes_per_sample * channels * sample_rate));
+                            (BYTES_PER_SAMPLE * channels * sample_rate));
                 }
                 else {
                     fprintf(stderr, "Short file read !\n");
