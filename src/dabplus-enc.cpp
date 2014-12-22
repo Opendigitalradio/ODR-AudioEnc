@@ -102,7 +102,7 @@ void usage(const char* name) {
     "         --ps                             Force the usage of PS\n"
     "   Output and pad parameters:\n"
     "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://localhost:9000')\n"
-    "                                     -or- Output file uri. (e.g. 'file.dab')\n"
+    "                                     -or- Output file uri. (e.g. 'file.dabp')\n"
     "                                     -or- a single dash '-' to denote stdout\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
     "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
