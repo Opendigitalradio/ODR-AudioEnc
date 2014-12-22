@@ -14,7 +14,7 @@
 /* Calculate the little string containing a bargraph
  * 'VU-meter' from the peak value measured
  */
-const char* level(int channel, int* peak);
+const char* level(int channel, int peak);
 
 /* This defines the on-wire representation of a ZMQ message header.
  *

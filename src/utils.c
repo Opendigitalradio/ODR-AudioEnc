@@ -4,7 +4,7 @@
 #include <math.h>
 
 /* Taken from sox */
-const char* level(int channel, int* peak)
+const char* level(int channel, int peak)
 {
     static char const * const text[][2] = {
         /* White: 2dB steps */
@@ -17,7 +17,7 @@ const char* level(int channel, int* peak)
     };
     int const red = 1, white = NUMOF(text) - red;
 
-    double linear = (double)(*peak) / INT16_MAX;
+    double linear = ((double)peak) / INT16_MAX;
 
     int vu_dB = linear ? floor(2 * white + red + linear_to_dB(linear)) : 0;
 
@@ -25,9 +25,6 @@ const char* level(int channel, int* peak)
         MAX(vu_dB / 2, 0) :
         MIN(vu_dB - white, red + white - 1);
 
-    *peak = 0;
-
     return text[index][channel];
-
 }
 

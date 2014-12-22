@@ -832,24 +832,35 @@ int main(int argc, char *argv[])
                 }
             }
 
-            if (out_args.numOutBytes + row*10 == outbuf_size) {
-                if (show_level) {
-                    fprintf(stderr, "\rIn: [%6s|%-6s] %1s %1s %1s",
-                            level(0, &peak_left),
-                            level(1, &peak_right),
+            if (show_level) {
+                if (channels == 1) {
+                    fprintf(stderr, "\rIn: [%-6s] %1s %1s %1s",
+                            level(1, MAX(peak_right, peak_left)),
                             status & STATUS_PAD_INSERTED ? "P" : " ",
                             status & STATUS_UNDERRUN ? "U" : " ",
                             status & STATUS_OVERRUN ? "O" : " ");
                 }
-                else {
-                    if (status & STATUS_OVERRUN) {
-                        fprintf(stderr, "O");
-                    }
-
-                    if (status & STATUS_UNDERRUN) {
-                        fprintf(stderr, "U");
-                    }
+                else if (channels == 2) {
+                    fprintf(stderr, "\rIn: [%6s|%-6s] %1s %1s %1s",
+                            level(0, peak_left),
+                            level(1, peak_right),
+                            status & STATUS_PAD_INSERTED ? "P" : " ",
+                            status & STATUS_UNDERRUN ? "U" : " ",
+                            status & STATUS_OVERRUN ? "O" : " ");
                 }
+
+                peak_right = 0;
+                peak_left = 0;
+            }
+            else {
+                if (status & STATUS_OVERRUN) {
+                    fprintf(stderr, "O");
+                }
+
+                if (status & STATUS_UNDERRUN) {
+                    fprintf(stderr, "U");
+                }
+
             }
 
             status = 0;
