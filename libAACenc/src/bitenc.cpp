@@ -1462,8 +1462,11 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
   /* Write global extension payload and fill data */
   for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
   {
-      if ( (syntaxFlags & AC_DAB) &&
-         (qcOut->extension[n].type != EXT_DATA_ELEMENT) ) {
+      if ( !(syntaxFlags & AC_DAB) ||
+              ( (syntaxFlags & AC_DAB) &&
+                (qcOut->extension[n].type != EXT_DATA_ELEMENT)
+              )
+         ) {
         FDKaacEnc_writeExtensionData( hTpEnc,
                                      &qcOut->extension[n],
                                       0,
