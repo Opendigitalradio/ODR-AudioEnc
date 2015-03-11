@@ -792,8 +792,10 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
                                                    hAacEnc->config->syntaxFlags,
                                                    hAacEnc->config->epConfig);
 
-            if (ErrorStatus != AAC_ENC_OK)
+            if (ErrorStatus != AAC_ENC_OK) {
+                printf("Fail 2.1\n");
               return ErrorStatus;
+            }
 
             /*-------------------------------------------- */
 
@@ -934,8 +936,10 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
                                        hAacEnc->config->syntaxFlags,
                                        hAacEnc->config->epConfig);
 
-        if (ErrorStatus != AAC_ENC_OK)
+        if (ErrorStatus != AAC_ENC_OK) {
+            printf("Fail 2.2\n");
             return ErrorStatus;
+        }
         /*-------------------------------------------- */
 
         /*-------------------------------------------- */
@@ -955,8 +959,10 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
                                                            hAacEnc->aot,
                                                            hAacEnc->config->syntaxFlags,
                                                            hAacEnc->config->epConfig);
-            if (ErrorStatus != AAC_ENC_OK)
+            if (ErrorStatus != AAC_ENC_OK) {
+                printf("Fail 2.3\n");
                 return ErrorStatus;
+            }
             /*-------------------------------------------- */
             totalBits += qcOut->totalBits;
 
@@ -988,8 +994,10 @@ AAC_ENCODER_ERROR FDKaacEnc_EncodeFrame( HANDLE_AAC_ENC       hAacEnc,          
                     hAacEnc->config->syntaxFlags,
                     hAacEnc->config->epConfig);
 
-              if (ErrorStatus != AAC_ENC_OK)
+              if (ErrorStatus != AAC_ENC_OK) {
+                printf("Fail 2.4\n");
                 return ErrorStatus;
+              }
 
               /* transportEnc_EndAccessUnit() is being called inside FDKaacEnc_WriteBitstream() */
               transportEnc_GetFrame(hTpEnc, nOutBytes);

@@ -88,6 +88,7 @@ amm-info@iis.fraunhofer.de
 
 ******************************************************************************/
 
+#include <stdio.h>
 #include "tpenc_lib.h"
 
 /* library info */
@@ -284,6 +285,8 @@ TRANSPORTENC_ERROR transportEnc_Init(
     if ( ( hTpEnc->config.aot != AOT_AAC_LC)
        ||(hTpEnc->config.samplesPerFrame != 1024) )
     {
+        printf("Fail 1.5.1 aot %d\n", hTpEnc->config.aot);
+
       return TRANSPORTENC_INVALID_PARAMETER;
     }
     if ( adtsWrite_Init(&hTpEnc->writer.adts, &hTpEnc->config) != 0) {

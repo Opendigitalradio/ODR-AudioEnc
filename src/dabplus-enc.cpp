@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlb:c:f:i:j:k:o:r:d:p:P:s:v:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:o:r:d:p:P:s:v:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;

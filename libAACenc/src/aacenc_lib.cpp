@@ -1083,6 +1083,7 @@ static AACENC_ERROR aacEncInit(HANDLE_AACENCODER  hAacEncoder,
 
         /* Verify settings and update: config -> heAacEncoder */
         if ( (err=FDKaacEnc_AdjustEncSettings(hAacEncoder, config)) != AACENC_OK ) {
+            printf("Fail 1.1\n");
             return err;
         }
         frameLength = hAacConfig->framelength; /* adapt temporal framelength */
@@ -1121,11 +1122,13 @@ static AACENC_ERROR aacEncInit(HANDLE_AACENCODER  hAacEncoder,
                                           hAacConfig->channelOrder,
                                          &channelMapping) != AAC_ENC_OK )
         {
+            printf("Fail 1.2\n");
             return AACENC_INIT_ERROR;
         }
 
         /* Check return value and if the SBR encoder can handle enough elements */
         if (channelMapping.nElements > (8)) {
+            printf("Fail 1.3\n");
             return AACENC_INIT_ERROR;
         }
 
@@ -1155,6 +1158,7 @@ static AACENC_ERROR aacEncInit(HANDLE_AACENCODER  hAacEncoder,
 
         /* Suppress AOT reconfiguration and check error status. */
         if (sbrError) {
+            printf("Fail 1.4\n");
             return AACENC_INIT_SBR_ERROR;
         }
 
@@ -1195,6 +1199,7 @@ static AACENC_ERROR aacEncInit(HANDLE_AACENCODER  hAacEncoder,
 
         /* Initialize Bitstream encoder */
         if ( transportEnc_Init(hAacEncoder->hTpEnc, hAacEncoder->outBuffer, hAacEncoder->outBufferInBytes, config->userTpType, &hAacEncoder->coderConfig, flags) != 0) {
+            printf("Fail 1.5\n");
             return AACENC_INIT_TP_ERROR;
         }
 
@@ -1213,6 +1218,7 @@ static AACENC_ERROR aacEncInit(HANDLE_AACENCODER  hAacEncoder,
                                    (InitFlags & AACENC_INIT_STATES) ? 1 : 0);
 
         if (err != AAC_ENC_OK) {
+            printf("Fail 1.6\n");
             return AACENC_INIT_AAC_ERROR;
         }
 
@@ -1240,6 +1246,7 @@ static AACENC_ERROR aacEncInit(HANDLE_AACENCODER  hAacEncoder,
                                   config->userChannelMode,
                                   hAacConfig->channelOrder) != 0)
         {
+            printf("Fail 1.7\n");
             return AACENC_INIT_META_ERROR;
         }
 
@@ -1488,6 +1495,7 @@ AACENC_ERROR aacEncEncode(
 
         if (err!=AACENC_OK) {
             /* keep init flags alive! */
+            printf("Fail 1\n");
             goto bail;
         }
         hAacEncoder->InitFlags = AACENC_INIT_NONE;
@@ -1509,6 +1517,7 @@ AACENC_ERROR aacEncEncode(
      * If only encoder handle given, independent (re)initialization can be triggered.
      */
     if ( (hAacEncoder!=NULL) & (inBufDesc==NULL) && (outBufDesc==NULL) && (inargs==NULL) && (outargs==NULL) ) {
+        printf("Fail 2\n");
         goto bail;
     }
 
@@ -1572,6 +1581,7 @@ AACENC_ERROR aacEncEncode(
             }
         }
         else { /* inargs->numInSamples!= -1 */
+            printf("Fail 3\n");
             goto bail; /* not enough samples in input buffer and no flushing enabled */
         }
     }
@@ -1644,6 +1654,7 @@ AACENC_ERROR aacEncEncode(
                                   ))
         {
             err = AACENC_ENCODE_ERROR;
+            printf("Fail 4\n");
             goto bail;
         }
         else {
@@ -1685,6 +1696,7 @@ AACENC_ERROR aacEncEncode(
                                 ) != AAC_ENC_OK )
     {
         err = AACENC_ENCODE_ERROR;
+        printf("Fail 5\n");
         goto bail;
     }
 
@@ -1725,6 +1737,7 @@ AACENC_ERROR aacEncEncode(
         else {
           /* output buffer too small, can't write valid bitstream */
           err = AACENC_ENCODE_ERROR;
+          printf("Fail 6\n");
           goto bail;
         }
     }
