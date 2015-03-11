@@ -28,11 +28,23 @@ AM_PATH_ALSA(1.0.25)
 AC_ARG_ENABLE([jack],
         AS_HELP_STRING([--enable-jack], [Enable JACK input]))
 
+AC_ARG_ENABLE([vlc],
+        AS_HELP_STRING([--enable-vlc], [Enable libvlc input]))
+
 AS_IF([test "x$enable_jack" = "xyes"],
        AC_CHECK_LIB(jack, jack_client_open, [],
                     [AC_MSG_ERROR([JACK is required])]))
 AS_IF([test "x$enable_jack" = "xyes"],
        AC_DEFINE(HAVE_JACK, [1], [Define if JACK input is enabled]))
+
+AS_IF([test "x$enable_vlc" = "xyes"], [
+    PKG_CHECK_MODULES([LIBVLC], [libvlc])
+    AC_SUBST([LIBVLC_CFLAGS])
+    AC_SUBST([LIBVLC_LIBS]) ] )
+
+AS_IF([test "x$enable_vlc" = "xyes"],
+       AC_DEFINE(HAVE_VLC, [1], [Define if VLC input is enabled]))
+
 
 # Link against jack
 AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
@@ -48,6 +60,7 @@ if pkg-config MagickWand; then
 else
     AC_MSG_ERROR(MagickWand not found)
 fi
+
 
 dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as

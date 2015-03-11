@@ -21,6 +21,7 @@
 #include "AlsaInput.h"
 #include "FileInput.h"
 #include "JackInput.h"
+#include "VLCInput.h"
 #include "SampleQueue.h"
 #include "zmq.hpp"
 
@@ -54,6 +55,7 @@ void usage(const char* name) {
     "based on fdk-aac-dabplus that can read from"
     "JACK, ALSA or a file source\n"
     "and encode to a ZeroMQ output for ODR-DabMux.\n"
+    "(Experimental!)It can also use libvlc as an input.\n"
     "\n"
     "The -D option enables experimental sound card clock drift compensation.\n"
     "A consumer sound card has a clock that is always a bit imprecise, and\n"
@@ -89,6 +91,14 @@ void usage(const char* name) {
     "   For the JACK input:\n"
 #if HAVE_JACK
     "     -j, --jack=name                      Enable JACK input, and define our name\n"
+#else
+    "     The JACK input was disabled at compile-time\n"
+#endif
+    "   For the VLC input:\n"
+#if HAVE_JACK
+    "     -v, --vlc-uri=uri                    Enable VLC input and use the URI given as source\n"
+    "     -V                                   Increase the VLC verbosity by one (can be given \n"
+    "                                          multiple times)\n"
 #else
     "     The JACK input was disabled at compile-time\n"
 #endif
@@ -235,6 +245,10 @@ int main(int argc, char *argv[])
     const char *infile = NULL;
     int raw_input = 0;
 
+    // For the VLC input
+    std::string vlc_uri = "";
+    unsigned verbosity = 0;
+
     // For the file output
     FILE *out_fh = NULL;
 
@@ -278,6 +292,7 @@ int main(int argc, char *argv[])
         {"bitrate",        required_argument,  0, 'b'},
         {"channels",       required_argument,  0, 'c'},
         {"device",         required_argument,  0, 'd'},
+        {"vlc-uri",        required_argument,  0, 'v'},
         {"format",         required_argument,  0, 'f'},
         {"input",          required_argument,  0, 'i'},
         {"jack",           required_argument,  0, 'j'},
@@ -292,6 +307,7 @@ int main(int argc, char *argv[])
         {"drift-comp",     no_argument,        0, 'D'},
         {"help",           no_argument,        0, 'h'},
         {"level",          no_argument,        0, 'l'},
+        {"verbosity",      no_argument,        0, 'V'},
         {"aaclc",          no_argument,        0,  0 },
         {"sbr",            no_argument,        0,  1 },
         {"ps",             no_argument,        0,  2 },
@@ -319,7 +335,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlb:c:f:i:j:k:o:r:d:p:P:s:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlb:c:f:i:j:k:o:r:d:p:P:s:v:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -397,6 +413,17 @@ int main(int argc, char *argv[])
             }
 
             break;
+        case 'v':
+#ifndef HAVE_VLC
+            fprintf(stderr, "VLC input not enabled at compile time!\n");
+            return 1;
+#else
+            vlc_uri = optarg;
+            break;
+#endif
+        case 'V':
+            verbosity++;
+            break;
         case '?':
         case 'h':
             usage(argv[0]);
@@ -404,7 +431,13 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (alsa_device && infile && jack_name) {
+    int num_inputs = 0;
+    if (alsa_device) num_inputs++;
+    if (infile) num_inputs++;
+    if (jack_name) num_inputs++;
+    if (vlc_uri != "") num_inputs++;
+
+    if (num_inputs > 1) {
         fprintf(stderr, "You must define only one possible input, not several!\n");
         return 1;
     }
@@ -536,6 +569,9 @@ int main(int argc, char *argv[])
 #if HAVE_JACK
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
 #endif
+#if HAVE_VLC
+    VLCInput          vlc_in(vlc_uri, sample_rate, verbosity);
+#endif
 
     if (infile) {
         if (file_in.prepare() != 0) {
@@ -547,6 +583,14 @@ int main(int argc, char *argv[])
     else if (jack_name) {
         if (jack_in.prepare() != 0) {
             fprintf(stderr, "JACK preparation failed\n");
+            return 1;
+        }
+    }
+#endif
+#if HAVE_VLC
+    else if (vlc_uri != "") {
+        if (vlc_in.prepare() != 0) {
+            fprintf(stderr, "VLC preparation failed\n");
             return 1;
         }
     }
@@ -676,6 +720,18 @@ int main(int argc, char *argv[])
                 }
             }
         }
+#if HAVE_VLC
+        else if (vlc_uri != "") {
+            read = vlc_in.read(input_buf, input_size);
+            if (read < 0) {
+                break;
+            }
+            else if (read != input_size) {
+                fprintf(stderr, "Short VLC read !\n");
+                break;
+            }
+        }
+#endif
         else if (drift_compensation || jack_name) {
             if (drift_compensation && alsa_in_threaded.fault_detected()) {
                 fprintf(stderr, "Detected fault in alsa input!\n");
