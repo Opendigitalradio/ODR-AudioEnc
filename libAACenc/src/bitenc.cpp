@@ -1302,6 +1302,7 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
 
   frameBits = bitMarkUp = alignAnchor;
 
+
   /* Write DSEs first in case of DAB */
   for (n = 0; (n < qcOut->nExtensions) && (n < (2+2)); n++)
   {
@@ -1342,7 +1343,6 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
                                                        NULL,
                                                        0 )) )
           {
-              printf("Fail 2.4.1\n");
             return ErrorStatus;
           }
 
@@ -1364,7 +1364,6 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
 
         /* In FDK, DSE signalling explicit done in elDSE. See channel_map.cpp */
         default:
-        printf("Fail 2.4.2\n");
           return AAC_ENC_INVALID_ELEMENTINFO_TYPE;
 
     }   /* switch */
@@ -1440,7 +1439,6 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
     /* Do byte alignment after AAC (+ MPS) payload.
        Assure that MPS has been written as channel assigned extension payload! */
     if (((FDKgetValidBits(hBs)-alignAnchor+(UINT)qcOut->totFillBits)&0x7)!=(UINT)qcOut->alignBits) {
-        printf("Fail 2.4.3\n");
       return AAC_ENC_WRITTEN_BITS_ERROR;
     }
     FDKaacEnc_ByteAlignment(hBs, qcOut->alignBits);
@@ -1488,7 +1486,6 @@ AAC_ENCODER_ERROR FDKaacEnc_WriteBitstream(HANDLE_TRANSPORTENC hTpEnc,
   if (doByteAlign) {
     /* Assure byte alignment*/
     if (((alignAnchor-FDKgetValidBits(hBs))&0x7)!=(UINT)qcOut->alignBits) {
-        printf("Fail 2.4.4, %d != %d\n", (alignAnchor-FDKgetValidBits(hBs))&0x7, (UINT)qcOut->alignBits );
       return AAC_ENC_WRITTEN_BITS_ERROR;
     }
 
