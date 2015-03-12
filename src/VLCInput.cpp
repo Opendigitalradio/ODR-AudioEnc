@@ -111,10 +111,20 @@ int VLCInput::prepare()
 
 void VLCInput::preRender(uint8_t** pp_pcm_buffer, size_t size)
 {
-    boost::mutex::scoped_lock lock(m_queue_mutex);
+    const size_t max_length = 20 * size;
 
-    m_current_buf.resize(size);
-    *pp_pcm_buffer = &m_current_buf[0];
+    for (;;) {
+        boost::mutex::scoped_lock lock(m_queue_mutex);
+
+        if (m_queue.size() < max_length) {
+            m_current_buf.resize(size);
+            *pp_pcm_buffer = &m_current_buf[0];
+            return;
+        }
+
+        lock.unlock();
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+    }
 }
 
 void VLCInput::postRender(uint8_t* p_pcm_buffer, size_t size)
