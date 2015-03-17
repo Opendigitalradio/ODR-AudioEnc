@@ -48,39 +48,43 @@ class VLCInput
             m_rate(rate),
             m_vlc(NULL) { }
 
-        ~VLCInput() {
-            if (m_mp) {
-                /* Stop playing */
-                libvlc_media_player_stop(m_mp);
-
-                /* Free the media_player */
-                libvlc_media_player_release(m_mp);
-            }
-
-            if (m_vlc) {
-                libvlc_release(m_vlc);
-                m_vlc = NULL;
-            }
-        }
+        ~VLCInput() { cleanup(); }
 
         /* Prepare the audio input */
         int prepare();
 
+        /* Read exactly length bytes into buf.
+         * Blocks if not enough data is available,
+         * or returns zero if EOF reached.
+         *
+         * Returns the number of bytes written into
+         * the buffer.
+         */
         ssize_t read(uint8_t* buf, size_t length);
 
 
         // Callbacks for VLC
-        void preRender(
+
+        /* Notification of VLC exit */
+        void exit_cb(void);
+
+        /* Prepare a buffer for VLC */
+        void preRender_cb(
                 uint8_t** pp_pcm_buffer,
                 size_t size);
 
-        void postRender(
+        /* Receive a buffer with audio samples
+         * from VLC
+         */
+        void postRender_cb(
                 uint8_t* p_pcm_buffer,
                 size_t size);
 
         int getRate() { return m_rate; }
 
     protected:
+        void cleanup(void);
+
         ssize_t m_read(uint8_t* buf, size_t length);
 
         std::vector<uint8_t> m_current_buf;

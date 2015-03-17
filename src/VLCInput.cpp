@@ -39,7 +39,7 @@ void prepareRender(
 {
     VLCInput* in = (VLCInput*)p_audio_data;
 
-    in->preRender(pp_pcm_buffer, size);
+    in->preRender_cb(pp_pcm_buffer, size);
 }
 
 
@@ -60,7 +60,13 @@ void handleStream(
     assert(rate == in->getRate());
     assert(bits_per_sample == 8*BYTES_PER_SAMPLE);
 
-    in->postRender(p_pcm_buffer, size);
+    in->postRender_cb(p_pcm_buffer, size);
+}
+
+// VLC Exit callback
+void handleVLCExit(void* opaque)
+{
+    ((VLCInput*)opaque)->exit_cb();
 }
 
 int VLCInput::prepare()
@@ -96,6 +102,8 @@ int VLCInput::prepare()
     // Launch VLC
     m_vlc = libvlc_new(sizeof(vlc_args) / sizeof(vlc_args[0]), vlc_args);
 
+    libvlc_set_exit_handler(m_vlc, handleVLCExit, this);
+
     // Load the media
     libvlc_media_t *m;
     m = libvlc_media_new_location(m_vlc, m_uri.c_str());
@@ -109,7 +117,7 @@ int VLCInput::prepare()
     return 0;
 }
 
-void VLCInput::preRender(uint8_t** pp_pcm_buffer, size_t size)
+void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
 {
     const size_t max_length = 20 * size;
 
@@ -127,7 +135,34 @@ void VLCInput::preRender(uint8_t** pp_pcm_buffer, size_t size)
     }
 }
 
-void VLCInput::postRender(uint8_t* p_pcm_buffer, size_t size)
+void VLCInput::exit_cb()
+{
+    boost::mutex::scoped_lock lock(m_queue_mutex);
+
+    fprintf(stderr, "VLC exit, restarting...\n");
+
+    cleanup();
+    m_current_buf.empty();
+    prepare();
+}
+
+void VLCInput::cleanup()
+{
+    if (m_mp) {
+        /* Stop playing */
+        libvlc_media_player_stop(m_mp);
+
+        /* Free the media_player */
+        libvlc_media_player_release(m_mp);
+    }
+
+    if (m_vlc) {
+        libvlc_release(m_vlc);
+        m_vlc = NULL;
+    }
+}
+
+void VLCInput::postRender_cb(uint8_t* p_pcm_buffer, size_t size)
 {
     boost::mutex::scoped_lock lock(m_queue_mutex);
 
