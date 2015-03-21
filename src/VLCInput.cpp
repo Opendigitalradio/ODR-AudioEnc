@@ -166,7 +166,12 @@ void VLCInput::postRender_cb(uint8_t* p_pcm_buffer, size_t size)
 {
     boost::mutex::scoped_lock lock(m_queue_mutex);
 
-    assert(m_current_buf.size() == size);
+    if (m_current_buf.size() != size) {
+        fprintf(stderr,
+                "Received buffer size is not equal allocated "
+                "buffer size: %zu vs %zu\n",
+                m_current_buf.size(), size);
+    }
 
     size_t queue_size = m_queue.size();
     m_queue.resize(m_queue.size() + size);
