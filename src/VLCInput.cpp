@@ -186,9 +186,8 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
         boost::mutex::scoped_lock lock(m_queue_mutex);
 
         if (m_queue.size() >= length) {
-            for (size_t i = 0; i < length; i++) {
-                buf[i] = m_queue[i];
-            }
+            std::copy(m_queue.begin(), m_queue.begin() + length, buf);
+
             m_queue.erase(m_queue.begin(), m_queue.begin() + length);
 
             return length;
