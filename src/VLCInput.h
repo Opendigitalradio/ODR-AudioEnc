@@ -83,6 +83,8 @@ class VLCInput
 
         int getRate() { return m_rate; }
 
+        int getChannels() { return m_channels; }
+
     protected:
         void cleanup(void);
 
