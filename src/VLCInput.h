@@ -41,10 +41,11 @@ class VLCInput
     public:
         VLCInput(const std::string& uri,
                  int rate,
+                 unsigned channels,
                  unsigned verbosity) :
             m_uri(uri),
             m_verbosity(verbosity),
-            m_channels(2),
+            m_channels(channels),
             m_rate(rate),
             m_vlc(NULL) { }
 

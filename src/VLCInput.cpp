@@ -56,7 +56,7 @@ void handleStream(
 {
     VLCInput* in = (VLCInput*)p_audio_data;
 
-    assert(channels == 2);
+    assert(channels == m_channels);
     assert(rate == in->getRate());
     assert(bits_per_sample == 8*BYTES_PER_SAMPLE);
 
