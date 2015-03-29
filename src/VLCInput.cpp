@@ -111,10 +111,7 @@ int VLCInput::prepare()
     libvlc_media_release(m);
 
     // Start playing
-    libvlc_media_player_play(m_mp);
-
-    fprintf(stderr, "VLC launched.\n");
-    return 0;
+    return libvlc_media_player_play(m_mp);
 }
 
 void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
@@ -196,6 +193,12 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 
         lock.unlock();
         boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+
+        libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
+        if (libvlc_media_get_state(media) == libvlc_Error) {
+            err = -1;
+            break;
+        }
     }
     return err;
 }

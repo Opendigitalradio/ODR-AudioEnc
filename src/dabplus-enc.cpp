@@ -723,6 +723,7 @@ int main(int argc, char *argv[])
 #if HAVE_VLC
         else if (vlc_uri != "") {
             read = vlc_in.read(input_buf, input_size);
+            fprintf(stderr, "Detected fault in VLC input!\n");
             if (read < 0) {
                 break;
             }
