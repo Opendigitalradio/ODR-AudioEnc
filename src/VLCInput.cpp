@@ -60,7 +60,10 @@ void handleStream(
     assert(rate == in->getRate());
     assert(bits_per_sample == 8*BYTES_PER_SAMPLE);
 
-    in->postRender_cb(p_pcm_buffer, size);
+    // This assumes VLC always gives back the full
+    // buffer it asked for. According to VLC code
+    // smem.c for v2.2.0 this holds.
+    in->postRender_cb();
 }
 
 // VLC Exit callback
@@ -159,22 +162,14 @@ void VLCInput::cleanup()
     }
 }
 
-void VLCInput::postRender_cb(uint8_t* p_pcm_buffer, size_t size)
+void VLCInput::postRender_cb()
 {
     boost::mutex::scoped_lock lock(m_queue_mutex);
 
-    if (m_current_buf.size() == size) {
-        size_t queue_size = m_queue.size();
-        m_queue.resize(m_queue.size() + size);
-        std::copy(m_current_buf.begin(), m_current_buf.end(),
-                m_queue.begin() + queue_size);
-    }
-    else {
-        fprintf(stderr,
-                "Received buffer size is not equal allocated "
-                "buffer size: %zu vs %zu\n",
-                m_current_buf.size(), size);
-    }
+    size_t queue_size = m_queue.size();
+    m_queue.resize(m_queue.size() + m_current_buf.size());
+    std::copy(m_current_buf.begin(), m_current_buf.end(),
+            m_queue.begin() + queue_size);
 }
 
 ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
@@ -199,6 +194,7 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
         if (!(st == libvlc_Opening   ||
               st == libvlc_Buffering ||
               st == libvlc_Playing) ) {
+            fprintf(stderr, "VLC state is %d\n", st);
             err = -1;
             break;
         }

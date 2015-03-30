@@ -74,12 +74,9 @@ class VLCInput
                 uint8_t** pp_pcm_buffer,
                 size_t size);
 
-        /* Receive a buffer with audio samples
-         * from VLC
+        /* Notification from VLC that the buffer is now filled
          */
-        void postRender_cb(
-                uint8_t* p_pcm_buffer,
-                size_t size);
+        void postRender_cb();
 
         int getRate() { return m_rate; }
 
