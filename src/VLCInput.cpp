@@ -114,7 +114,25 @@ int VLCInput::prepare()
     libvlc_media_release(m);
 
     // Start playing
-    return libvlc_media_player_play(m_mp);
+    int ret = libvlc_media_player_play(m_mp);
+
+    if (ret == 0) {
+        libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
+        libvlc_state_t st;
+
+        ret = -1;
+
+        for (int timeout = 0; timeout < 100; timeout++) {
+            st = libvlc_media_get_state(media);
+            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+            if (st != libvlc_NothingSpecial) {
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    return ret;
 }
 
 void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
