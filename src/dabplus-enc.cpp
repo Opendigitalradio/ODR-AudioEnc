@@ -408,7 +408,7 @@ int main(int argc, char *argv[])
                 die_on_silence = true;
             }
             else {
-                fprintf(stderr, "Invalid silence timeout (%d) given!\n");
+                fprintf(stderr, "Invalid silence timeout (%d) given!\n", silence_timeout);
                 return 1;
             }
 

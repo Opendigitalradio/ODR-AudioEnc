@@ -144,7 +144,7 @@ struct fingerprint_t {
     }
 
     void disp(void) {
-        printf("%s_%d_%d:%d\n", s_name.c_str(), s_size, s_mtime, fidx);
+    	printf("%s_%ld_%lu:%d\n", s_name.c_str(), s_size, s_mtime, fidx);
     }
 
     void load_from_file(const char* filepath)
@@ -1309,7 +1309,7 @@ void History::disp_database()
     }
     else {
         for (id = 0; id < m_database.size(); id++) {
-            printf(" id %4d: ", id);
+        	printf(" id %4zu: ", id);
             m_database[id].disp();
         }
     }
