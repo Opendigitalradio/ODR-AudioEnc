@@ -229,8 +229,9 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset);
 int get_xpadlengthmask(int padlen);
 #define ALLOWED_PADLEN "23, 26, 34, 42, 58"
 
-// The toggle flag for the DLS
+// The toggle info for the DLS
 static uint8_t dls_toggle = 0;
+char dlstext_prev[MAXDLS + 1];
 
 // The DLS data groups
 std::deque<std::vector<uint8_t> > dlsdg;
@@ -875,6 +876,7 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
     char dlstext[MAXDLS + 1];
     int dlslen;
     int i;
+    bool dlstext_new;
 
     if (dlsfd != 0) {
         close(dlsfd);
@@ -899,11 +901,16 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
         endp--;
     }
 
+    // (Re)Create data groups (and thereby toggle the toggle bit) only on (first call or) new text
+    dlstext_new = dlsdg.empty() || strcmp(dlstext, dlstext_prev);
     if (verbose) {
-        fprintf(stderr, "mot-encoder writing DLS text \"%s\"\n", dlstext);
+        fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_new ? "new" : "old", dlstext);
+    }
+    if (dlstext_new) {
+        create_dls_datagroup(dlstext, padlen, charset);
+        strcpy(dlstext_prev, dlstext);
     }
 
-    create_dls_datagroup(dlstext, padlen, charset);
     for (i = 0; i < dlsdg.size(); i++) {
         size_t dummy = write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
     }
