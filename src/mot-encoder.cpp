@@ -872,7 +872,7 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
 
 void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
 {
-    char dlstext[MAXDLS];
+    char dlstext[MAXDLS + 1];
     int dlslen;
     int i;
 
