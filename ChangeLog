@@ -1,3 +1,10 @@
+2015-04-10: Matthias P. Braendli <matthias@mpb.li>
+	(v0.7.0):
+	* dabplus-enc:
+		Merge fix for missing sampling rates.
+		Add libVLC input.
+	* mot-encoder:
+		Merge fixes for mot-encoder issues.
 2014-12-09: Matthias P. Braendli <matthias@mpb.li>
 	(v0.6.0):
 	* dabplus-enc:
