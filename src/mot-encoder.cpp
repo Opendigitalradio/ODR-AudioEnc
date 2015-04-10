@@ -894,7 +894,7 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
     while (   endp > dlstext &&
             (*endp == '\0' || *endp == '\n')) {
         if (*endp == '\n') {
-            *endp == '\0';
+            *endp = '\0';
         }
         endp--;
     }
