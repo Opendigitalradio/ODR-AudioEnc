@@ -6,8 +6,8 @@ of the Fraunhofer FDK AAC code from Android, patched for
 960-transform to do DAB+ broadcast encoding.
 
 The main tool is the *dabplus-enc* encoder, which can read audio from
-a file (raw or wav), from an ALSA source or from JACK, and encode
-to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
+a file (raw or wav), from an ALSA source, from JACK or using libVLC,
+and encode to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
 
 The ALSA input supports experimental sound card clock drift compensation, that
 can compensate for imprecise sound card clocks.
@@ -15,6 +15,9 @@ can compensate for imprecise sound card clocks.
 The JACK input does not automatically connect to anything. The encoder runs
 at the rate defined by the system clock, and therefore sound
 card clock drift compensation is also used.
+
+The libVLC input allows the encoder to use all inputs supported by VLC, and
+therefore also webstreams, and other network sources.
 
 *dabplus-enc* includes support for DAB MOT Slideshow and DLS, contributed by
 [CSP](http://rd.csp.it).
@@ -37,8 +40,9 @@ Requirements:
 * ImageMagick magickwand (for MOT slideshow)
 * The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
-* Download and install ZeroMQ from http://download.zeromq.org/zeromq-4.0.3.tar.gz
+* Download and install ZeroMQ from http://download.zeromq.org/zeromq-4.0.4.tar.gz
 * JACK audio connection kit (optional)
+* libvlc and vlc for the plugins (optional)
 
 This package:
 
@@ -49,9 +53,9 @@ This package:
     make
     sudo make install
 
-If you want to use the JACK input, please use
+If you want to use the JACK and libVLC input, please use
 
-    ./configure --enable-jack
+    ./configure --enable-jack --enable-vlc
 
 * See the possible scenarios below on how to use the tools
 * use mot-encoder to encode images into MOT Slideshow
@@ -79,8 +83,8 @@ If two channels are used, PS (Parametric Stereo, also called HE-AAC v2)
 is enabled up to 48kbps. Between 56kbps and 80kbps, SBR is enabled. 88kbps
 and higher are using AAC-LC.
 
-Scenario 1
-----------
+Scenario *ALSA*
+---------------
 Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:
 
     dabplus-enc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -l
@@ -95,8 +99,25 @@ the audio is captured from the soundcard, and encoded into HE-AACv2.
 
 High occurrence of these will lead to audible artifacts.
 
-Scenario 2
-----------
+Scenario *libVLC input for a webstream*
+---------------------------------------
+Read a webstream and send it to ODR-DabMux over ZMQ:
+
+    dabplus-enc -v $URL -r 32000 -c 2 -o $DST -l -b $BITRATE
+
+This scenario does not yet support ICY-text extraction for DLS.
+
+Scenario *JACK input*
+---------------------
+JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
+name for the encoder:
+
+    dabplus-enc -j myenc -l -b $BITRATE -f raw -o $DST
+
+The samplerate of the JACK server should be 32kHz or 48kHz.
+
+Scenario *local file through snd-aloop*
+---------------------------------------
 Play some local audio source from a file, with ZMQ output for ODR-DabMux. The problem with
 playing a file is that *dabplus-enc* cannot directly be used, because ODR-DabMux
 does not back-pressure the encoder, which will therefore encode much faster than realtime.
@@ -119,8 +140,8 @@ Then, you can use any media player that has an alsa output to play whatever sour
 Important: you must specify the correct sample rate on both "sides" of the virtual sound card.
 
 
-Scenario 3
-----------
+Scenario *sox and pipes*
+------------------------
 Live Stream encoding and preparing for DAB muxer, with ZMQ output, at 32kHz, using sox.
 This illustrates the fifo input over standard input of *dabplus-enc*.
 
@@ -132,20 +153,8 @@ The -p 53 sets the padlen, compatible with the default mot-encoder setting. mot-
 to be given the same value for this option.
 
 
-Scenario 4
-----------
-Live Stream encoding and preparing for DAB muxer, with FIFO to odr-dabmux, 48kHz, using
-arecord.
-
-    arecord -t raw -f S16_LE -c 2 -r 48000 -D plughw:CARD=Loopback,DEV=0,SUBDEV=0 | \
-    dabplus-enc -l -b $BITRATE -f raw -c 2 -r 48000 -i /dev/stdin -o - | \
-    mbuffer -q -m 10k -P 100 -s 360 > station1.fifo
-
-Here we are using the ALSA plughw feature.
-
-
-Scenario 5
-----------
+Scenario *mplayer and fifo*
+---------------------------
 Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB muxer, with FIFO to odr-dabmux
 using mplayer. If there are no data in FIFO, encoder generates silence.
 
@@ -155,20 +164,12 @@ using mplayer. If there are no data in FIFO, encoder generates silence.
 
 *Note*: Do not use /dev/stdout for pcm oputput in mplayer. Mplayer log messages on stdout.
 
-Scenario 6
-----------
+Scenario *wav file for offline processing*
+------------------------------------------
 Wave file encoding, for non-realtime processing
 
     dabplus-enc -b $BITRATE -i wave_file.wav -o station1.dabp
 
-Scenario 7
-----------
-JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
-name for the encoder:
-
-    dabplus-enc -j myenc -l -b $BITRATE -f raw -o $DST
-
-The samplerate of the JACK server should be 32kHz or 48kHz.
 
 Return values
 -------------
