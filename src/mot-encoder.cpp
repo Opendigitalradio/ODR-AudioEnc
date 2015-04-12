@@ -222,19 +222,26 @@ void writeMotPAD(int output_fd,
         unsigned short int mscdgsize,
         unsigned short int padlen);
 
-void create_dls_datagroup(char* text, int padlen, uint8_t charset);
+void create_dls_pads(const char* text, const int padlen, const uint8_t charset);
 void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset);
 
 
 int get_xpadlengthmask(int padlen);
+size_t get_xpadlength(int mask);
 #define ALLOWED_PADLEN "23, 26, 34, 42, 58"
 
-// The toggle info for the DLS
-static uint8_t dls_toggle = 0;
-char dlstext_prev[MAXDLS + 1];
 
-// The DLS data groups
-std::deque<std::vector<uint8_t> > dlsdg;
+// DLS related
+#define DLS_SEG_LEN_PREFIX       2
+#define DLS_SEG_LEN_CHAR_MAX    16
+#define DLS_SEG_LEN_CRC          2
+#define DLS_SEG_LEN_MAX         (DLS_SEG_LEN_PREFIX + DLS_SEG_LEN_CHAR_MAX + DLS_SEG_LEN_CRC)
+
+typedef std::vector<uint8_t> pad_t;
+static std::deque<pad_t> dls_pads;
+static bool dls_toggle = false;
+static char dlstext_prev[MAXDLS + 1];
+
 
 static int verbose = 0;
 
@@ -900,275 +907,136 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
     }
 
     // (Re)Create data groups (and thereby toggle the toggle bit) only on (first call or) new text
-    dlstext_new = dlsdg.empty() || strcmp(dlstext, dlstext_prev);
+    dlstext_new = dls_pads.empty() || strcmp(dlstext, dlstext_prev);
     if (verbose) {
         fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_new ? "new" : "old", dlstext);
     }
     if (dlstext_new) {
-        create_dls_datagroup(dlstext, padlen, charset);
+        create_dls_pads(dlstext, padlen, charset);
         strcpy(dlstext_prev, dlstext);
     }
 
-    for (i = 0; i < dlsdg.size(); i++) {
-        size_t dummy = write(output_fd, &dlsdg[i].front(), dlsdg[i].size());
+    for (i = 0; i < dls_pads.size(); i++) {
+        size_t dummy = write(output_fd, &dls_pads[i].front(), dls_pads[i].size());
     }
 }
 
-void create_dls_datagroup(char* text, int padlen, uint8_t charset)
-{
-    int numdg = 0;            // Number of data groups
-    int numseg;               // Number of DSL segments
-    int lastseglen;           // Length of the last segment
-    int xpadlengthmask;
-    int i, j, k, z, idx_start_crc, idx_stop_crc;
-    uint16_t dlscrc;
 
-    if (dls_toggle == 0)
-        dls_toggle = 1;
-    else
-        dls_toggle = 0;
+int dls_count(const char* text) {
+    size_t text_len = strlen(text);
+    return text_len / DLS_SEG_LEN_CHAR_MAX + (text_len % DLS_SEG_LEN_CHAR_MAX ? 1 : 0);
+}
 
-    numseg = strlen(text) / 16;
-    lastseglen = strlen(text) % 16;
-    if (padlen-9 >= 16) {
-        if (lastseglen > 0) {
-            numseg++;   // The last incomplete segment
-        }
 
-        // The PAD can contain the full segmnet and overhead (9 bytes)
-        numdg = numseg;
+size_t dls_get(const char* text, const uint8_t charset, const unsigned int seg_index, uint8_t *seg_data) {
+    int seg_count = dls_count(text);
+    if (seg_index >= seg_count)
+        return 0;
 
-    }
-    else {
-        // Each 16 char segment span over 2 dg
-        numdg = numseg * 2;
+    bool first_seg = seg_index == 0;
+    bool last_seg  = seg_index == seg_count - 1;
 
-        if (lastseglen > 0) {
-            numseg++;              // The last incomplete segment
+    const char *seg_text_start = text + seg_index * DLS_SEG_LEN_CHAR_MAX;
+    size_t seg_text_len = strnlen(seg_text_start, DLS_SEG_LEN_CHAR_MAX);
+    size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + DLS_SEG_LEN_CRC;
 
-            if (lastseglen <= padlen-9) {
-                numdg += 1;
-            }
-            else {
-                numdg += 2;
-            }
-        }
-    }
+
+    // prefix: toggle? + first seg? + last seg? + (seg len - 1)
+    seg_data[0] =
+            (dls_toggle ? (1 << 7) : 0) +
+            (first_seg  ? (1 << 6) : 0) +
+            (last_seg   ? (1 << 5) : 0) +
+            (seg_text_len - 1);
+
+    // prefix: charset / seg index
+    seg_data[1] = (first_seg ? charset : seg_index) << 4;
+
+    // character field
+    memcpy(seg_data + DLS_SEG_LEN_PREFIX, seg_text_start, seg_text_len);
+
+    // CRC
+    uint16_t crc = 0xFFFF;
+    for (int i = 0; i < seg_len - DLS_SEG_LEN_CRC; i++)
+        crc = update_crc_ccitt(crc, seg_data[i]);
+    crc = ~crc;
+#if DEBUG
+    fprintf(stderr, "crc=%04x ~crc=%04x\n", ~crc, crc);
+#endif
+    seg_data[seg_len - 2] = (crc & 0xFF00) >> 8;    // HI CRC
+    seg_data[seg_len - 1] =  crc & 0x00FF;          // LO CRC
 
 #if DEBUG
-    fprintf(stderr, "PAD Length: %d\n", padlen);
-    fprintf(stderr, "DLS text: %s\n", text);
-    fprintf(stderr, "Number of DLS segments: %d\n", numseg);
-    fprintf(stderr, "Number of DLS data groups: %d\n", numdg);
+    fprintf(stderr, "DL segment:");
+    for (int i = 0; i < seg_len; i++)
+        fprintf(stderr, " %02x", dls_seg[i]);
+    fprintf(stderr, "\n");
 #endif
+    return seg_len;
+}
 
-    xpadlengthmask = get_xpadlengthmask(padlen);
 
-    dlsdg.resize(0);
-    dlsdg.resize(numdg);
+void create_dls_pads(const char* text, const int padlen, const uint8_t charset) {
+    uint8_t seg_data[DLS_SEG_LEN_MAX];
+    int xpadlengthmask = get_xpadlengthmask(padlen);
 
-    i = 0;
-    for (z=0; z < numseg; z++) {
-        char* curseg;
-        int curseglen;
-        uint8_t firstseg, lastseg;
+    dls_pads.clear();
+    dls_toggle = !dls_toggle;   // indicate changed text
 
-        curseg = &text[z * 16];
+    // process all DL segments
+    int seg_count = dls_count(text);
+    for (int seg_index = 0; seg_index < seg_count; seg_index++) {
 #if DEBUG
-        fprintf(stderr, "Segment number %d\n", z+1);
+        fprintf(stderr, "Segment number %d\n", seg_index + 1);
 #endif
+        int seg_len = dls_get(text, charset, seg_index, seg_data);
 
-        if (z == 0) {             // First segment
-            firstseg = 1;
-        }
-        else {
-            firstseg = 0;
-        }
+        // distribute the segment over one or more PADs
+        for (int seg_off = 0; seg_off < seg_len;) {
+            dls_pads.push_back(pad_t(padlen));
+            pad_t &pad = dls_pads.back();
+            int pad_off = padlen - 1;
 
-        if (z == numseg-1) {      //Last segment
-            if (lastseglen != 0) {
-                curseglen = lastseglen;
-            }
-            else {
-                curseglen = 16;
-            }
-            lastseg = 1;
-        }
-        else {
-            curseglen = 16;
-            lastseg = 0;
-        }
+            bool ci_needed = seg_off == 0;  // CI needed only at first data group
+            int dg_len = ci_needed ? get_xpadlength(xpadlengthmask) : padlen - 2;
+            int dg_used = MIN(dg_len, seg_len - seg_off);
 
-        if (curseglen <= padlen-9) {  // Segment is composed of 1 data group
-            dlsdg[i].resize(padlen);
 
-            // FF-PAD Byte L (CI=1)
-            dlsdg[i][padlen-1]=0x02;
+            // F-PAD Byte L   (CI if needed)
+            pad[pad_off--] = ci_needed ? 0x02 : 0x00;
 
-            // FF-PAD Byte L-1 (Variable size X_PAD)
-            dlsdg[i][padlen-2]=0x20;
+            // F-PAD Byte L-1 (variable size X-PAD)
+            pad[pad_off--] = 0x20;
 
-            // CI => data length = 12 (011) - Application Type=2
-            // (DLS - start of X-PAD data group)
-            dlsdg[i][padlen-3]=(xpadlengthmask<<5) | 0x02;
+            if (ci_needed) {
+                // CI (app type 2 = DLS, start of X-PAD data group)
+                pad[pad_off--] = (xpadlengthmask << 5) | 0x02;
 
-            // End of CI list
-            dlsdg[i][padlen-4]=0x00;
-
-            // DLS Prefix (T=1,Only one segment,segment length-1)
-            dlsdg[i][padlen-5]=((dls_toggle*8+firstseg*4+lastseg*2+0)<<4) | 
-                (curseglen-1);
-
-            if (firstseg==1) {
-                // DLS Prefix (Charset standard)
-                dlsdg[i][padlen-6] = charset << 4;
-            }
-            else {
-                // DLS SegNum
-                dlsdg[i][padlen-6]=z<<4;
+                // CI end marker
+                pad[pad_off--] = 0x00;
             }
 
-            // CRC start from prefix
-            idx_start_crc = padlen-5;
-
-            // DLS text
-            for (j = 0; j < curseglen; j++) {
-                dlsdg[i][padlen-7-j] = curseg[j];
-            }
-
-            idx_stop_crc = padlen - 7 - curseglen+1;
-
-            dlscrc = 0xffff;
-            for (j = idx_start_crc; j >= idx_stop_crc; j--) {
-                dlscrc = update_crc_ccitt(dlscrc, dlsdg[i][j]);
-            }
-
-            dlscrc = ~dlscrc;
-#if DEBUG
-            fprintf(stderr, "crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
-#endif
-
-            dlsdg[i][padlen-7-curseglen]   = (dlscrc & 0xFF00) >> 8;  // HI CRC
-            dlsdg[i][padlen-7-curseglen-1] = dlscrc & 0x00FF;         // LO CRC
+            // segment (part)
+            for (int i = 0; i < dg_used; i++)
+                pad[pad_off--] = seg_data[seg_off + i];
 
             // NULL PADDING
-            for (j = padlen-7-curseglen-2; j >= 0; j--) {
-                dlsdg[i][j]=0x00;
-            }
+            std::fill_n(pad.begin(), pad_off + 1, 0x00);
 
 #if DEBUG
-            fprintf(stderr, "Data group: ");
-            for (j = 0; j < padlen; j++)
-                fprintf(stderr, "%x ", dlsdg[i][j]);
+            fprintf(stderr, "DLS data group:");
+            for (int i = 0; i < padlen; i++)
+                fprintf(stderr, " %02x", dg[i]);
             fprintf(stderr, "\n");
 #endif
-            i++;
-
-        }
-        else {   // Segment is composed of 2 data groups
-
-            // FIRST DG (NO CRC)
-            dlscrc = 0xffff;
-
-            dlsdg[i].resize(padlen);
-
-            // FF-PAD Byte L (CI=1)
-            dlsdg[i][padlen-1]=0x02;
-
-            // FF-PAD Byte L-1 (Variable size X_PAD)
-            dlsdg[i][padlen-2]=0x20;
-
-            // CI => data length = 12 (011) - Application Type=2
-            // (DLS - start of X-PAD data group)
-            dlsdg[i][padlen-3]=(xpadlengthmask<<5) | 0x02;
-
-            // End of CI list
-            dlsdg[i][padlen-4]=0x00;
-
-            // DLS Prefix (T=1,Only one segment,segment length-1)
-            dlsdg[i][padlen-5]=((dls_toggle*8+firstseg*4+lastseg*2+0)<<4) |
-                (curseglen-1);
-
-
-            if (firstseg == 1) {
-                // DLS Prefix (Charset standard)
-                dlsdg[i][padlen-6] = charset << 4;
-            }
-            else {
-                // DLS SegNum
-                dlsdg[i][padlen-6]=(i-1)<<4;
-            }
-
-            dlscrc = update_crc_ccitt(dlscrc, dlsdg[i][padlen-5]);
-            dlscrc = update_crc_ccitt(dlscrc, dlsdg[i][padlen-6]);
-
-            // DLS text
-            for (j=0; j < MIN(curseglen, padlen-7); j++) {
-                dlsdg[i][padlen-7-j] = curseg[j];
-                dlscrc = update_crc_ccitt(dlscrc, dlsdg[i][padlen-7-j]);
-            }
-            k = j;
-
-            // end of segment
-            if (curseglen == padlen-8) {
-                dlscrc = ~dlscrc;
-                dlsdg[i][1] = (dlscrc & 0xFF00) >> 8;     // HI CRC
-            }
-            else if (curseglen == padlen-7) {
-                dlscrc = ~dlscrc;
-            }
-            dlsdg[i][0]=0x00;
-
-#if DEBUG
-            fprintf(stderr, "crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
-
-            fprintf(stderr, "First Data group: ");
-            for (j = 0; j < padlen; j++) {
-                fprintf(stderr, "%x ", dlsdg[i][j]);
-            }
-            fprintf(stderr,"\n");
-#endif
-
-            // SECOND DG (NO CI, NO PREFIX)
-            i++;
-
-            dlsdg[i].resize(padlen);
-
-            // FF-PAD Byte L (CI=0)
-            dlsdg[i][padlen-1] = 0x00;
-
-            // FF-PAD Byte L-1 (Variable size X_PAD)
-            dlsdg[i][padlen-2] = 0x20;
-
-            if (curseglen == padlen-8) {
-                dlsdg[i][padlen-3] = dlscrc & 0x00FF;          // LO CRC
-            }
-            else if (curseglen==padlen-7) {
-                dlsdg[i][padlen-3] = (dlscrc & 0xFF00) >> 8;    // HI CRC
-                dlsdg[i][padlen-4] =  dlscrc & 0x00FF;          // LO CRC
-            }
-            else {
-                // DLS text
-                for (j = 0; j < curseglen-k; j++) {
-                    dlsdg[i][padlen-3-j] = curseg[k+j];
-                    dlscrc = update_crc_ccitt(dlscrc, dlsdg[i][padlen-3-j]);
-                }
-                dlscrc = ~dlscrc;
-                dlsdg[i][padlen-3-curseglen+k] =  (dlscrc & 0xFF00) >> 8;    // HI CRC
-                dlsdg[i][padlen-3-curseglen+k-1] = dlscrc & 0x00FF;          // LO CRC
-            }
-#if DEBUG
-            fprintf(stderr, "Second Data group: ");
-            for (j = 0; j < padlen; j++) {
-                fprintf(stderr, "%x ", dlsdg[i][j]);
-            }
-
-            fprintf(stderr, "\n");
-            fprintf(stderr, "**** crc=%x ~crc=%x\n", ~dlscrc, dlscrc);
-#endif
-            i++;
+            seg_off += dg_used;
         }
     }
+#if DEBUG
+    fprintf(stderr, "PAD length: %d\n", padlen);
+    fprintf(stderr, "DLS text: %s\n", text);
+    fprintf(stderr, "Number of DL segments: %d\n", seg_count);
+    fprintf(stderr, "Number of DLS data groups: %zu\n", dls_pads.size());
+#endif
 }
 
 void writeMotPAD(int output_fd,
@@ -1280,6 +1148,11 @@ int get_xpadlengthmask(int padlen)
         xpadlengthmask = -1; // Error
 
     return xpadlengthmask;
+}
+
+size_t get_xpadlength(int mask) {
+    size_t length[] = {4, 6, 8, 12, 16, 24, 32, 48};
+    return length[mask];
 }
 
 int History::find(const fingerprint_t& fp) const
