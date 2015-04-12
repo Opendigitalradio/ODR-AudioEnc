@@ -95,12 +95,12 @@ void usage(const char* name) {
     "     The JACK input was disabled at compile-time\n"
 #endif
     "   For the VLC input:\n"
-#if HAVE_JACK
+#if HAVE_VLC
     "     -v, --vlc-uri=uri                    Enable VLC input and use the URI given as source\n"
     "     -V                                   Increase the VLC verbosity by one (can be given \n"
     "                                          multiple times)\n"
 #else
-    "     The JACK input was disabled at compile-time\n"
+    "     The VLC input was disabled at compile-time\n"
 #endif
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
