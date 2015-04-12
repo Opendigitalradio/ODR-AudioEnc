@@ -228,7 +228,8 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset);
 
 int get_xpadlengthmask(int padlen);
 size_t get_xpadlength(int mask);
-#define ALLOWED_PADLEN "23, 26, 34, 42, 58"
+#define SHORT_PAD 6
+#define ALLOWED_PADLEN "6 (short X-PAD; only DLS), 23, 26, 34, 42, 58"
 
 
 // DLS related
@@ -361,6 +362,10 @@ int main(int argc, char *argv[])
                 ALLOWED_PADLEN "\n",
                 padlen);
         return 2;
+    }
+    if (dir && padlen == SHORT_PAD) {
+        fprintf(stderr, "mot-encoder Error: Slideshow can't be used together with short X-PAD!\n");
+        return 1;
     }
 
     if (dir && dls_file) {
@@ -996,7 +1001,9 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
             pad_t &pad = dls_pads.back();
             int pad_off = padlen - 1;
 
+            bool var_size_pad = padlen != SHORT_PAD;
             bool ci_needed = seg_off == 0;  // CI needed only at first data group
+
             int dg_len = ci_needed ? get_xpadlength(xpadlengthmask) : padlen - 2;
             int dg_used = MIN(dg_len, seg_len - seg_off);
 
@@ -1004,16 +1011,16 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
             // F-PAD Byte L   (CI if needed)
             pad[pad_off--] = ci_needed ? 0x02 : 0x00;
 
-            // F-PAD Byte L-1 (variable size X-PAD)
-            pad[pad_off--] = 0x20;
+            // F-PAD Byte L-1 (variable size / short X-PAD)
+            pad[pad_off--] = var_size_pad ? 0x20 : 0x10;
 
-            if (ci_needed) {
-                // CI (app type 2 = DLS, start of X-PAD data group)
-                pad[pad_off--] = (xpadlengthmask << 5) | 0x02;
+            // CI (app type 2 = DLS, start of X-PAD data group)
+            if (ci_needed)
+                pad[pad_off--] = ((var_size_pad ? xpadlengthmask : 0) << 5) | 0x02;
 
-                // CI end marker
+            // CI end marker
+            if (ci_needed && var_size_pad)
                 pad[pad_off--] = 0x00;
-            }
 
             // segment (part)
             for (int i = 0; i < dg_used; i++)
@@ -1144,6 +1151,8 @@ int get_xpadlengthmask(int padlen)
         xpadlengthmask = 6;
     else if (padlen == 58)
         xpadlengthmask = 7;
+    else if (padlen == SHORT_PAD)
+        xpadlengthmask = 8; // internal value; used later at get_xpadlength
     else
         xpadlengthmask = -1; // Error
 
@@ -1151,7 +1160,7 @@ int get_xpadlengthmask(int padlen)
 }
 
 size_t get_xpadlength(int mask) {
-    size_t length[] = {4, 6, 8, 12, 16, 24, 32, 48};
+    size_t length[] = {4, 6, 8, 12, 16, 24, 32, 48, 3}; // last value used for short X-PAD
     return length[mask];
 }
 
