@@ -239,7 +239,7 @@ ssize_t VLCInput::read(uint8_t* buf, size_t length)
 void VLCInput::write_icy_text(const std::string& filename) const
 {
     FILE* fd = fopen(filename.c_str(), "wb");
-    fprintf(fd, "%s", m_nowplaying.c_str());
+    fputs_unlocked(m_nowplaying.c_str(), fd);
     fclose(fd);
 }
 
