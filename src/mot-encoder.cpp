@@ -235,7 +235,6 @@ char dlstext_prev[MAXDLS + 1];
 
 // The DLS data groups
 std::deque<std::vector<uint8_t> > dlsdg;
-static int dlsfd = 0;
 
 static int verbose = 0;
 
@@ -878,17 +877,16 @@ void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
     int i;
     bool dlstext_new;
 
-    if (dlsfd != 0) {
-        close(dlsfd);
-    }
-
-    dlsfd = open(dls_file, O_RDONLY);
+    int dlsfd = open(dls_file, O_RDONLY);
     if (dlsfd == -1) {
         fprintf(stderr, "mot-encoder Error: Cannot open dls file\n");
         return;
     }
 
     dlslen = read(dlsfd, dlstext, MAXDLS);
+
+    close(dlsfd);
+
     dlstext[dlslen] = 0x00;
 
     // Remove trailing line breaks from the file
