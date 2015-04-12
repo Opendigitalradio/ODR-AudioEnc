@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = subdir-objects
 
 if IS_GIT_REPO
-GITVERSION_FLAGS = -DGITVERSION="\"`git describe`\""
+GITVERSION_FLAGS = -DGITVERSION="\"`git describe --dirty`\""
 else
 GITVERSION_FLAGS =
 endif
