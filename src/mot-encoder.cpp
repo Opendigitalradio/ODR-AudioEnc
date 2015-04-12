@@ -968,7 +968,7 @@ size_t dls_get(const char* text, const uint8_t charset, const unsigned int seg_i
 #if DEBUG
     fprintf(stderr, "DL segment:");
     for (int i = 0; i < seg_len; i++)
-        fprintf(stderr, " %02x", dls_seg[i]);
+        fprintf(stderr, " %02x", seg_data[i]);
     fprintf(stderr, "\n");
 #endif
     return seg_len;
@@ -1025,7 +1025,7 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
 #if DEBUG
             fprintf(stderr, "DLS data group:");
             for (int i = 0; i < padlen; i++)
-                fprintf(stderr, " %02x", dg[i]);
+                fprintf(stderr, " %02x", pad[i]);
             fprintf(stderr, "\n");
 #endif
             seg_off += dg_used;
