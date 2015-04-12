@@ -216,6 +216,12 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
             err = -1;
             break;
         }
+
+        char* nowplaying_sz = libvlc_media_get_meta(media, libvlc_meta_NowPlaying);
+        if (nowplaying_sz) {
+            m_nowplaying = nowplaying_sz;
+            free(nowplaying_sz);
+        }
     }
     return err;
 }
@@ -228,6 +234,13 @@ ssize_t VLCInput::read(uint8_t* buf, size_t length)
     ssize_t read = m_read(buf, length);
 
     return read;
+}
+
+void VLCInput::write_icy_text(const std::string& filename) const
+{
+    FILE* fd = fopen(filename.c_str(), "wb");
+    fprintf(fd, "%s", m_nowplaying.c_str());
+    fclose(fd);
 }
 
 #endif // HAVE_VLC

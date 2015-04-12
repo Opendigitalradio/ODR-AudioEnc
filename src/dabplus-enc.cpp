@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013,2014 Matthias P. Braendli
+ * Copyright (C) 2013,2014,2015 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,6 +99,7 @@ void usage(const char* name) {
     "     -v, --vlc-uri=uri                    Enable VLC input and use the URI given as source\n"
     "     -V                                   Increase the VLC verbosity by one (can be given \n"
     "                                          multiple times)\n"
+    "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that mot-encoder can read it.\n"
 #else
     "     The VLC input was disabled at compile-time\n"
 #endif
@@ -247,6 +248,7 @@ int main(int argc, char *argv[])
 
     // For the VLC input
     std::string vlc_uri = "";
+    std::string vlc_icytext_file = "";
     unsigned verbosity = 0;
 
     // For the file output
@@ -293,6 +295,7 @@ int main(int argc, char *argv[])
         {"channels",       required_argument,  0, 'c'},
         {"device",         required_argument,  0, 'd'},
         {"vlc-uri",        required_argument,  0, 'v'},
+        {"write-icy-text", required_argument,  0, 'w'},
         {"format",         required_argument,  0, 'f'},
         {"input",          required_argument,  0, 'i'},
         {"jack",           required_argument,  0, 'j'},
@@ -335,7 +338,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:o:r:d:p:P:s:v:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:o:r:d:p:P:s:v:w:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -413,13 +416,18 @@ int main(int argc, char *argv[])
             }
 
             break;
+#ifdef HAVE_VLC
         case 'v':
-#ifndef HAVE_VLC
-            fprintf(stderr, "VLC input not enabled at compile time!\n");
-            return 1;
-#else
             vlc_uri = optarg;
             break;
+        case 'w':
+            vlc_icytext_file = optarg;
+            break;
+#else
+        case 'v':
+        case 'w':
+            fprintf(stderr, "VLC input not enabled at compile time!\n");
+            return 1;
 #endif
         case 'V':
             verbosity++;
@@ -721,7 +729,7 @@ int main(int argc, char *argv[])
             }
         }
 #if HAVE_VLC
-        else if (vlc_uri != "") {
+        else if (not vlc_uri.empty()) {
             read = vlc_in.read(input_buf, input_size);
             if (read < 0) {
                 fprintf(stderr, "Detected fault in VLC input!\n");
@@ -730,6 +738,10 @@ int main(int argc, char *argv[])
             else if (read != input_size) {
                 fprintf(stderr, "Short VLC read !\n");
                 break;
+            }
+
+            if (not vlc_icytext_file.empty()) {
+                vlc_in.write_icy_text(vlc_icytext_file);
             }
         }
 #endif

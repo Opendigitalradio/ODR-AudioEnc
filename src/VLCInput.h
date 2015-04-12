@@ -63,6 +63,10 @@ class VLCInput
          */
         ssize_t read(uint8_t* buf, size_t length);
 
+        /* Write the last received ICY-Text to the
+         * file.
+         */
+        void write_icy_text(const std::string& filename) const;
 
         // Callbacks for VLC
 
@@ -96,6 +100,8 @@ class VLCInput
         unsigned m_verbosity;
         unsigned m_channels;
         int m_rate;
+
+        std::string m_nowplaying;
 
         // VLC pointers
         libvlc_instance_t     *m_vlc;
