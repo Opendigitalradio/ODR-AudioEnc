@@ -212,7 +212,7 @@ void createMotHeader(
         int* mothdrlen,
         bool jfif_not_png);
 
-void createMscDG(MSCDG* msc, unsigned short int dgtype, unsigned short int cindex,
+void createMscDG(MSCDG* msc, unsigned short int dgtype, int *cindex, unsigned short int segnum,
         unsigned short int lastseg, unsigned short int tid, unsigned char* data,
         unsigned short int datalen);
 
@@ -230,6 +230,11 @@ int get_xpadlengthmask(int padlen);
 size_t get_xpadlength(int mask);
 #define SHORT_PAD 6
 #define ALLOWED_PADLEN "6 (short X-PAD; only DLS), 23, 26, 34, 42, 58"
+
+
+// MOT Slideshow related
+static int cindex_header = 0;
+static int cindex_body = 0;
 
 
 // DLS related
@@ -745,7 +750,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
 
         createMotHeader(blobsize, fidx, mothdr, &mothdrlen, jfif_not_png);
         // Create the MSC Data Group C-Structure
-        createMscDG(&msc, 3, 0, 1, fidx, mothdr, mothdrlen);
+        createMscDG(&msc, 3, &cindex_header, 0, 1, fidx, mothdr, mothdrlen);
         // Generate the MSC DG frame (Figure 9 en 300 401)
         packMscDG(mscblob, &msc, &mscblobsize);
         writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
@@ -761,7 +766,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
                 last = 0;
             }
 
-            createMscDG(&msc, 4, i, last, fidx, curseg, curseglen);
+            createMscDG(&msc, 4, &cindex_body, i, last, fidx, curseg, curseglen);
             packMscDG(mscblob, &msc, &mscblobsize);
             writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
         }
@@ -822,7 +827,7 @@ void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* moth
 }
 
 void createMscDG(MSCDG* msc, unsigned short int dgtype,
-        unsigned short int cindex, unsigned short int lastseg,
+        int *cindex, unsigned short int segnum, unsigned short int lastseg,
         unsigned short int tid, unsigned char* data,
         unsigned short int datalen)
 {
@@ -831,10 +836,10 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype,
     msc->segflag = 1;
     msc->accflag = 1;
     msc->dgtype = dgtype;
-    msc->cindex = cindex;
+    msc->cindex = *cindex;
     msc->rindex = 0;
     msc->last = lastseg;
-    msc->segnum = cindex;
+    msc->segnum = segnum;
     msc->rfa = 0;
     msc->tidflag = 1;
     msc->lenid = 2;
@@ -842,6 +847,8 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype,
     msc->segdata = data;
     msc->rcount = 0;
     msc->seglen = datalen;
+
+    *cindex = (*cindex + 1) % 16;   // increment continuity index
 }
 
 
