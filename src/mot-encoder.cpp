@@ -1078,7 +1078,7 @@ void writeMotPAD(int output_fd,
 
         if (i == 0) {             // First segment
             firstseg = 1;
-            curseglen = padlen-10;
+            curseglen = get_xpadlength(xpadlengthmask);
 
             // size of first X-PAD = MSC-DG + DGLI-DG + End of CI list + 2x CI = size of subsequent non-CI X-PADs
             non_ci_seglen = curseglen + 4 + 1 + 2;
