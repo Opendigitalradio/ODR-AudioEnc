@@ -1085,8 +1085,10 @@ void writeMotPAD(int output_fd,
         }
         else {
             firstseg = 0;
-            curseglen = MIN(non_ci_seglen,mscdgsize-i);
+            curseglen = non_ci_seglen;
         }
+
+        curseglen = MIN(curseglen, mscdgsize - i);
 
         if (firstseg == 1) {
             // FF-PAD Byte L (CI=1)
