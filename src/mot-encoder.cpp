@@ -3,6 +3,8 @@
 
     Copyright (C) 2014 Matthias P. Braendli (http://opendigitalradio.org)
 
+    Copyright (C) 2015 Stefan Pöschel (http://opendigitalradio.org)
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -22,6 +24,7 @@
     Authors:
          Sergio Sagliocco <sergio.sagliocco@csp.it>
          Matthias P. Braendli <matthias@mpb.li>
+         Stefan Pöschel <odr@basicmaster.de>
 */
 
 #include <cstdio>
@@ -55,7 +58,7 @@ extern "C" {
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define MAXSEGLEN 8179 // Bytes
+#define MAXSEGLEN 8189 // Bytes (EN 301 234, ch. 5.1.1)
 #define MAXDLS 128 // chars
 #define MAXSLIDESIZE 50000 // Bytes
 
@@ -591,7 +594,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
     unsigned char *curseg = NULL;
     MagickBooleanType err;
     MSCDG msc;
-    unsigned char mscblob[8200];
+    unsigned char mscblob[9 + MAXSEGLEN + 2];   // headers + segment + CRC
     unsigned short int mscblobsize;
 
     size_t orig_quality;
@@ -883,7 +886,7 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
     b[9+msc->seglen]   = (crc & 0xFF00) >> 8;     // HI CRC
     b[9+msc->seglen+1] =  crc & 0x00FF;          // LO CRC
 
-    *bsize = 9 + msc->seglen + 1 + 1;
+    *bsize = 9 + msc->seglen + 2;
 
     //write(1,b,9+msc->seglen+1+1);
 }
