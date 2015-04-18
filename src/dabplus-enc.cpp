@@ -277,7 +277,6 @@ int main(int argc, char *argv[])
     /* For MOT Slideshow and DLS insertion */
     const char* pad_fifo = "/tmp/pad.fifo";
     int pad_fd;
-    unsigned char pad_buf[128];
     int padlen = 0;
 
     /* Encoder status, see the above STATUS macros */
@@ -624,6 +623,8 @@ int main(int argc, char *argv[])
     zmq_frame_header_t *zmq_frame_header = (zmq_frame_header_t*)zmqframebuf;
 
     uint8_t outbuf[24*120];
+
+    unsigned char pad_buf[padlen];
 
     if(outbuf_size % 5 != 0) {
         fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);

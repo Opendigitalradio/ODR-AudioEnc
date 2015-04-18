@@ -1062,7 +1062,7 @@ void writeMotPAD(int output_fd,
         unsigned short int padlen)
 {
 
-    unsigned char pad[128];
+    unsigned char pad[padlen];
     int xpadlengthmask, i, j, k;
     unsigned short int crc;
 
