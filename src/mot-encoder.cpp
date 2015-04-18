@@ -1004,6 +1004,8 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
         fprintf(stderr, "Segment number %d\n", seg_index + 1);
 #endif
         int seg_len = dls_get(text, charset, seg_index, seg_data);
+        int dg_len;
+        int used_xpad_len;
 
         // distribute the segment over one or more PADs
         for (int seg_off = 0; seg_off < seg_len;) {
@@ -1014,7 +1016,14 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
             bool var_size_pad = padlen != SHORT_PAD;
             bool ci_needed = seg_off == 0;  // CI needed only at first data group
 
-            int dg_len = ci_needed ? get_xpadlength(xpadlengthmask) : padlen - 2;
+            if (ci_needed) {
+                dg_len = get_xpadlength(xpadlengthmask);
+
+                // variable size X-PAD: size of first X-PAD = DLS-DG + End of CI list + CI = size of subsequent non-CI X-PADs
+                used_xpad_len = var_size_pad ? dg_len + 1 + 1 : padlen - 2;
+            } else {
+                dg_len = used_xpad_len;
+            }
             int dg_used = MIN(dg_len, seg_len - seg_off);
 
 
@@ -1069,7 +1078,7 @@ void writeMotPAD(int output_fd,
     xpadlengthmask = get_xpadlengthmask(padlen);
 
     // Write MSC Data Groups
-    int curseglen, non_ci_seglen;
+    int curseglen, used_xpad_len;
     for (i = 0; i < mscdgsize; i += curseglen) {
         uint8_t* curseg;
         uint8_t  firstseg;
@@ -1084,11 +1093,11 @@ void writeMotPAD(int output_fd,
             curseglen = get_xpadlength(xpadlengthmask);
 
             // size of first X-PAD = MSC-DG + DGLI-DG + End of CI list + 2x CI = size of subsequent non-CI X-PADs
-            non_ci_seglen = curseglen + 4 + 1 + 2;
+            used_xpad_len = curseglen + 4 + 1 + 2;
         }
         else {
             firstseg = 0;
-            curseglen = non_ci_seglen;
+            curseglen = used_xpad_len;
         }
 
         curseglen = MIN(curseglen, mscdgsize - i);
