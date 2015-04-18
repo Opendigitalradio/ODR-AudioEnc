@@ -241,6 +241,7 @@ static int cindex_body = 0;
 
 
 // DLS related
+#define FPAD_LEN 2
 #define DLS_SEG_LEN_PREFIX       2
 #define DLS_SEG_LEN_CHAR_MAX    16
 #define DLS_SEG_LEN_CRC          2
@@ -1009,7 +1010,7 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
 
         // distribute the segment over one or more PADs
         for (int seg_off = 0; seg_off < seg_len;) {
-            dls_pads.push_back(pad_t(padlen));
+            dls_pads.push_back(pad_t(padlen + 1));
             pad_t &pad = dls_pads.back();
             int pad_off = padlen - 1;
 
@@ -1048,6 +1049,9 @@ void create_dls_pads(const char* text, const int padlen, const uint8_t charset) 
             // NULL PADDING
             std::fill_n(pad.begin(), pad_off + 1, 0x00);
 
+            // set used pad len
+            pad[padlen] = FPAD_LEN + used_xpad_len;
+
 #if DEBUG
             fprintf(stderr, "DLS data group:");
             for (int i = 0; i < padlen; i++)
@@ -1071,7 +1075,7 @@ void writeMotPAD(int output_fd,
         unsigned short int padlen)
 {
 
-    unsigned char pad[padlen];
+    unsigned char pad[padlen + 1];
     int xpadlengthmask, i, j, k;
     unsigned short int crc;
 
@@ -1145,7 +1149,10 @@ void writeMotPAD(int output_fd,
             pad[j] = 0x00;
         }
 
-        size_t dummy = write(output_fd, pad, padlen);
+        // set used pad len
+        pad[padlen] = FPAD_LEN + used_xpad_len;
+
+        size_t dummy = write(output_fd, pad, padlen + 1);
 #if DEBUG
         fprintf(stderr,"MSC Data Group - Segment %d: ",i);
         for (j=0;j<padlen;j++)

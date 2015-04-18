@@ -624,7 +624,7 @@ int main(int argc, char *argv[])
 
     uint8_t outbuf[24*120];
 
-    unsigned char pad_buf[padlen];
+    unsigned char pad_buf[padlen + 1];
 
     if(outbuf_size % 5 != 0) {
         fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
@@ -683,7 +683,7 @@ int main(int argc, char *argv[])
         // --------------- Read data from the PAD fifo
         int ret;
         if (padlen != 0) {
-            ret = read(pad_fd, pad_buf, padlen);
+            ret = read(pad_fd, pad_buf, padlen + 1);
         }
         else {
             ret = 0;
@@ -802,11 +802,11 @@ int main(int argc, char *argv[])
 
         // -------------- AAC Encoding
 
-        int calculated_padlen = ret > 0 ? padlen : 0;
+        int calculated_padlen = ret > 0 ? pad_buf[padlen] : 0;
 
 
         in_ptr[0] = input_buf;
-        in_ptr[1] = pad_buf;
+        in_ptr[1] = pad_buf + (padlen - calculated_padlen); // offset due to unused PAD bytes
         in_size[0] = read;
         in_size[1] = calculated_padlen;
         in_elem_size[0] = BYTES_PER_SAMPLE;
