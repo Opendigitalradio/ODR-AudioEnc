@@ -758,6 +758,8 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
         if (last_dot != std::string::npos) {
             std::string file_extension = fname.substr(last_dot, std::string::npos);
 
+            std::transform(file_extension.begin(), file_extension.end(), file_extension.begin(), ::tolower);
+
             if (file_extension == ".png") {
                 jfif_not_png = false;
             }
