@@ -37,7 +37,7 @@ How to build
 Requirements:
 
 * boost-thread and boost-system
-* ImageMagick magickwand (for MOT slideshow)
+* ImageMagick magickwand (optional, for MOT slideshow)
 * The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
 * Download and install ZeroMQ from http://download.zeromq.org/zeromq-4.0.4.tar.gz
@@ -189,20 +189,39 @@ Usage of MOT Slideshow and DLS
 data for the encoder. This is communicated through a fifo to the encoder. It
 also reads DLS from a file, and includes this information in the PAD.
 
+If ImageMagick is available
+---------------------------
 It can read all file formats supported by ImageMagick, and by default resizes
 them to 320x240 pixels, and compresses them as JPEG. If the input file is already
 a JPEG file of the correct size, and smaller than 50kB, it is sent without further
 compression. If the input file is a PNG that satisfies the same criteria, it is
 transmitted as PNG without any recompression.
 
+RAW Format
+----------
+If ImageMagick is not available, or when enable with the -R option, the images
+are not modified, and are transmitted as-is. Use this if you can guarantee that
+the generated files are smaller than 50kB and exactly 320x240 pixels.
+
+Supported Encoders
+------------------
 *dabplus-enc* can insert the PAD data from mot-encoder into the bitstream.
-The mp2 encoder [toolame-dab](https://github.com/Opendigitalradio/toolame-dab)
+The mp2 encoder [Toolame-DAB](https://github.com/Opendigitalradio/toolame-dab)
 can also read *mot-encoder* data.
 
 This is an ongoing development. Make sure you use the same pad length option
 for *mot-encoder* and the audio encoder. Only some pad lengths are supported,
 please see *mot-encoder*'s help. Only pad lengths 34, 42 and 58 seem to be
 working with some receivers, 23 and 26 appear to be broken.
+
+Character Sets
+--------------
+When *mot-encoder* is launched with the default character set encoding, it assumes
+that the DLS text in the file is encoded in UTF-8, and will convert it according to
+the DAB standard.
+
+If you set the character set encoding to anything else, *mot-encoder* will not perform
+any conversion, and it is your responsibility to ensure the encoding is valid.
 
 Known Limitations
 -----------------
