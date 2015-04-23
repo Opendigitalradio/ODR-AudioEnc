@@ -80,3 +80,24 @@ AM_CONDITIONAL([IS_GIT_REPO], [test -d '.git'])
 AC_CONFIG_FILES([Makefile
                  fdk-aac-dabplus.pc])
 AC_OUTPUT
+
+echo
+echo "***********************************************"
+echo
+echo "Features enabled:"
+enabled=""
+disabled=""
+for feature in jack vlc
+do
+    eval var=\$enable_$feature
+    AS_IF([test "x$var" = "xyes"],
+          [enabled="$enabled $feature"],
+          [disabled="$disabled $feature"])
+done
+
+AS_IF([ pkg-config MagickWand ],
+      [enabled="$enabled magickwand"],
+      [disabled="$disabled magickwand"])
+
+echo "  Enabled: $enabled"
+echo "  Disabled: $disabled"
