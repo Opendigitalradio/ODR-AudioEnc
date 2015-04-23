@@ -262,7 +262,7 @@ CharsetConverter charset_converter;
 typedef std::vector<uint8_t> pad_t;
 static std::deque<pad_t> dls_pads;
 static bool dls_toggle = false;
-std::string dlstext_prev(MAXDLS + 1, ' ');
+std::string dlstext_prev = "";
 
 
 static int verbose = 0;
@@ -982,7 +982,8 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
         ss << dls_lines[i];
     }
     std::string dlstext = ss.str();
-    using namespace std;
+    if (dlstext.size() > MAXDLS)
+        dlstext.resize(MAXDLS);
 
     if (dls_to_ebu)
         charset = CHARSET_COMPLETE_EBU_LATIN;
