@@ -86,6 +86,7 @@ extern "C" {
 #define CHARSET_EBU_LATIN_CY_GR 1 // EBU Latin based common core, Cyrillic, Greek
 #define CHARSET_EBU_LATIN_AR_HE_CY_GR 2 // EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek
 #define CHARSET_ISO_LATIN_ALPHABET_2 3 // ISO Latin Alphabet No 2
+#define CHARSET_UCS2_BE 6 // ISO/IEC 10646 using UCS-2 transformation format, big endian byte order
 #define CHARSET_UTF8 15 // ISO Latin Alphabet No 2
 
 struct MSCDG {
@@ -297,6 +298,7 @@ void usage(char* name)
                     "                          ID =  1: Latin based common core, Cyrillic, Greek\n"
                     "                          ID =  2: EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek\n"
                     "                          ID =  3: ISO Latin Alphabet No 2\n"
+                    "                          ID =  6: ISO/IEC 10646 using UCS-2 BE\n"
                     "                          ID = 15: ISO/IEC 10646 using UTF-8\n"
                     "                          Default: 15\n"
                     " -C, --dls-to-ebu       Convert each DLS text to Complete EBU Latin based repertoire\n"
@@ -426,6 +428,9 @@ int main(int argc, char *argv[])
             break;
         case CHARSET_ISO_LATIN_ALPHABET_2:
             user_charset = "ISO Latin Alphabet 2";
+            break;
+        case CHARSET_UCS2_BE:
+            user_charset = "UCS-2 BE";
             break;
         case CHARSET_UTF8:
             user_charset = "UTF-8";
@@ -959,18 +964,28 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
             // TODO handle the other charsets accordingly
         }
     }
-    if (dls_to_ebu)
-        charset = CHARSET_COMPLETE_EBU_LATIN;
 
     std::stringstream ss;
     for (size_t i = 0; i < dls_lines.size(); i++) {
         if (i != 0) {
-            ss << "\n";
+            if (charset == CHARSET_UCS2_BE)
+                ss << '\0' << '\n';
+            else
+                ss << '\n';
         }
+
+        // UCS-2 BE: if from file the first byte of \0\n remains, remove it
+        if (charset == CHARSET_UCS2_BE && dls_lines[i].size() % 2) {
+            dls_lines[i].resize(dls_lines[i].size() - 1);
+        }
+
         ss << dls_lines[i];
     }
     std::string dlstext = ss.str();
     using namespace std;
+
+    if (dls_to_ebu)
+        charset = CHARSET_COMPLETE_EBU_LATIN;
 
 
     // (Re)Create data groups (and thereby toggle the toggle bit) only on (first call or) new text
@@ -1003,8 +1018,9 @@ size_t dls_get(const std::string& text, const uint8_t charset, const unsigned in
     bool first_seg = seg_index == 0;
     bool last_seg  = seg_index == seg_count - 1;
 
-    const char *seg_text_start = text.c_str() + seg_index * DLS_SEG_LEN_CHAR_MAX;
-    size_t seg_text_len = strnlen(seg_text_start, DLS_SEG_LEN_CHAR_MAX);
+    int seg_text_offset = seg_index * DLS_SEG_LEN_CHAR_MAX;
+    const char *seg_text_start = text.c_str() + seg_text_offset;
+    size_t seg_text_len = MIN(text.size() - seg_text_offset, DLS_SEG_LEN_CHAR_MAX);
     size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + DLS_SEG_LEN_CRC;
 
 
