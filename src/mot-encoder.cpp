@@ -298,7 +298,7 @@ void usage(char* name)
                     "                          ID =  2: EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek\n"
                     "                          ID =  3: ISO Latin Alphabet No 2\n"
                     "                          ID = 15: ISO/IEC 10646 using UTF-8\n"
-                    "                          Default: 0\n"
+                    "                          Default: 15\n"
                     " -C, --dls-to-ebu       Convert each DLS text to Complete EBU Latin based repertoire\n"
                     "                          character set encoding (currently only from UTF-8).\n"
                     " -R, --raw-slides       Do not process slides. Integrity checks and resizing\n"
@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
     bool erase_after_tx = false;
     int  sleepdelay = SLEEPDELAY_DEFAULT;
     bool raw_slides = false;
-    int  charset = CHARSET_COMPLETE_EBU_LATIN;
+    int  charset = CHARSET_UTF8;
     bool dls_to_ebu = false;
 
     const char* dir = NULL;
