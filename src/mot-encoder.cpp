@@ -1,7 +1,7 @@
 /*
     Copyright (C) 2014 CSP Innovazione nelle ICT s.c.a r.l. (http://rd.csp.it/)
 
-    Copyright (C) 2014 Matthias P. Braendli (http://opendigitalradio.org)
+    Copyright (C) 2014, 2015 Matthias P. Braendli (http://opendigitalradio.org)
 
     Copyright (C) 2015 Stefan Pöschel (http://opendigitalradio.org)
 
@@ -33,6 +33,10 @@
 #include <unistd.h>
 #include <cstring>
 #include <string>
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <algorithm>
 #include <vector>
 #include <deque>
 #include <list>
@@ -43,6 +47,7 @@
 #include <wand/magick_wand.h>
 #include <getopt.h>
 #include "config.h"
+#include "charset.h"
 
 #define DEBUG 0
 
@@ -225,8 +230,8 @@ void writeMotPAD(int output_fd,
         unsigned short int mscdgsize,
         unsigned short int padlen);
 
-void create_dls_pads(const char* text, const int padlen, const uint8_t charset);
-void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset);
+void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset);
+void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset);
 
 
 int get_xpadlengthmask(int padlen);
@@ -247,10 +252,12 @@ static int cindex_body = 0;
 #define DLS_SEG_LEN_CRC          2
 #define DLS_SEG_LEN_MAX         (DLS_SEG_LEN_PREFIX + DLS_SEG_LEN_CHAR_MAX + DLS_SEG_LEN_CRC)
 
+CharsetConverter charset_converter;
+
 typedef std::vector<uint8_t> pad_t;
 static std::deque<pad_t> dls_pads;
 static bool dls_toggle = false;
-static char dlstext_prev[MAXDLS + 1];
+std::string dlstext_prev(MAXDLS + 1, ' ');
 
 
 static int verbose = 0;
@@ -311,7 +318,7 @@ int main(int argc, char *argv[])
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
-    const char* dls_file = NULL;
+    std::string dls_file;
 
     const struct option longopts[] = {
         {"charset",    required_argument,  0, 'c'},
@@ -377,17 +384,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (dir && dls_file) {
+    if (dir && not dls_file.empty()) {
         fprintf(stderr, "mot-encoder encoding Slideshow from %s and DLS from %s to %s\n",
-                dir, dls_file, output);
+                dir, dls_file.c_str(), output);
     }
     else if (dir) {
         fprintf(stderr, "mot-encoder encoding Slideshow from %s to %s. No DLS.\n",
                 dir, output);
     }
-    else if (dls_file) {
+    else if (not dls_file.empty()) {
         fprintf(stderr, "mot-encoder encoding DLS from %s to %s. No Slideshow.\n",
-                dls_file, output);
+                dls_file.c_str(), output);
     }
     else {
         fprintf(stderr, "mot-encoder Error: No DLS nor slideshow to encode !\n");
@@ -471,7 +478,7 @@ int main(int argc, char *argv[])
             // Sort the list in fidx order
             slides_to_transmit.sort();
 
-            if (dls_file) {
+            if (not dls_file.empty()) {
                 // Maybe we have no slides, always update DLS
                 writeDLS(output_fd, dls_file, padlen, charset);
                 sleep(sleepdelay);
@@ -496,7 +503,7 @@ int main(int argc, char *argv[])
                 }
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
-                if (dls_file) {
+                if (not dls_file.empty()) {
                     writeDLS(output_fd, dls_file, padlen, charset);
                 }
 
@@ -509,7 +516,7 @@ int main(int argc, char *argv[])
 
             slides_to_transmit.resize(0);
         }
-        else if (dls_file) { // only DLS
+        else if (not dls_file.empty()) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
             writeDLS(output_fd, dls_file, padlen, charset);
 
@@ -893,58 +900,65 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
 }
 
 
-void writeDLS(int output_fd, const char* dls_file, int padlen, uint8_t charset)
+void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset)
 {
-    char dlstext[MAXDLS + 1];
-    int dlslen;
-    int i;
-    bool dlstext_new;
-
-    int dlsfd = open(dls_file, O_RDONLY);
-    if (dlsfd == -1) {
-        fprintf(stderr, "mot-encoder Error: Cannot open dls file\n");
+    std::ifstream dls_fstream(dls_file.c_str());
+    if (!dls_fstream.is_open()) {
+        std::cerr << "Could not open " << dls_file << std::endl;
         return;
     }
 
-    dlslen = read(dlsfd, dlstext, MAXDLS);
+    std::vector<std::string> dls_lines;
 
-    close(dlsfd);
-
-    dlstext[dlslen] = 0x00;
-
-    // Remove trailing line breaks from the file
-    char* endp = dlstext + dlslen;
-    while (   endp > dlstext &&
-            (*endp == '\0' || *endp == '\n')) {
-        if (*endp == '\n') {
-            *endp = '\0';
+    std::string line;
+    // Read and convert lines one by one because the converter doesn't understand
+    // line endings
+    while (std::getline(dls_fstream, line)) {
+        if (not line.empty()) {
+            if (charset == CHARSET_COMPLETE_EBU_LATIN) {
+                dls_lines.push_back(charset_converter.convert(line));
+            }
+            else {
+                dls_lines.push_back(line);
+            }
+            // TODO handle the other charsets accordingly
         }
-        endp--;
     }
+
+    std::stringstream ss;
+    for (size_t i = 0; i < dls_lines.size(); i++) {
+        if (i != 0) {
+            ss << "\n";
+        }
+        ss << dls_lines[i];
+    }
+    std::string dlstext = ss.str();
+    using namespace std;
+
 
     // (Re)Create data groups (and thereby toggle the toggle bit) only on (first call or) new text
-    dlstext_new = dls_pads.empty() || strcmp(dlstext, dlstext_prev);
+    bool dlstext_is_new = dls_pads.empty() || (dlstext != dlstext_prev);
     if (verbose) {
-        fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_new ? "new" : "old", dlstext);
+        fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_is_new ? "new" : "old", dlstext.c_str());
     }
-    if (dlstext_new) {
+    if (dlstext_is_new) {
         create_dls_pads(dlstext, padlen, charset);
-        strcpy(dlstext_prev, dlstext);
+        dlstext_prev = dlstext;
     }
 
-    for (i = 0; i < dls_pads.size(); i++) {
+    for (size_t i = 0; i < dls_pads.size(); i++) {
         size_t dummy = write(output_fd, &dls_pads[i].front(), dls_pads[i].size());
     }
 }
 
 
-int dls_count(const char* text) {
-    size_t text_len = strlen(text);
+int dls_count(const std::string& text) {
+    size_t text_len = text.size();
     return text_len / DLS_SEG_LEN_CHAR_MAX + (text_len % DLS_SEG_LEN_CHAR_MAX ? 1 : 0);
 }
 
 
-size_t dls_get(const char* text, const uint8_t charset, const unsigned int seg_index, uint8_t *seg_data) {
+size_t dls_get(const std::string& text, const uint8_t charset, const unsigned int seg_index, uint8_t *seg_data) {
     int seg_count = dls_count(text);
     if (seg_index >= seg_count)
         return 0;
@@ -952,7 +966,7 @@ size_t dls_get(const char* text, const uint8_t charset, const unsigned int seg_i
     bool first_seg = seg_index == 0;
     bool last_seg  = seg_index == seg_count - 1;
 
-    const char *seg_text_start = text + seg_index * DLS_SEG_LEN_CHAR_MAX;
+    const char *seg_text_start = text.c_str() + seg_index * DLS_SEG_LEN_CHAR_MAX;
     size_t seg_text_len = strnlen(seg_text_start, DLS_SEG_LEN_CHAR_MAX);
     size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + DLS_SEG_LEN_CRC;
 
@@ -991,7 +1005,7 @@ size_t dls_get(const char* text, const uint8_t charset, const unsigned int seg_i
 }
 
 
-void create_dls_pads(const char* text, const int padlen, const uint8_t charset) {
+void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset) {
     uint8_t seg_data[DLS_SEG_LEN_MAX];
     int xpadlengthmask = get_xpadlengthmask(padlen);
 
