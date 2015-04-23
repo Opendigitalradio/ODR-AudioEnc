@@ -58,8 +58,11 @@ if pkg-config MagickWand; then
     AC_SUBST(MAGICKWAND_CFLAGS)
     AC_SUBST(MAGICKWAND_LDADD)
 else
-    AC_MSG_ERROR(MagickWand not found)
+    AC_MSG_WARN(MagickWand not found)
 fi
+
+AS_IF([ pkg-config MagickWand ],
+       AC_DEFINE(HAVE_MAGICKWAND, [1], [Define if MagickWand is available]))
 
 
 dnl soname version to use

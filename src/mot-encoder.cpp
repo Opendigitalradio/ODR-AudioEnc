@@ -44,10 +44,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <wand/magick_wand.h>
 #include <getopt.h>
 #include "config.h"
 #include "charset.h"
+
+
+#if HAVE_MAGICKWAND
+#  include <wand/magick_wand.h>
+#endif
 
 #define DEBUG 0
 
@@ -441,7 +445,9 @@ int main(int argc, char *argv[])
         return 3;
     }
 
+#if HAVE_MAGICKWAND
     MagickWandGenesis();
+#endif
 
     std::list<slide_metadata_t> slides_to_transmit;
     History slides_history(MAXHISTORYLEN);
@@ -536,6 +542,7 @@ int main(int argc, char *argv[])
 // blobsize is not too large.
 //
 // Returns: the blobsize
+#if HAVE_MAGICKWAND
 size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
 {
     size_t blobsize;
@@ -590,17 +597,20 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
     }
     return blobsize;
 }
+#endif
 
 int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw_slides)
 {
     int ret = 0;
     int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
     unsigned char mothdr[32];
+#if HAVE_MAGICKWAND
     MagickWand *m_wand = NULL;
+    MagickBooleanType err;
+#endif
     size_t blobsize, height, width;
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
-    MagickBooleanType err;
     MSCDG msc;
     unsigned char mscblob[9 + MAXSEGLEN + 2];   // headers + segment + CRC
     unsigned short int mscblobsize;
@@ -628,6 +638,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
     bool jfif_not_png = true;
 
     if (!raw_slides) {
+#if HAVE_MAGICKWAND
 
         m_wand = NewMagickWand();
 
@@ -703,6 +714,11 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
             jfif_not_png = true;
         }
 
+#else
+        fprintf(stderr, "mot-encoder has not been compiled with MagickWand, only RAW slides are supported!\n");
+        ret = -1;
+        goto encodefile_out;
+#endif
     }
     else { // Use RAW data, it might not even be a jpg !
         // read file
@@ -786,9 +802,11 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
     }
 
 encodefile_out:
+#if HAVE_MAGICKWAND
     if (m_wand) {
         m_wand = DestroyMagickWand(m_wand);
     }
+#endif
 
     if (blob) {
         free(blob);
