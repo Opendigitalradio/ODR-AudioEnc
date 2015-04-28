@@ -236,7 +236,7 @@ void writeMotPAD(int output_fd,
         unsigned short int padlen);
 
 void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset);
-void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool dls_to_ebu);
+void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls);
 
 
 int get_xpadlengthmask(int padlen);
@@ -301,8 +301,8 @@ void usage(char* name)
                     "                          ID =  6: ISO/IEC 10646 using UCS-2 BE\n"
                     "                          ID = 15: ISO/IEC 10646 using UTF-8\n"
                     "                          Default: 15\n"
-                    " -C, --dls-to-ebu       Convert each DLS text to Complete EBU Latin based repertoire\n"
-                    "                          character set encoding (currently only from UTF-8).\n"
+                    " -C, --raw-dls          Do not convert DLS texts to Complete EBU Latin based repertoire\n"
+                    "                          character set encoding.\n"
                     " -R, --raw-slides       Do not process slides. Integrity checks and resizing\n"
                     "                          slides is skipped. Use this if you know what you are doing !\n"
                     "                          It is useful only when -d is used\n"
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
     int  sleepdelay = SLEEPDELAY_DEFAULT;
     bool raw_slides = false;
     int  charset = CHARSET_UTF8;
-    bool dls_to_ebu = false;
+    bool raw_dls = false;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 
     const struct option longopts[] = {
         {"charset",    required_argument,  0, 'c'},
-        {"dls-to-ebu", no_argument,        0, 'C'},
+        {"raw-dls",    no_argument,        0, 'C'},
         {"dir",        required_argument,  0, 'd'},
         {"erase",      no_argument,        0, 'e'},
         {"output",     required_argument,  0, 'o'},
@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
                 charset = atoi(optarg);
                 break;
             case 'C':
-                dls_to_ebu = true;
+                raw_dls = true;
                 break;
             case 'd':
                 dir = optarg;
@@ -451,12 +451,18 @@ int main(int argc, char *argv[])
                user_charset, charset);
     }
 
-    if (dls_to_ebu) {
-        if (charset != CHARSET_UTF8) {
+    if (not raw_dls) {
+        switch (charset) {
+        case CHARSET_COMPLETE_EBU_LATIN:
+            // no conversion needed
+            break;
+        case CHARSET_UTF8:
+            fprintf(stderr, "mot-encoder converting DLS texts to Complete EBU Latin\n");
+            break;
+        default:
             fprintf(stderr, "mot-encoder Error: DLS conversion to EBU is currently only supported for UTF-8 input!\n");
             return 1;
         }
-        fprintf(stderr, "mot-encoder converting DLS texts to Complete EBU Latin\n");
     }
 
     int output_fd = open(output, O_WRONLY);
@@ -506,7 +512,7 @@ int main(int argc, char *argv[])
 
             if (not dls_file.empty()) {
                 // Maybe we have no slides, always update DLS
-                writeDLS(output_fd, dls_file, padlen, charset, dls_to_ebu);
+                writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
                 sleep(sleepdelay);
             }
 
@@ -530,7 +536,7 @@ int main(int argc, char *argv[])
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
                 if (not dls_file.empty()) {
-                    writeDLS(output_fd, dls_file, padlen, charset, dls_to_ebu);
+                    writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
                 }
 
                 sleep(sleepdelay);
@@ -544,7 +550,7 @@ int main(int argc, char *argv[])
         }
         else if (not dls_file.empty()) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
-            writeDLS(output_fd, dls_file, padlen, charset, dls_to_ebu);
+            writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
 
             sleep(sleepdelay);
         }
@@ -940,7 +946,7 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
 }
 
 
-void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool dls_to_ebu)
+void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls)
 {
     std::ifstream dls_fstream(dls_file.c_str());
     if (!dls_fstream.is_open()) {
@@ -955,7 +961,7 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
     // line endings
     while (std::getline(dls_fstream, line)) {
         if (not line.empty()) {
-            if (dls_to_ebu) {
+            if (not raw_dls && charset == CHARSET_UTF8) {
                 dls_lines.push_back(charset_converter.convert(line));
             }
             else {
@@ -985,7 +991,7 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
     if (dlstext.size() > MAXDLS)
         dlstext.resize(MAXDLS);
 
-    if (dls_to_ebu)
+    if (not raw_dls)
         charset = CHARSET_COMPLETE_EBU_LATIN;
 
 
