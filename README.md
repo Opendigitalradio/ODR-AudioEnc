@@ -1,4 +1,4 @@
-fdk-aac-dabplus Package
+FDK-AAC-DABplus Package
 =======================
 
 This package contains an DAB+ encoder that uses the standalone library
@@ -58,7 +58,7 @@ If you want to use the JACK and libVLC input, please use
     ./configure --enable-jack --enable-vlc
 
 * See the possible scenarios below on how to use the tools
-* use mot-encoder to encode images into MOT Slideshow
+* use *mot-encoder* to encode images into MOT Slideshow
 
 
 How to use
@@ -149,7 +149,7 @@ This illustrates the fifo input over standard input of *dabplus-enc*.
     dabplus-enc -r 32000 -l \
     -i - -b $BITRATE -f raw -o $DST -p 53
 
-The -p 53 sets the padlen, compatible with the default mot-encoder setting. mot-encoder needs
+The -p 53 sets the padlen, compatible with the default *mot-encoder* setting. *mot-encoder* needs
 to be given the same value for this option.
 
 
@@ -205,7 +205,7 @@ the generated files are smaller than 50kB and exactly 320x240 pixels.
 
 Supported Encoders
 ------------------
-*dabplus-enc* can insert the PAD data from mot-encoder into the bitstream.
+*dabplus-enc* can insert the PAD data from *mot-encoder* into the bitstream.
 The mp2 encoder [Toolame-DAB](https://github.com/Opendigitalradio/toolame-dab)
 can also read *mot-encoder* data.
 
