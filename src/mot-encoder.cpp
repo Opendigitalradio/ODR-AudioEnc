@@ -86,6 +86,7 @@ extern "C" {
 #define CHARSET_EBU_LATIN_CY_GR 1 // EBU Latin based common core, Cyrillic, Greek
 #define CHARSET_EBU_LATIN_AR_HE_CY_GR 2 // EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek
 #define CHARSET_ISO_LATIN_ALPHABET_2 3 // ISO Latin Alphabet No 2
+#define CHARSET_UCS2_BE 6 // ISO/IEC 10646 using UCS-2 transformation format, big endian byte order
 #define CHARSET_UTF8 15 // ISO Latin Alphabet No 2
 
 struct MSCDG {
@@ -235,7 +236,7 @@ void writeMotPAD(int output_fd,
         unsigned short int padlen);
 
 void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset);
-void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset);
+void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls);
 
 
 int get_xpadlengthmask(int padlen);
@@ -261,7 +262,7 @@ CharsetConverter charset_converter;
 typedef std::vector<uint8_t> pad_t;
 static std::deque<pad_t> dls_pads;
 static bool dls_toggle = false;
-std::string dlstext_prev(MAXDLS + 1, ' ');
+std::string dlstext_prev = "";
 
 
 static int verbose = 0;
@@ -292,13 +293,16 @@ void usage(char* name)
                     " -p, --pad=LENGTH       Set the pad length.\n"
                     "                          Possible values: " ALLOWED_PADLEN "\n"
                     "                          Default: 58\n"
-                    " -c, --charset=ID       Signal the character set encoding defined by ID\n"
-                    "                          ID = 0: Complete EBU Latin based repertoire\n"
-                    "                          ID = 1: Latin based common core, Cyrillic, Greek\n"
-                    "                          ID = 2: EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek\n"
-                    "                          ID = 3: ISO Latin Alphabet No 2\n"
+                    " -c, --charset=ID       ID of the character set encoding used for DLS text input.\n"
+                    "                          ID =  0: Complete EBU Latin based repertoire\n"
+                    "                          ID =  1: Latin based common core, Cyrillic, Greek\n"
+                    "                          ID =  2: EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek\n"
+                    "                          ID =  3: ISO Latin Alphabet No 2\n"
+                    "                          ID =  6: ISO/IEC 10646 using UCS-2 BE\n"
                     "                          ID = 15: ISO/IEC 10646 using UTF-8\n"
-                    "                          Default: 0\n"
+                    "                          Default: 15\n"
+                    " -C, --raw-dls          Do not convert DLS texts to Complete EBU Latin based repertoire\n"
+                    "                          character set encoding.\n"
                     " -R, --raw-slides       Do not process slides. Integrity checks and resizing\n"
                     "                          slides is skipped. Use this if you know what you are doing !\n"
                     "                          It is useful only when -d is used\n"
@@ -318,7 +322,8 @@ int main(int argc, char *argv[])
     bool erase_after_tx = false;
     int  sleepdelay = SLEEPDELAY_DEFAULT;
     bool raw_slides = false;
-    int  charset = CHARSET_COMPLETE_EBU_LATIN;
+    int  charset = CHARSET_UTF8;
+    bool raw_dls = false;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
@@ -326,6 +331,7 @@ int main(int argc, char *argv[])
 
     const struct option longopts[] = {
         {"charset",    required_argument,  0, 'c'},
+        {"raw-dls",    no_argument,        0, 'C'},
         {"dir",        required_argument,  0, 'd'},
         {"erase",      no_argument,        0, 'e'},
         {"output",     required_argument,  0, 'o'},
@@ -341,10 +347,13 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "ehRc:d:o:p:s:t:v", longopts, &index);
+        ch = getopt_long(argc, argv, "eChRc:d:o:p:s:t:v", longopts, &index);
         switch (ch) {
             case 'c':
                 charset = atoi(optarg);
+                break;
+            case 'C':
+                raw_dls = true;
                 break;
             case 'd':
                 dir = optarg;
@@ -420,6 +429,9 @@ int main(int argc, char *argv[])
         case CHARSET_ISO_LATIN_ALPHABET_2:
             user_charset = "ISO Latin Alphabet 2";
             break;
+        case CHARSET_UCS2_BE:
+            user_charset = "UCS-2 BE";
+            break;
         case CHARSET_UTF8:
             user_charset = "UTF-8";
             break;
@@ -437,6 +449,20 @@ int main(int argc, char *argv[])
     else {
         fprintf(stderr, "mot-encoder using charset %s (%d)\n",
                user_charset, charset);
+    }
+
+    if (not raw_dls) {
+        switch (charset) {
+        case CHARSET_COMPLETE_EBU_LATIN:
+            // no conversion needed
+            break;
+        case CHARSET_UTF8:
+            fprintf(stderr, "mot-encoder converting DLS texts to Complete EBU Latin\n");
+            break;
+        default:
+            fprintf(stderr, "mot-encoder Error: DLS conversion to EBU is currently only supported for UTF-8 input!\n");
+            return 1;
+        }
     }
 
     int output_fd = open(output, O_WRONLY);
@@ -486,7 +512,7 @@ int main(int argc, char *argv[])
 
             if (not dls_file.empty()) {
                 // Maybe we have no slides, always update DLS
-                writeDLS(output_fd, dls_file, padlen, charset);
+                writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
                 sleep(sleepdelay);
             }
 
@@ -510,7 +536,7 @@ int main(int argc, char *argv[])
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
                 if (not dls_file.empty()) {
-                    writeDLS(output_fd, dls_file, padlen, charset);
+                    writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
                 }
 
                 sleep(sleepdelay);
@@ -524,7 +550,7 @@ int main(int argc, char *argv[])
         }
         else if (not dls_file.empty()) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
-            writeDLS(output_fd, dls_file, padlen, charset);
+            writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
 
             sleep(sleepdelay);
         }
@@ -920,7 +946,7 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
 }
 
 
-void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset)
+void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls)
 {
     std::ifstream dls_fstream(dls_file.c_str());
     if (!dls_fstream.is_open()) {
@@ -935,7 +961,7 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
     // line endings
     while (std::getline(dls_fstream, line)) {
         if (not line.empty()) {
-            if (charset == CHARSET_COMPLETE_EBU_LATIN) {
+            if (not raw_dls && charset == CHARSET_UTF8) {
                 dls_lines.push_back(charset_converter.convert(line));
             }
             else {
@@ -948,12 +974,25 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
     std::stringstream ss;
     for (size_t i = 0; i < dls_lines.size(); i++) {
         if (i != 0) {
-            ss << "\n";
+            if (charset == CHARSET_UCS2_BE)
+                ss << '\0' << '\n';
+            else
+                ss << '\n';
         }
+
+        // UCS-2 BE: if from file the first byte of \0\n remains, remove it
+        if (charset == CHARSET_UCS2_BE && dls_lines[i].size() % 2) {
+            dls_lines[i].resize(dls_lines[i].size() - 1);
+        }
+
         ss << dls_lines[i];
     }
     std::string dlstext = ss.str();
-    using namespace std;
+    if (dlstext.size() > MAXDLS)
+        dlstext.resize(MAXDLS);
+
+    if (not raw_dls)
+        charset = CHARSET_COMPLETE_EBU_LATIN;
 
 
     // (Re)Create data groups (and thereby toggle the toggle bit) only on (first call or) new text
@@ -986,8 +1025,9 @@ size_t dls_get(const std::string& text, const uint8_t charset, const unsigned in
     bool first_seg = seg_index == 0;
     bool last_seg  = seg_index == seg_count - 1;
 
-    const char *seg_text_start = text.c_str() + seg_index * DLS_SEG_LEN_CHAR_MAX;
-    size_t seg_text_len = strnlen(seg_text_start, DLS_SEG_LEN_CHAR_MAX);
+    int seg_text_offset = seg_index * DLS_SEG_LEN_CHAR_MAX;
+    const char *seg_text_start = text.c_str() + seg_text_offset;
+    size_t seg_text_len = MIN(text.size() - seg_text_offset, DLS_SEG_LEN_CHAR_MAX);
     size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + DLS_SEG_LEN_CRC;
 
 

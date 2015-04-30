@@ -211,17 +211,19 @@ can also read *mot-encoder* data.
 
 This is an ongoing development. Make sure you use the same pad length option
 for *mot-encoder* and the audio encoder. Only some pad lengths are supported,
-please see *mot-encoder*'s help. Only pad lengths 34, 42 and 58 seem to be
-working with some receivers, 23 and 26 appear to be broken.
+please see *mot-encoder*'s help.
 
 Character Sets
 --------------
 When *mot-encoder* is launched with the default character set encoding, it assumes
 that the DLS text in the file is encoded in UTF-8, and will convert it according to
-the DAB standard.
+the DAB standard to the EBU Latin based character set encoding.
 
-If you set the character set encoding to anything else, *mot-encoder* will not perform
-any conversion, and it is your responsibility to ensure the encoding is valid.
+If you set the character set encoding to anything else (except: EBU Latin based,
+which needs no conversion), *mot-encoder* will abort, as it does not support
+any other conversion than from UTF-8 to EBU Latin based.
+You can also use the -C option to transmit the untouched DLS text. In this case,
+it is your responsibility to ensure the encoding is valid.
 
 Known Limitations
 -----------------
