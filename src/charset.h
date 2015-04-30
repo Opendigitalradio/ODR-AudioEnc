@@ -29,6 +29,16 @@
 #include <vector>
 #include <algorithm>
 
+/**********************************************/
+/************* BIG FAT WARNING ****************/
+/**********************************************/
+/**** Make sure this file is always saved  ****/
+/**** encoded in UTF-8, otherwise you will ****/
+/****      mess up the table below !       ****/
+/**********************************************/
+/********* END OF BIG FAT WARNING *************/
+/**********************************************/
+
 // The first 32 entries are control characters and are not specified in
 // the table.
 #define CHARSET_TABLE_OFFSET 32
