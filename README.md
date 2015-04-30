@@ -215,15 +215,19 @@ please see *mot-encoder*'s help.
 
 Character Sets
 --------------
-When *mot-encoder* is launched with the default character set encoding, it assumes
+When *mot-encoder* is launched with the default character set options, it assumes
 that the DLS text in the file is encoded in UTF-8, and will convert it according to
-the DAB standard to the EBU Latin based character set encoding.
+the DAB standard to the *Complete EBU Latin based repertoire* character set encoding.
 
-If you set the character set encoding to anything else (except: EBU Latin based,
-which needs no conversion), *mot-encoder* will abort, as it does not support
-any other conversion than from UTF-8 to EBU Latin based.
-You can also use the -C option to transmit the untouched DLS text. In this case,
-it is your responsibility to ensure the encoding is valid.
+If you set the character set encoding to any other setting (except
+*Complete EBU Latin based repertoire* which needs no conversion),
+*mot-encoder* will abort, as it does not support any other conversion than from
+UTF-8 to *Complete EBU Latin based repertoire*.
+
+You can however use the -C option to transmit the untouched DLS text. In this
+case, it is your responsibility to ensure the encoding is valid.  For instance,
+if your data is already encoded in *Complete EBU Latin based repertoire*, you
+must specify both --charset=0 and --raw-dls.
 
 Known Limitations
 -----------------
