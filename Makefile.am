@@ -70,7 +70,12 @@ dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
 						  src/zmq.hpp \
 						  src/utils.c \
 						  src/utils.h \
-						  src/wavreader.c
+						  src/wavreader.c \
+						  src/charset.h \
+						  src/utf8.h \
+						  src/utf8/checked.h \
+						  src/utf8/unchecked.h \
+						  src/utf8/core.h
 
 mot_encoder_CXXFLAGS = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
