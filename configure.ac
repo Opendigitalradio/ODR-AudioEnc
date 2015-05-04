@@ -14,6 +14,8 @@ AC_PROG_CXX
 AC_PROG_LIBTOOL
 LT_INIT
 
+AX_CXX_COMPILE_STDCXX_11(noext,mandatory)
+
 AC_CHECK_LIB([m], [sin])
 
 AC_SEARCH_LIBS([init_rs_char], [fec], [], [
