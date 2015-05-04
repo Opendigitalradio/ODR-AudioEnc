@@ -27,9 +27,10 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include <thread>
+#include <mutex>
 
 #include <vlc/vlc.h>
-#include <boost/thread/thread.hpp>
 
 #include "SampleQueue.h"
 
@@ -93,7 +94,7 @@ class VLCInput
 
         std::vector<uint8_t> m_current_buf;
 
-        boost::mutex m_queue_mutex;
+        mutable std::mutex m_queue_mutex;
         std::deque<uint8_t> m_queue;
 
         std::string m_uri;

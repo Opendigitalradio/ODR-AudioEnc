@@ -16,15 +16,14 @@ LT_INIT
 
 AX_CXX_COMPILE_STDCXX_11(noext,mandatory)
 
+# std::thread requires pthread
+AX_PTHREAD([], AC_MSG_ERROR([requires pthread]))
+
 AC_CHECK_LIB([m], [sin])
 
 AC_SEARCH_LIBS([init_rs_char], [fec], [], [
   AC_MSG_ERROR([unable to find libfec])
 ])
-
-AX_BOOST_BASE([1.41.0], [], AC_MSG_ERROR([BOOST 1.41 or later is required]))
-AC_CHECK_LIB([boost_system], [main], [], [AC_MSG_ERROR([library boost_system is missing])])
-AC_CHECK_LIB([boost_thread], [main], [], [AC_MSG_ERROR([library boost_thread is missing])])
 
 AC_CHECK_LIB([rt], [clock_gettime], [], [AC_MSG_ERROR([library rt is missing])])
 

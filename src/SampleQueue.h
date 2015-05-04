@@ -1,8 +1,8 @@
 /*
-   Copyright (C) 2013, 2014
+   Copyright (C) 2013, 2014, 2015
    Matthias P. Braendli, matthias.braendli@mpb.li
 
-   An implementation for a threadsafe queue using boost thread library
+   An implementation for a threadsafe queue using the C++11 thread library
    for audio samples.
 */
 
@@ -11,10 +11,12 @@
 
 #define DEBUG_SAMPLE_QUEUE 0
 
-#include <boost/thread.hpp>
+#include <mutex>
 #include <queue>
-
-#include <stdio.h>
+#include <cassert>
+#include <sstream>
+#include <cstdio>
+#include <cmath>
 
 /* This queue is meant to be used by two threads. One producer
  * that pushes elements into the queue, and one consumer that
@@ -53,7 +55,7 @@ public:
     /* Push a bunch of samples into the buffer */
     size_t push(const T *val, size_t len)
     {
-        boost::mutex::scoped_lock lock(m_mutex);
+        std::lock_guard<std::mutex> lock(m_mutex);
 
         assert(len % (m_channels * m_bytes_per_sample) == 0);
 
@@ -81,7 +83,7 @@ public:
 
     size_t size() const
     {
-        boost::mutex::scoped_lock lock(m_mutex);
+        std::lock_guard<std::mutex> lock(m_mutex);
         return m_queue.size();
     }
 
@@ -103,7 +105,7 @@ public:
      */
     size_t pop(T* buf, size_t len, size_t* overruns)
     {
-        boost::mutex::scoped_lock lock(m_mutex);
+        std::lock_guard<std::mutex> lock(m_mutex);
 
         assert(len % (m_channels * m_bytes_per_sample) == 0);
 
@@ -163,7 +165,7 @@ public:
 
 private:
     std::deque<T> m_queue;
-    mutable boost::mutex m_mutex;
+    mutable std::mutex m_mutex;
 
     unsigned int m_channels;
     unsigned int m_bytes_per_sample;

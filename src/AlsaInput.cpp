@@ -128,7 +128,7 @@ void AlsaInputThreaded::start()
     }
     else {
         m_running = true;
-        m_thread = boost::thread(&AlsaInputThreaded::process, this);
+        m_thread = std::thread(&AlsaInputThreaded::process, this);
     }
 }
 

@@ -44,7 +44,7 @@ libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
 #				  src/wavreader.c
 
 if HAVE_JACK
-dabplus_enc_LDADD_JACK  = -ljack -lpthread
+dabplus_enc_LDADD_JACK  = -ljack
 else
 dabplus_enc_LDADD_JACK  =
 endif
@@ -52,7 +52,7 @@ endif
 
 dabplus_enc_LDFLAGS     = -no-install
 dabplus_enc_LDADD       = libfdk-aac.la -lfec -lzmq -lasound \
-						  -lrt -lboost_thread $(dabplus_enc_LDADD_JACK) \
+						  -lrt $(dabplus_enc_LDADD_JACK) \
 						  $(LIBVLC_LIBS)
 dabplus_enc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
 dabplus_enc_SOURCES     = src/dabplus-enc.cpp \

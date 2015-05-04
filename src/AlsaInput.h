@@ -21,9 +21,10 @@
 #define __ALSA_H_
 #include <cstdio>
 #include <string>
+#include <thread>
+#include <atomic>
 
 #include <alsa/asoundlib.h>
-#include <boost/thread/thread.hpp>
 
 #include "SampleQueue.h"
 
@@ -107,7 +108,6 @@ class AlsaInputThreaded : public AlsaInput
         {
             if (m_running) {
                 m_running = false;
-                m_thread.interrupt();
                 m_thread.join();
             }
         }
@@ -124,9 +124,9 @@ class AlsaInputThreaded : public AlsaInput
 
         void process();
 
-        bool m_fault;
-        bool m_running;
-        boost::thread m_thread;
+        std::atomic<bool> m_fault;
+        std::atomic<bool> m_running;
+        std::thread m_thread;
 
         SampleQueue<uint8_t>& m_queue;
 

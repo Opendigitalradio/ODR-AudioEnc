@@ -18,6 +18,7 @@
 
 #include <cstdio>
 #include <string>
+#include <chrono>
 
 #include "VLCInput.h"
 
@@ -26,7 +27,6 @@
 #if HAVE_VLC
 
 #include <sys/time.h>
-#include <boost/date_time/posix_time/posix_time.hpp>
 
 
 using namespace std;
@@ -124,7 +124,7 @@ int VLCInput::prepare()
 
         for (int timeout = 0; timeout < 100; timeout++) {
             st = libvlc_media_get_state(media);
-            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             if (st != libvlc_NothingSpecial) {
                 ret = 0;
                 break;
@@ -140,22 +140,23 @@ void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
     const size_t max_length = 20 * size;
 
     for (;;) {
-        boost::mutex::scoped_lock lock(m_queue_mutex);
+        {
+            std::lock_guard<std::mutex> lock(m_queue_mutex);
 
-        if (m_queue.size() < max_length) {
-            m_current_buf.resize(size);
-            *pp_pcm_buffer = &m_current_buf[0];
-            return;
+            if (m_queue.size() < max_length) {
+                m_current_buf.resize(size);
+                *pp_pcm_buffer = &m_current_buf[0];
+                return;
+            }
         }
 
-        lock.unlock();
-        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
 void VLCInput::exit_cb()
 {
-    boost::mutex::scoped_lock lock(m_queue_mutex);
+    std::lock_guard<std::mutex> lock(m_queue_mutex);
 
     fprintf(stderr, "VLC exit, restarting...\n");
 
@@ -182,7 +183,7 @@ void VLCInput::cleanup()
 
 void VLCInput::postRender_cb()
 {
-    boost::mutex::scoped_lock lock(m_queue_mutex);
+    std::lock_guard<std::mutex> lock(m_queue_mutex);
 
     size_t queue_size = m_queue.size();
     m_queue.resize(m_queue.size() + m_current_buf.size());
@@ -194,18 +195,18 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 {
     ssize_t err = 0;
     for (;;) {
-        boost::mutex::scoped_lock lock(m_queue_mutex);
+        {
+            std::lock_guard<std::mutex> lock(m_queue_mutex);
 
-        if (m_queue.size() >= length) {
-            std::copy(m_queue.begin(), m_queue.begin() + length, buf);
+            if (m_queue.size() >= length) {
+                std::copy(m_queue.begin(), m_queue.begin() + length, buf);
 
-            m_queue.erase(m_queue.begin(), m_queue.begin() + length);
+                m_queue.erase(m_queue.begin(), m_queue.begin() + length);
 
-            return length;
+                return length;
+            }
         }
-
-        lock.unlock();
-        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
         libvlc_state_t st = libvlc_media_get_state(media);

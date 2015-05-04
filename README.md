@@ -36,7 +36,7 @@ How to build
 
 Requirements:
 
-* boost-thread and boost-system
+* A C++11 compiler
 * ImageMagick magickwand (optional, for MOT slideshow)
 * The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
