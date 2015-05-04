@@ -1,3 +1,11 @@
+2015-05-04: Matthias P. Braendli <matthias@mpb.li>
+	(v0.7.1):
+	* dabplus-enc:
+		Add ICY Text write to file routine (experimental).
+	* mot-encoder:
+		Add support for character set conversion from
+		UTF-8 to EBU Complete Latin Based Repertoire.
+		Fix issue with short X-PAD lengths.
 2015-04-10: Matthias P. Braendli <matthias@mpb.li>
 	(v0.7.0):
 	* dabplus-enc:
