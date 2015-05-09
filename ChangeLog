@@ -1,3 +1,10 @@
+2015-05-09: Matthias P. Braendli <matthias@mpb.li>
+	(v0.7.2):
+	* dabplus-enc:
+		Fix segmentation fault when libVLC 2.1 or older is
+		used.
+		Switch to C++11.
+		Remove Boost dependency.
 2015-05-04: Matthias P. Braendli <matthias@mpb.li>
 	(v0.7.1):
 	* dabplus-enc:
