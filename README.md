@@ -40,13 +40,15 @@ Requirements:
 * ImageMagick magickwand (optional, for MOT slideshow)
 * The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
-* Download and install ZeroMQ from http://download.zeromq.org/zeromq-4.0.4.tar.gz
+* Install ZeroMQ 4.0.4 or more recent
+  * If your distribution does not include it, take it from
+    from http://download.zeromq.org/zeromq-4.0.4.tar.gz
 * JACK audio connection kit (optional)
 * libvlc and vlc for the plugins (optional)
 
 This package:
 
-    git clone https://github.com/mpbraendli/fdk-aac-dabplus.git
+    git clone https://github.com/Opendigitalradio/fdk-aac-dabplus.git
     cd fdk-aac-dabplus
     ./bootstrap
     ./configure
