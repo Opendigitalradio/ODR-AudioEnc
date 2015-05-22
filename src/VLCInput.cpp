@@ -20,6 +20,7 @@
 #include <string>
 #include <cstring>
 #include <chrono>
+#include <functional>
 
 #include "VLCInput.h"
 
@@ -294,11 +295,39 @@ ssize_t VLCInput::read(uint8_t* buf, size_t length)
     return read;
 }
 
-void VLCInput::write_icy_text(const std::string& filename) const
+bool write_icy_to_file(const std::string& text, const std::string& filename)
 {
     FILE* fd = fopen(filename.c_str(), "wb");
-    fputs_unlocked(m_nowplaying.c_str(), fd);
-    fclose(fd);
+    if (fd) {
+        int ret = fputs(text.c_str(), fd);
+        fclose(fd);
+
+        return ret >= 0;
+    }
+
+    return false;
+}
+
+void VLCInput::write_icy_text(const std::string& filename)
+{
+    if (icy_text_written.valid()) {
+        auto status = icy_text_written.wait_for(std::chrono::microseconds(1));
+        if (status == std::future_status::ready) {
+            if (not icy_text_written.get()) {
+                fprintf(stderr, "Failed to write ICY Text to file!\n");
+            }
+        }
+    }
+
+    else {
+        if (m_nowplaying_previous != m_nowplaying) {
+            icy_text_written = std::async(std::launch::async,
+                    std::bind(write_icy_to_file, m_nowplaying, filename));
+
+        }
+
+        m_nowplaying_previous = m_nowplaying;
+    }
 }
 
 /* VLC up to version 2.1.0 used a different callback function signature.

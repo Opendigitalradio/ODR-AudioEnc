@@ -29,6 +29,7 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#include <future>
 
 #include <vlc/vlc.h>
 
@@ -67,7 +68,7 @@ class VLCInput
         /* Write the last received ICY-Text to the
          * file.
          */
-        void write_icy_text(const std::string& filename) const;
+        void write_icy_text(const std::string& filename);
 
         // Callbacks for VLC
 
@@ -102,7 +103,9 @@ class VLCInput
         unsigned m_channels;
         int m_rate;
 
+        std::future<bool> icy_text_written;
         std::string m_nowplaying;
+        std::string m_nowplaying_previous;
 
         // VLC pointers
         libvlc_instance_t     *m_vlc;
