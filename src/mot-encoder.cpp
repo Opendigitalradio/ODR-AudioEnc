@@ -238,9 +238,41 @@ void writeMotPAD(int output_fd,
 void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset);
 void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls);
 
+// PAD related
+#define CRC_LEN 2
+typedef std::vector<uint8_t> uint8_vector_t;
+
+struct DATA_GROUP {
+    uint8_vector_t data;
+    int apptype_start;
+    int apptype_cont;
+    size_t written;
+
+    DATA_GROUP(size_t len, int apptype_start, int apptype_cont) {
+        this->data.resize(len);
+        this->apptype_start = apptype_start;
+        this->apptype_cont = apptype_cont;
+        written = 0;
+    }
+
+    size_t Available() {
+        return data.size() - written;
+    }
+
+    size_t WriteReversed(uint8_t *write_data, size_t len) {
+        size_t written_now = std::min(len, Available());
+
+        for(size_t off = 0; off < written_now; off++)
+            write_data[-off] = data[written + off];
+
+        written += written_now;
+        return written_now;
+    }
+};
 
 int get_xpadlengthmask(int padlen);
 size_t get_xpadlength(int mask);
+
 #define SHORT_PAD 6
 #define ALLOWED_PADLEN "6 (short X-PAD; only DLS), 23, 26, 34, 42, 58"
 
@@ -254,12 +286,11 @@ static int cindex_body = 0;
 #define FPAD_LEN 2
 #define DLS_SEG_LEN_PREFIX       2
 #define DLS_SEG_LEN_CHAR_MAX    16
-#define DLS_SEG_LEN_CRC          2
-#define DLS_SEG_LEN_MAX         (DLS_SEG_LEN_PREFIX + DLS_SEG_LEN_CHAR_MAX + DLS_SEG_LEN_CRC)
+#define DLS_SEG_LEN_MAX         (DLS_SEG_LEN_PREFIX + DLS_SEG_LEN_CHAR_MAX + CRC_LEN)
 
 CharsetConverter charset_converter;
 
-typedef std::vector<uint8_t> pad_t;
+typedef uint8_vector_t pad_t;
 static std::deque<pad_t> dls_pads;
 static bool dls_toggle = false;
 std::string dlstext_prev = "";
@@ -561,6 +592,33 @@ int main(int argc, char *argv[])
     }
     return 1;
 }
+
+
+void appendCRC(uint8_vector_t &data) {
+    uint16_t crc = 0xFFFF;
+    for(size_t i = 0; i < data.size() - CRC_LEN; i++)
+        crc = update_crc_ccitt(crc, data[i]);
+    crc = ~crc;
+
+    data[data.size() - 2] = (crc & 0xFF00) >> 8;
+    data[data.size() - 1] = (crc & 0x00FF);
+}
+
+
+DATA_GROUP createDataGroupLengthIndicator(size_t len) {
+    DATA_GROUP dg(4, 1, -1);    // continuation never used
+    uint8_vector_t &data = dg.data;
+
+    // Data Group length
+    data[0] = (len & 0x3F00) >> 8;
+    data[1] = (len & 0x00FF);
+
+    // CRC
+    appendCRC(data);
+
+    return dg;
+}
+
 
 // Resize the image or add a black border around it
 // so that it is 320x240 pixels.
@@ -1028,7 +1086,7 @@ size_t dls_get(const std::string& text, const uint8_t charset, const unsigned in
     int seg_text_offset = seg_index * DLS_SEG_LEN_CHAR_MAX;
     const char *seg_text_start = text.c_str() + seg_text_offset;
     size_t seg_text_len = MIN(text.size() - seg_text_offset, DLS_SEG_LEN_CHAR_MAX);
-    size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + DLS_SEG_LEN_CRC;
+    size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + CRC_LEN;
 
 
     // prefix: toggle? + first seg? + last seg? + (seg len - 1)
@@ -1046,7 +1104,7 @@ size_t dls_get(const std::string& text, const uint8_t charset, const unsigned in
 
     // CRC
     uint16_t crc = 0xFFFF;
-    for (int i = 0; i < seg_len - DLS_SEG_LEN_CRC; i++)
+    for (int i = 0; i < seg_len - CRC_LEN; i++)
         crc = update_crc_ccitt(crc, seg_data[i]);
     crc = ~crc;
 #if DEBUG
@@ -1143,6 +1201,7 @@ void create_dls_pads(const std::string& text, const int padlen, const uint8_t ch
 #endif
 }
 
+
 void writeMotPAD(int output_fd,
         unsigned char* mscdg,
         unsigned short int mscdgsize,
@@ -1151,7 +1210,6 @@ void writeMotPAD(int output_fd,
 
     unsigned char pad[padlen + 1];
     int xpadlengthmask, i, j, k;
-    unsigned short int crc;
 
     xpadlengthmask = get_xpadlengthmask(padlen);
 
@@ -1188,23 +1246,16 @@ void writeMotPAD(int output_fd,
             pad[padlen-2] = 0x20;
 
             // Write Data Group Length Indicator
-            crc = 0xffff;
+            DATA_GROUP dgli = createDataGroupLengthIndicator(mscdgsize);
+
             // CI for data group length indicator: data length=4, Application Type=1
-            pad[padlen-3]=0x01;
+            pad[padlen-3]=(0<<5) | dgli.apptype_start;
             // CI for data group length indicator: Application Type=12 (Start of MOT)
             pad[padlen-4]=(xpadlengthmask<<5) | 12;
             // End of CI list
             pad[padlen-5]=0x00;
-            // RFA+HI Data group length
-            pad[padlen-6]=(mscdgsize & 0x3F00)>>8;
-            pad[padlen-7]=(mscdgsize & 0x00FF);
-            crc = update_crc_ccitt(crc, pad[padlen-6]);
-            crc = update_crc_ccitt(crc, pad[padlen-7]);
-            crc = ~crc;
-            // HI CRC
-            pad[padlen-8]=(crc & 0xFF00) >> 8;
-            // LO CRC
-            pad[padlen-9]=(crc & 0x00FF);
+
+            dgli.WriteReversed(&pad[padlen-6], 4);
             k=10;
         }
         else {
