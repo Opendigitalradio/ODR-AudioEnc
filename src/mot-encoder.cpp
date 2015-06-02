@@ -229,10 +229,10 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype, int *cindex, unsigned sh
         unsigned short int lastseg, unsigned short int tid, unsigned char* data,
         unsigned short int datalen);
 
-void packMscDG(unsigned char* mscblob, MSCDG* msc, unsigned short int *bsize);
+struct DATA_GROUP;
+DATA_GROUP packMscDG(MSCDG* msc);
 void writeMotPAD(int output_fd,
-        unsigned char* mscdg,
-        unsigned short int mscdgsize,
+        DATA_GROUP &mscdg,
         unsigned short int padlen);
 
 void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset);
@@ -696,8 +696,6 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
     MSCDG msc;
-    unsigned char mscblob[9 + MAXSEGLEN + 2];   // headers + segment + CRC
-    unsigned short int mscblobsize;
 
     size_t orig_quality;
     char*  orig_format = NULL;
@@ -865,8 +863,8 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
         // Create the MSC Data Group C-Structure
         createMscDG(&msc, 3, &cindex_header, 0, 1, fidx, mothdr, mothdrlen);
         // Generate the MSC DG frame (Figure 9 en 300 401)
-        packMscDG(mscblob, &msc, &mscblobsize);
-        writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
+        DATA_GROUP mscdg = packMscDG(&msc);
+        writeMotPAD(output_fd, mscdg, padlen);
 
         for (i = 0; i < nseg; i++) {
             curseg = blob + i * MAXSEGLEN;
@@ -880,8 +878,8 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
             }
 
             createMscDG(&msc, 4, &cindex_body, i, last, fidx, curseg, curseglen);
-            packMscDG(mscblob, &msc, &mscblobsize);
-            writeMotPAD(output_fd, mscblob, mscblobsize, padlen);
+            mscdg = packMscDG(&msc);
+            writeMotPAD(output_fd, mscdg, padlen);
         }
 
         ret = 1;
@@ -967,11 +965,12 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype,
 }
 
 
-void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
+DATA_GROUP packMscDG(MSCDG* msc)
 {
-    int i;
-    unsigned short int crc=0xFFFF;
+    DATA_GROUP dg(9 + msc->seglen + CRC_LEN, 12, 13);
+    uint8_vector_t &b = dg.data;
 
+    // headers
     b[0] = (msc->extflag<<7) | (msc->crcflag<<6) | (msc->segflag<<5) |
            (msc->accflag<<4) | msc->dgtype;
 
@@ -985,22 +984,13 @@ void packMscDG(unsigned char* b, MSCDG* msc, unsigned short int* bsize)
     b[7] = (msc->rcount << 5) | ((msc->seglen & 0x1F00)>>8);
     b[8] =  msc->seglen & 0x00FF;
 
-    for (i = 0; i<9; i++) {
-        crc = update_crc_ccitt(crc, b[i]);
-    }
+    // data field
+    memcpy(&b[9], msc->segdata, msc->seglen);
 
-    for(i = 0; i < msc->seglen; i++) {
-        b[i+9] = (msc->segdata)[i];
-        crc = update_crc_ccitt(crc, b[i+9]);
-    }
+    // CRC
+    appendCRC(b);
 
-    crc = ~crc;
-    b[9+msc->seglen]   = (crc & 0xFF00) >> 8;     // HI CRC
-    b[9+msc->seglen+1] =  crc & 0x00FF;          // LO CRC
-
-    *bsize = 9 + msc->seglen + 2;
-
-    //write(1,b,9+msc->seglen+1+1);
+    return dg;
 }
 
 
@@ -1203,42 +1193,36 @@ void create_dls_pads(const std::string& text, const int padlen, const uint8_t ch
 
 
 void writeMotPAD(int output_fd,
-        unsigned char* mscdg,
-        unsigned short int mscdgsize,
+        DATA_GROUP &mscdg,
         unsigned short int padlen)
 {
 
     unsigned char pad[padlen + 1];
-    int xpadlengthmask, i, j, k;
+    int xpadlengthmask, k;
+    bool firstseg = true;
 
     xpadlengthmask = get_xpadlengthmask(padlen);
 
     // Write MSC Data Groups
     int curseglen, used_xpad_len;
-    for (i = 0; i < mscdgsize; i += curseglen) {
-        uint8_t* curseg;
-        uint8_t  firstseg;
-
-        curseg = &mscdg[i];
+    while (mscdg.Available()) {
 #if DEBUG
         fprintf(stderr,"Segment offset %d\n",i);
 #endif
 
-        if (i == 0) {             // First segment
-            firstseg = 1;
+        if (firstseg) {             // First segment
             curseglen = get_xpadlength(xpadlengthmask);
 
             // size of first X-PAD = MSC-DG + DGLI-DG + End of CI list + 2x CI = size of subsequent non-CI X-PADs
             used_xpad_len = curseglen + 4 + 1 + 2;
         }
         else {
-            firstseg = 0;
             curseglen = used_xpad_len;
         }
 
-        curseglen = MIN(curseglen, mscdgsize - i);
+        curseglen = MIN(curseglen, mscdg.Available());
 
-        if (firstseg == 1) {
+        if (firstseg) {
             // FF-PAD Byte L (CI=1)
             pad[padlen-1] = 0x02;
 
@@ -1246,12 +1230,12 @@ void writeMotPAD(int output_fd,
             pad[padlen-2] = 0x20;
 
             // Write Data Group Length Indicator
-            DATA_GROUP dgli = createDataGroupLengthIndicator(mscdgsize);
+            DATA_GROUP dgli = createDataGroupLengthIndicator(mscdg.data.size());
 
             // CI for data group length indicator: data length=4, Application Type=1
             pad[padlen-3]=(0<<5) | dgli.apptype_start;
-            // CI for data group length indicator: Application Type=12 (Start of MOT)
-            pad[padlen-4]=(xpadlengthmask<<5) | 12;
+            // CI for MOT, start of X-PAD data group: Application Type=12
+            pad[padlen-4]=(xpadlengthmask<<5) | mscdg.apptype_start;
             // End of CI list
             pad[padlen-5]=0x00;
 
@@ -1267,12 +1251,9 @@ void writeMotPAD(int output_fd,
             k=3;
         }
 
-        for (j = 0; j < curseglen; j++) {
-            pad[padlen-k-j] = curseg[j];
-        }
-        for (j = padlen-k-curseglen; j >= 0; j--) {
-            pad[j] = 0x00;
-        }
+        mscdg.WriteReversed(&pad[padlen-k], curseglen);
+
+        memset(pad, 0x00, padlen-k-curseglen + 1);
 
         // set used pad len
         pad[padlen] = FPAD_LEN + used_xpad_len;
@@ -1284,6 +1265,9 @@ void writeMotPAD(int output_fd,
             fprintf(stderr,"%02x ",pad[j]);
         fprintf(stderr,"\n");
 #endif
+
+        if (firstseg)
+            firstseg = false;
     }
 }
 
