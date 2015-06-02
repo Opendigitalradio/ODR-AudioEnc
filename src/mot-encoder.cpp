@@ -255,6 +255,16 @@ struct DATA_GROUP {
         written = 0;
     }
 
+    void AppendCRC() {
+        uint16_t crc = 0xFFFF;
+        for (size_t i = 0; i < data.size(); i++)
+            crc = update_crc_ccitt(crc, data[i]);
+        crc = ~crc;
+
+        data.push_back((crc & 0xFF00) >> 8);
+        data.push_back((crc & 0x00FF));
+    }
+
     size_t Available() {
         return data.size() - written;
     }
@@ -262,7 +272,7 @@ struct DATA_GROUP {
     size_t WriteReversed(uint8_t *write_data, size_t len) {
         size_t written_now = std::min(len, Available());
 
-        for(size_t off = 0; off < written_now; off++)
+        for (size_t off = 0; off < written_now; off++)
             write_data[-off] = data[written + off];
 
         written += written_now;
@@ -594,19 +604,8 @@ int main(int argc, char *argv[])
 }
 
 
-void appendCRC(uint8_vector_t &data) {
-    uint16_t crc = 0xFFFF;
-    for(size_t i = 0; i < data.size() - CRC_LEN; i++)
-        crc = update_crc_ccitt(crc, data[i]);
-    crc = ~crc;
-
-    data[data.size() - 2] = (crc & 0xFF00) >> 8;
-    data[data.size() - 1] = (crc & 0x00FF);
-}
-
-
 DATA_GROUP createDataGroupLengthIndicator(size_t len) {
-    DATA_GROUP dg(4, 1, -1);    // continuation never used
+    DATA_GROUP dg(2, 1, -1);    // continuation never used
     uint8_vector_t &data = dg.data;
 
     // Data Group length
@@ -614,7 +613,7 @@ DATA_GROUP createDataGroupLengthIndicator(size_t len) {
     data[1] = (len & 0x00FF);
 
     // CRC
-    appendCRC(data);
+    dg.AppendCRC();
 
     return dg;
 }
@@ -967,7 +966,7 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype,
 
 DATA_GROUP packMscDG(MSCDG* msc)
 {
-    DATA_GROUP dg(9 + msc->seglen + CRC_LEN, 12, 13);
+    DATA_GROUP dg(9 + msc->seglen, 12, 13);
     uint8_vector_t &b = dg.data;
 
     // headers
@@ -988,7 +987,7 @@ DATA_GROUP packMscDG(MSCDG* msc)
     memcpy(&b[9], msc->segdata, msc->seglen);
 
     // CRC
-    appendCRC(b);
+    dg.AppendCRC();
 
     return dg;
 }
