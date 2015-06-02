@@ -235,7 +235,7 @@ void writeMotPAD(int output_fd,
         DATA_GROUP &mscdg,
         unsigned short int padlen);
 
-void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset);
+void create_dls_pads(const std::string& text, int padlen, uint8_t charset);
 void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls);
 
 // PAD related
@@ -260,6 +260,9 @@ struct DATA_GROUP {
         for (size_t i = 0; i < data.size(); i++)
             crc = update_crc_ccitt(crc, data[i]);
         crc = ~crc;
+#if DEBUG
+        fprintf(stderr, "crc=%04x ~crc=%04x\n", crc, ~crc);
+#endif
 
         data.push_back((crc & 0xFF00) >> 8);
         data.push_back((crc & 0x00FF));
@@ -296,7 +299,6 @@ static int cindex_body = 0;
 #define FPAD_LEN 2
 #define DLS_SEG_LEN_PREFIX       2
 #define DLS_SEG_LEN_CHAR_MAX    16
-#define DLS_SEG_LEN_MAX         (DLS_SEG_LEN_PREFIX + DLS_SEG_LEN_CHAR_MAX + CRC_LEN)
 
 CharsetConverter charset_converter;
 
@@ -1064,19 +1066,16 @@ int dls_count(const std::string& text) {
 }
 
 
-size_t dls_get(const std::string& text, const uint8_t charset, const unsigned int seg_index, uint8_t *seg_data) {
-    int seg_count = dls_count(text);
-    if (seg_index >= seg_count)
-        return 0;
-
+DATA_GROUP dls_get(const std::string& text, uint8_t charset, unsigned int seg_index) {
     bool first_seg = seg_index == 0;
-    bool last_seg  = seg_index == seg_count - 1;
+    bool last_seg  = seg_index == dls_count(text) - 1;
 
     int seg_text_offset = seg_index * DLS_SEG_LEN_CHAR_MAX;
     const char *seg_text_start = text.c_str() + seg_text_offset;
     size_t seg_text_len = MIN(text.size() - seg_text_offset, DLS_SEG_LEN_CHAR_MAX);
-    size_t seg_len = DLS_SEG_LEN_PREFIX + seg_text_len + CRC_LEN;
 
+    DATA_GROUP dg(DLS_SEG_LEN_PREFIX + seg_text_len, 2, 3);
+    uint8_vector_t &seg_data = dg.data;
 
     // prefix: toggle? + first seg? + last seg? + (seg len - 1)
     seg_data[0] =
@@ -1089,31 +1088,22 @@ size_t dls_get(const std::string& text, const uint8_t charset, const unsigned in
     seg_data[1] = (first_seg ? charset : seg_index) << 4;
 
     // character field
-    memcpy(seg_data + DLS_SEG_LEN_PREFIX, seg_text_start, seg_text_len);
+    memcpy(&seg_data[DLS_SEG_LEN_PREFIX], seg_text_start, seg_text_len);
 
     // CRC
-    uint16_t crc = 0xFFFF;
-    for (int i = 0; i < seg_len - CRC_LEN; i++)
-        crc = update_crc_ccitt(crc, seg_data[i]);
-    crc = ~crc;
-#if DEBUG
-    fprintf(stderr, "crc=%04x ~crc=%04x\n", ~crc, crc);
-#endif
-    seg_data[seg_len - 2] = (crc & 0xFF00) >> 8;    // HI CRC
-    seg_data[seg_len - 1] =  crc & 0x00FF;          // LO CRC
+    dg.AppendCRC();
 
 #if DEBUG
     fprintf(stderr, "DL segment:");
-    for (int i = 0; i < seg_len; i++)
+    for (int i = 0; i < seg_data.size(); i++)
         fprintf(stderr, " %02x", seg_data[i]);
     fprintf(stderr, "\n");
 #endif
-    return seg_len;
+    return dg;
 }
 
 
-void create_dls_pads(const std::string& text, const int padlen, const uint8_t charset) {
-    uint8_t seg_data[DLS_SEG_LEN_MAX];
+void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
     int xpadlengthmask = get_xpadlengthmask(padlen);
 
     dls_pads.clear();
@@ -1125,18 +1115,18 @@ void create_dls_pads(const std::string& text, const int padlen, const uint8_t ch
 #if DEBUG
         fprintf(stderr, "Segment number %d\n", seg_index + 1);
 #endif
-        int seg_len = dls_get(text, charset, seg_index, seg_data);
+        DATA_GROUP seg = dls_get(text, charset, seg_index);
+        bool ci_needed = true;  // CI needed only at first data group
         int dg_len;
         int used_xpad_len;
 
         // distribute the segment over one or more PADs
-        for (int seg_off = 0; seg_off < seg_len;) {
+        while (seg.Available()) {
             dls_pads.push_back(pad_t(padlen + 1));
             pad_t &pad = dls_pads.back();
             int pad_off = padlen - 1;
 
             bool var_size_pad = padlen != SHORT_PAD;
-            bool ci_needed = seg_off == 0;  // CI needed only at first data group
 
             if (ci_needed) {
                 dg_len = get_xpadlength(xpadlengthmask);
@@ -1146,7 +1136,7 @@ void create_dls_pads(const std::string& text, const int padlen, const uint8_t ch
             } else {
                 dg_len = used_xpad_len;
             }
-            int dg_used = MIN(dg_len, seg_len - seg_off);
+            int dg_used = MIN(dg_len, seg.Available());
 
 
             // F-PAD Byte L   (CI if needed)
@@ -1157,15 +1147,15 @@ void create_dls_pads(const std::string& text, const int padlen, const uint8_t ch
 
             // CI (app type 2 = DLS, start of X-PAD data group)
             if (ci_needed)
-                pad[pad_off--] = ((var_size_pad ? xpadlengthmask : 0) << 5) | 0x02;
+                pad[pad_off--] = ((var_size_pad ? xpadlengthmask : 0) << 5) | seg.apptype_start;
 
             // CI end marker
             if (ci_needed && var_size_pad)
                 pad[pad_off--] = 0x00;
 
             // segment (part)
-            for (int i = 0; i < dg_used; i++)
-                pad[pad_off--] = seg_data[seg_off + i];
+            seg.WriteReversed(&pad[pad_off], dg_used);
+            pad_off -= dg_used;
 
             // NULL PADDING
             std::fill_n(pad.begin(), pad_off + 1, 0x00);
@@ -1179,7 +1169,9 @@ void create_dls_pads(const std::string& text, const int padlen, const uint8_t ch
                 fprintf(stderr, " %02x", pad[i]);
             fprintf(stderr, "\n");
 #endif
-            seg_off += dg_used;
+
+            if (ci_needed)
+                ci_needed = false;
         }
     }
 #if DEBUG
