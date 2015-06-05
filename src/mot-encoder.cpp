@@ -230,9 +230,9 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype, int *cindex, unsigned sh
         unsigned short int datalen);
 
 struct DATA_GROUP;
-DATA_GROUP packMscDG(MSCDG* msc);
+DATA_GROUP* packMscDG(MSCDG* msc);
 void writeMotPAD(int output_fd,
-        DATA_GROUP &mscdg,
+        DATA_GROUP* mscdg,
         unsigned short int padlen);
 
 void create_dls_pads(const std::string& text, int padlen, uint8_t charset);
@@ -606,16 +606,16 @@ int main(int argc, char *argv[])
 }
 
 
-DATA_GROUP createDataGroupLengthIndicator(size_t len) {
-    DATA_GROUP dg(2, 1, -1);    // continuation never used
-    uint8_vector_t &data = dg.data;
+DATA_GROUP* createDataGroupLengthIndicator(size_t len) {
+    DATA_GROUP* dg = new DATA_GROUP(2, 1, -1);    // continuation never used
+    uint8_vector_t &data = dg->data;
 
     // Data Group length
     data[0] = (len & 0x3F00) >> 8;
     data[1] = (len & 0x00FF);
 
     // CRC
-    dg.AppendCRC();
+    dg->AppendCRC();
 
     return dg;
 }
@@ -697,6 +697,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
     MSCDG msc;
+    DATA_GROUP* mscdg;
 
     size_t orig_quality;
     char*  orig_format = NULL;
@@ -864,8 +865,9 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
         // Create the MSC Data Group C-Structure
         createMscDG(&msc, 3, &cindex_header, 0, 1, fidx, mothdr, mothdrlen);
         // Generate the MSC DG frame (Figure 9 en 300 401)
-        DATA_GROUP mscdg = packMscDG(&msc);
+        mscdg = packMscDG(&msc);
         writeMotPAD(output_fd, mscdg, padlen);
+        delete mscdg;
 
         for (i = 0; i < nseg; i++) {
             curseg = blob + i * MAXSEGLEN;
@@ -881,6 +883,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
             createMscDG(&msc, 4, &cindex_body, i, last, fidx, curseg, curseglen);
             mscdg = packMscDG(&msc);
             writeMotPAD(output_fd, mscdg, padlen);
+            delete mscdg;
         }
 
         ret = 1;
@@ -966,10 +969,10 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype,
 }
 
 
-DATA_GROUP packMscDG(MSCDG* msc)
+DATA_GROUP* packMscDG(MSCDG* msc)
 {
-    DATA_GROUP dg(9 + msc->seglen, 12, 13);
-    uint8_vector_t &b = dg.data;
+    DATA_GROUP* dg = new DATA_GROUP(9 + msc->seglen, 12, 13);
+    uint8_vector_t &b = dg->data;
 
     // headers
     b[0] = (msc->extflag<<7) | (msc->crcflag<<6) | (msc->segflag<<5) |
@@ -989,7 +992,7 @@ DATA_GROUP packMscDG(MSCDG* msc)
     memcpy(&b[9], msc->segdata, msc->seglen);
 
     // CRC
-    dg.AppendCRC();
+    dg->AppendCRC();
 
     return dg;
 }
@@ -1066,7 +1069,7 @@ int dls_count(const std::string& text) {
 }
 
 
-DATA_GROUP dls_get(const std::string& text, uint8_t charset, unsigned int seg_index) {
+DATA_GROUP* dls_get(const std::string& text, uint8_t charset, unsigned int seg_index) {
     bool first_seg = seg_index == 0;
     bool last_seg  = seg_index == dls_count(text) - 1;
 
@@ -1074,8 +1077,8 @@ DATA_GROUP dls_get(const std::string& text, uint8_t charset, unsigned int seg_in
     const char *seg_text_start = text.c_str() + seg_text_offset;
     size_t seg_text_len = MIN(text.size() - seg_text_offset, DLS_SEG_LEN_CHAR_MAX);
 
-    DATA_GROUP dg(DLS_SEG_LEN_PREFIX + seg_text_len, 2, 3);
-    uint8_vector_t &seg_data = dg.data;
+    DATA_GROUP* dg = new DATA_GROUP(DLS_SEG_LEN_PREFIX + seg_text_len, 2, 3);
+    uint8_vector_t &seg_data = dg->data;
 
     // prefix: toggle? + first seg? + last seg? + (seg len - 1)
     seg_data[0] =
@@ -1091,7 +1094,7 @@ DATA_GROUP dls_get(const std::string& text, uint8_t charset, unsigned int seg_in
     memcpy(&seg_data[DLS_SEG_LEN_PREFIX], seg_text_start, seg_text_len);
 
     // CRC
-    dg.AppendCRC();
+    dg->AppendCRC();
 
 #if DEBUG
     fprintf(stderr, "DL segment:");
@@ -1115,13 +1118,13 @@ void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
 #if DEBUG
         fprintf(stderr, "Segment number %d\n", seg_index + 1);
 #endif
-        DATA_GROUP seg = dls_get(text, charset, seg_index);
+        DATA_GROUP* seg = dls_get(text, charset, seg_index);
         bool ci_needed = true;  // CI needed only at first data group
         int dg_len;
         int used_xpad_len;
 
         // distribute the segment over one or more PADs
-        while (seg.Available()) {
+        while (seg->Available()) {
             dls_pads.push_back(pad_t(padlen + 1));
             pad_t &pad = dls_pads.back();
             int pad_off = padlen - 1;
@@ -1136,7 +1139,7 @@ void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
             } else {
                 dg_len = used_xpad_len;
             }
-            int dg_used = MIN(dg_len, seg.Available());
+            int dg_used = MIN(dg_len, seg->Available());
 
 
             // F-PAD Byte L   (CI if needed)
@@ -1147,14 +1150,14 @@ void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
 
             // CI (app type 2 = DLS, start of X-PAD data group)
             if (ci_needed)
-                pad[pad_off--] = ((var_size_pad ? xpadlengthmask : 0) << 5) | seg.apptype_start;
+                pad[pad_off--] = ((var_size_pad ? xpadlengthmask : 0) << 5) | seg->apptype_start;
 
             // CI end marker
             if (ci_needed && var_size_pad)
                 pad[pad_off--] = 0x00;
 
             // segment (part)
-            seg.WriteReversed(&pad[pad_off], dg_used);
+            seg->WriteReversed(&pad[pad_off], dg_used);
             pad_off -= dg_used;
 
             // NULL PADDING
@@ -1173,6 +1176,8 @@ void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
             if (ci_needed)
                 ci_needed = false;
         }
+
+        delete seg;
     }
 #if DEBUG
     fprintf(stderr, "PAD length: %d\n", padlen);
@@ -1184,7 +1189,7 @@ void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
 
 
 void writeMotPAD(int output_fd,
-        DATA_GROUP &mscdg,
+        DATA_GROUP* mscdg,
         unsigned short int padlen)
 {
 
@@ -1196,7 +1201,7 @@ void writeMotPAD(int output_fd,
 
     // Write MSC Data Groups
     int curseglen, used_xpad_len;
-    while (mscdg.Available()) {
+    while (mscdg->Available()) {
 #if DEBUG
         fprintf(stderr,"Segment offset %d\n",i);
 #endif
@@ -1211,7 +1216,7 @@ void writeMotPAD(int output_fd,
             curseglen = used_xpad_len;
         }
 
-        curseglen = MIN(curseglen, mscdg.Available());
+        curseglen = MIN(curseglen, mscdg->Available());
 
         if (firstseg) {
             // FF-PAD Byte L (CI=1)
@@ -1221,16 +1226,18 @@ void writeMotPAD(int output_fd,
             pad[padlen-2] = 0x20;
 
             // Write Data Group Length Indicator
-            DATA_GROUP dgli = createDataGroupLengthIndicator(mscdg.data.size());
+            DATA_GROUP* dgli = createDataGroupLengthIndicator(mscdg->data.size());
 
             // CI for data group length indicator: data length=4, Application Type=1
-            pad[padlen-3]=(0<<5) | dgli.apptype_start;
+            pad[padlen-3]=(0<<5) | dgli->apptype_start;
             // CI for MOT, start of X-PAD data group: Application Type=12
-            pad[padlen-4]=(xpadlengthmask<<5) | mscdg.apptype_start;
+            pad[padlen-4]=(xpadlengthmask<<5) | mscdg->apptype_start;
             // End of CI list
             pad[padlen-5]=0x00;
 
-            dgli.WriteReversed(&pad[padlen-6], 4);
+            dgli->WriteReversed(&pad[padlen-6], 4);
+            delete dgli;
+
             k=10;
         }
         else {
@@ -1242,7 +1249,7 @@ void writeMotPAD(int output_fd,
             k=3;
         }
 
-        mscdg.WriteReversed(&pad[padlen-k], curseglen);
+        mscdg->WriteReversed(&pad[padlen-k], curseglen);
 
         memset(pad, 0x00, padlen-k-curseglen + 1);
 
