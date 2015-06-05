@@ -85,6 +85,13 @@ If two channels are used, PS (Parametric Stereo, also called HE-AAC v2)
 is enabled up to 48kbps. Between 56kbps and 80kbps, SBR is enabled. 88kbps
 and higher are using AAC-LC.
 
+ZeroMQ output
+-------------
+
+The ZeroMQ output included in FDK-AAC-DABplus is able to connect to
+one or several instances of ODR-DabMux. The -o option can be used
+more than once to achieve this.
+
 Scenario *ALSA*
 ---------------
 Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:

@@ -31,6 +31,7 @@ extern "C" {
 #include "wavreader.h"
 }
 
+#include <vector>
 #include <string>
 #include <getopt.h>
 #include <cstdio>
@@ -112,9 +113,11 @@ void usage(const char* name) {
     "         --sbr                            Force the usage of SBR\n"
     "         --ps                             Force the usage of PS\n"
     "   Output and pad parameters:\n"
-    "     -o, --output=URI                     Output zmq uri. (e.g. 'tcp://localhost:9000')\n"
+    "     -o, --output=URI                     Output ZMQ uri. (e.g. 'tcp://localhost:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dabp')\n"
     "                                     -or- a single dash '-' to denote stdout\n"
+    "                                          If more than one ZMQ output is given, the socket\n"
+    "                                          will be connected to all listed endpoints.\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
     "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name"
@@ -256,7 +259,8 @@ int main(int argc, char *argv[])
 
     const char *jack_name = NULL;
 
-    const char *outuri = NULL;
+    std::vector<std::string> output_uris;
+
     int sample_rate=48000, channels=2;
     void *rs_handler = NULL;
     bool afterburner = true;
@@ -393,7 +397,7 @@ int main(int argc, char *argv[])
             show_level = 1;
             break;
         case 'o':
-            outuri = optarg;
+            output_uris.push_back(optarg);
             break;
         case 'p':
             padlen = atoi(optarg);
@@ -463,42 +467,53 @@ int main(int argc, char *argv[])
     zmq::context_t zmq_ctx;
     zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
 
-    if (outuri) {
-        if (strcmp(outuri, "-") == 0) {
-            out_fh = stdout;
-        }
-        else if ((strncmp(outuri, "tcp://", 6) == 0) ||
-                (strncmp(outuri, "pgm://", 6) == 0) ||
-                (strncmp(outuri, "epgm://", 7) == 0)) {
-            if (keyfile) {
-                fprintf(stderr, "Enabling encryption\n");
+    if (not output_uris.empty()) {
+        for (auto uri : output_uris) {
+            if (uri == "-") {
+                if (out_fh != NULL) {
+                    fprintf(stderr, "You can't write to more than one file!\n");
+                    return 1;
+                }
+                out_fh = stdout;
+            }
+            else if ((uri.compare(0, 6, "tcp://") == 0) ||
+                    (uri.compare(0, 6, "pgm://") == 0) ||
+                    (uri.compare(0, 7, "epgm://") == 0)) {
+                if (keyfile) {
+                    fprintf(stderr, "Enabling encryption\n");
 
-                int rc = readkey(keyfile, secretkey);
-                if (rc) {
-                    fprintf(stderr, "Error reading secret key\n");
-                    return 2;
+                    int rc = readkey(keyfile, secretkey);
+                    if (rc) {
+                        fprintf(stderr, "Error reading secret key\n");
+                        return 2;
+                    }
+
+                    const int yes = 1;
+                    zmq_sock.setsockopt(ZMQ_CURVE_SERVER,
+                            &yes, sizeof(yes));
+
+                    zmq_sock.setsockopt(ZMQ_CURVE_SECRETKEY,
+                            secretkey, CURVE_KEYLEN);
+                }
+                zmq_sock.connect(uri.c_str());
+            }
+            else { // We assume it's a file name
+                if (out_fh != NULL) {
+                    fprintf(stderr, "You can't write to more than one file!\n");
+                    return 1;
                 }
 
-                const int yes = 1;
-                zmq_sock.setsockopt(ZMQ_CURVE_SERVER,
-                        &yes, sizeof(yes));
+                out_fh = fopen(uri.c_str(), "wb");
 
-                zmq_sock.setsockopt(ZMQ_CURVE_SECRETKEY,
-                        secretkey, CURVE_KEYLEN);
-            }
-            zmq_sock.connect(outuri);
-        }
-        else { // We assume it's a file name
-            out_fh = fopen(outuri, "wb");
-
-            if (!out_fh) {
-                fprintf(stderr, "Can't open output file!\n");
-                return 1;
+                if (!out_fh) {
+                    fprintf(stderr, "Can't open output file!\n");
+                    return 1;
+                }
             }
         }
     }
     else {
-        fprintf(stderr, "Output URI not defined\n");
+        fprintf(stderr, "No output URI defined\n");
         return 1;
     }
 
