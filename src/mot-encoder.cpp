@@ -216,7 +216,7 @@ unsigned char triggertime[5];   // 0x85 0x00 0x00 0x00 0x00 => NOW
 unsigned char contname[14];     // 0xCC 0x0C 0x00 imgXXXX.jpg
 } MOTSLIDEHDR;
 */
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw_slides);
+int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides);
 
 void createMotHeader(
         size_t blobsize,
@@ -231,12 +231,9 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype, int *cindex, unsigned sh
 
 struct DATA_GROUP;
 DATA_GROUP* packMscDG(MSCDG* msc);
-void writeMotPAD(int output_fd,
-        DATA_GROUP* mscdg,
-        unsigned short int padlen);
 
-void create_dls_pads(const std::string& text, int padlen, uint8_t charset);
-void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls);
+void prepend_dls_dgs(const std::string& text, uint8_t charset);
+void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls);
 
 // PAD related
 #define CRC_LEN 2
@@ -272,22 +269,31 @@ struct DATA_GROUP {
         return data.size() - written;
     }
 
-    size_t WriteReversed(uint8_t *write_data, size_t len) {
+    int Write(uint8_t *write_data, size_t len, int *cont_apptype) {
         size_t written_now = std::min(len, Available());
 
-        for (size_t off = 0; off < written_now; off++)
-            write_data[-off] = data[written + off];
+        // fill up remaining bytes with zero padding
+        memcpy(write_data, &data[written], written_now);
+        memset(write_data + written_now, 0x00, len - written_now);
+
+        // set app type depending on progress
+        int apptype = written > 0 ? apptype_cont : apptype_start;
 
         written += written_now;
-        return written_now;
+
+        // prevent continuation of a different DG having the same type
+        if (cont_apptype)
+            *cont_apptype = Available() > 0 ? apptype_cont : -1;
+
+        return apptype;
     }
 };
 
-int get_xpadlengthmask(int padlen);
-size_t get_xpadlength(int mask);
+#define SHORT_PAD 6         // F-PAD + 1x CI              + 1x  3 bytes data sub-field
+#define VARSIZE_PAD_MIN 8   // F-PAD + 1x CI + end marker + 1x  4 bytes data sub-field
+#define VARSIZE_PAD_MAX 196 // F-PAD + 4x CI              + 4x 48 bytes data sub-field
+#define ALLOWED_PADLEN "6 (short X-PAD), 8 to 196 (variable size X-PAD)"
 
-#define SHORT_PAD 6
-#define ALLOWED_PADLEN "6 (short X-PAD; only DLS), 23, 26, 34, 42, 58"
 
 
 // MOT Slideshow related
@@ -303,9 +309,269 @@ static int cindex_body = 0;
 CharsetConverter charset_converter;
 
 typedef uint8_vector_t pad_t;
-static std::deque<pad_t> dls_pads;
 static bool dls_toggle = false;
-std::string dlstext_prev = "";
+static std::string dlstext_prev = "";
+static bool dlstext_prev_set = false;
+
+
+
+class PADPacketizer {
+private:
+    static const size_t subfield_lens[];
+
+    const size_t xpad_size_max;
+    const bool short_xpad;
+    const size_t max_cis;
+
+    size_t xpad_size;
+    uint8_t subfields[4*48];
+    size_t subfields_size;
+
+    // PAD w/  CI list
+    int ci_type[4];
+    size_t ci_len_index[4];
+    size_t used_cis;
+
+    // PAD w/o CI list
+    int last_ci_type;
+    size_t last_ci_size;
+
+    size_t AddCINeededBytes();
+    void AddCI(int apptype, int len_index);
+
+    int OptimalSubFieldSizeIndex(size_t available_bytes);
+    int WriteDGToSubField(DATA_GROUP* dg, size_t len);
+
+    bool AppendDG(DATA_GROUP* dg);
+    void AppendDGWithCI(DATA_GROUP* dg);
+    void AppendDGWithoutCI(DATA_GROUP* dg);
+
+    void ResetPAD();
+    pad_t* FlushPAD();
+public:
+    std::vector<DATA_GROUP*> queue;
+
+    PADPacketizer(size_t pad_size);
+    ~PADPacketizer();
+
+    pad_t* GetPAD();
+
+    // will be removed, when pull (instead of push) approach is implemented!
+    void WriteAllPADs(int output_fd);
+};
+
+
+const size_t PADPacketizer::subfield_lens[] = {4, 6, 8, 12, 16, 24, 32, 48};
+
+PADPacketizer::PADPacketizer(size_t pad_size) :
+    xpad_size_max(pad_size - FPAD_LEN),
+    short_xpad(pad_size == SHORT_PAD),
+    max_cis(short_xpad ? 1 : 4),
+    last_ci_type(-1)
+{
+    ResetPAD();
+}
+
+PADPacketizer::~PADPacketizer() {
+    while (!queue.empty()) {
+        delete queue.back();
+        queue.pop_back();
+    }
+}
+
+
+pad_t* PADPacketizer::GetPAD() {
+    bool pad_flushable = false;
+
+    // process DG queue
+    while (!pad_flushable && !queue.empty()) {
+        DATA_GROUP* dg = queue.front();
+
+        // repeatedly append DG
+        while (!pad_flushable && dg->Available() > 0)
+            pad_flushable = AppendDG(dg);
+
+        if (dg->Available() == 0) {
+            delete dg;
+            queue.erase(queue.begin());
+        }
+    }
+
+    // (possibly empty) PAD
+    return FlushPAD();
+}
+
+void PADPacketizer::WriteAllPADs(int output_fd) {
+    for (;;) {
+        pad_t* pad = GetPAD();
+
+        // if only F-PAD present, abort
+        if (pad->back() == FPAD_LEN) {
+            delete pad;
+            break;
+        }
+
+        ssize_t dummy = write(output_fd, &(*pad)[0], pad->size());
+        delete pad;
+    }
+}
+
+
+size_t PADPacketizer::AddCINeededBytes() {
+    // returns the amount of additional bytes needed for the next CI
+
+    // special cases: end marker added/replaced
+    if (!short_xpad && used_cis == 0)
+        return 2;
+    if (!short_xpad && used_cis == (max_cis - 1))
+        return 0;
+    return 1;
+}
+
+void PADPacketizer::AddCI(int apptype, int len_index) {
+    ci_type[used_cis] = apptype;
+    ci_len_index[used_cis] = len_index;
+
+    xpad_size += AddCINeededBytes();
+    used_cis++;
+}
+
+
+int PADPacketizer::OptimalSubFieldSizeIndex(size_t available_bytes) {
+    /* Return the index of the optimal sub-field size by stepwise search (regards only Variable Size X-PAD):
+     * - find the smallest sub-field able to hold (at least) all available bytes
+     * - find the biggest regarding sub-field we have space for (which definitely exists - otherwise previously the PAD would have been flushed)
+     * - if the wasted space is at least as big as the smallest possible sub-field, use a sub-field one size smaller
+     */
+    int len_index = 0;
+
+    while ((len_index + 1) < 8 && subfield_lens[len_index] < available_bytes)
+        len_index++;
+    while ((len_index - 1) >= 0 && (subfield_lens[len_index] + AddCINeededBytes()) > (xpad_size_max - xpad_size))
+        len_index--;
+    if ((len_index - 1) >= 0 && ((int) subfield_lens[len_index] - (int) available_bytes) >= (int) subfield_lens[0])
+        len_index--;
+
+    return len_index;
+}
+
+int PADPacketizer::WriteDGToSubField(DATA_GROUP* dg, size_t len) {
+    int apptype = dg->Write(&subfields[subfields_size], len, &last_ci_type);
+    subfields_size += len;
+    xpad_size += len;
+    return apptype;
+}
+
+
+bool PADPacketizer::AppendDG(DATA_GROUP* dg) {
+    /* use X-PAD w/o CIs instead of X-PAD w/ CIs, if we can save some bytes or at least do not waste additional bytes
+     *
+     * Omit CI list in case:
+     * 1.   no pending data sub-fields
+     * 2.   last CI type valid
+     * 3.   last CI type matching current (continuity) CI type
+     * 4a.  short X-PAD; OR
+     * 4ba. size of the last X-PAD being at least as big as the available X-PAD payload in case all CIs are used AND
+     * 4bb. the amount of available DG bytes being at least as big as the size of the last X-PAD in case all CIs are used
+     */
+    if (
+            used_cis == 0 &&
+            last_ci_type != -1 &&
+            last_ci_type == dg->apptype_cont &&
+            (short_xpad ||
+                    (last_ci_size >= (xpad_size_max - max_cis) &&
+                            dg->Available() >= (last_ci_size - max_cis)))
+            ) {
+        AppendDGWithoutCI(dg);
+        return true;
+    } else {
+        AppendDGWithCI(dg);
+
+        // if no further sub-fields could be added, PAD must be flushed
+        if (used_cis == max_cis || subfield_lens[0] + AddCINeededBytes() > (xpad_size_max - xpad_size))
+            return true;
+    }
+    return false;
+}
+
+
+void PADPacketizer::AppendDGWithCI(DATA_GROUP* dg) {
+    int len_index = short_xpad ? 0 : OptimalSubFieldSizeIndex(dg->Available());
+    size_t len_size = short_xpad ? 3 : subfield_lens[len_index];
+
+    int apptype = WriteDGToSubField(dg, len_size);
+    AddCI(apptype, len_index);
+
+#if DEBUG
+    fprintf(stderr, "PADPacketizer: added sub-field w/  CI - type: %2d, size: %2zu\n", apptype, len_size);
+#endif
+}
+
+void PADPacketizer::AppendDGWithoutCI(DATA_GROUP* dg) {
+#if DEBUG
+    int old_last_ci_type = last_ci_type;
+#endif
+
+    WriteDGToSubField(dg, last_ci_size);
+
+#if DEBUG
+    fprintf(stderr, "PADPacketizer: added sub-field w/o CI - type: %2d, size: %2zu\n", old_last_ci_type, last_ci_size);
+#endif
+}
+
+void PADPacketizer::ResetPAD() {
+    xpad_size = 0;
+    subfields_size = 0;
+    used_cis = 0;
+}
+
+pad_t* PADPacketizer::FlushPAD() {
+    pad_t* result = new pad_t(xpad_size_max + FPAD_LEN + 1);
+    pad_t &pad = *result;
+
+    size_t pad_offset = pad.size() - 1 - FPAD_LEN;
+
+    if (subfields_size > 0) {
+        if (used_cis > 0) {
+            // X-PAD: CIs
+            for (int i = 0; i < used_cis; i++)
+                pad[--pad_offset] = (short_xpad ? 0 : ci_len_index[i]) << 5 | ci_type[i];
+
+            // X-PAD: end marker (if needed)
+            if (used_cis < max_cis)
+                pad[--pad_offset] = 0x00;
+        }
+
+        // X-PAD: sub-fields (reversed on-the-fly)
+        for (size_t off = 0; off < subfields_size; off++)
+            pad[--pad_offset] = subfields[off];
+    } else {
+        // no X-PAD
+        last_ci_type = -1;
+    }
+
+    // zero padding
+    memset(&pad[0], 0x00, pad_offset);
+
+    // F-PAD
+    pad[xpad_size_max + 0] = subfields_size > 0 ? (short_xpad ? 0x10 : 0x20) : 0x00;
+    pad[xpad_size_max + 1] = subfields_size > 0 ? (used_cis > 0 ? 0x02 : 0x00) : 0x00;
+
+    // used PAD len
+    pad[xpad_size_max + FPAD_LEN] = xpad_size + FPAD_LEN;
+
+    last_ci_size = xpad_size;
+    ResetPAD();
+    return result;
+}
+
+
+static PADPacketizer *pad_packetizer;
+
+
+
+
+
 
 
 static int verbose = 0;
@@ -429,15 +695,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (get_xpadlengthmask(padlen) == -1) {
+    if (padlen != SHORT_PAD && (padlen < VARSIZE_PAD_MIN || padlen > VARSIZE_PAD_MAX)) {
         fprintf(stderr, "mot-encoder Error: pad length %d invalid: Possible values: "
                 ALLOWED_PADLEN "\n",
                 padlen);
         return 2;
-    }
-    if (dir && padlen == SHORT_PAD) {
-        fprintf(stderr, "mot-encoder Error: Slideshow can't be used together with short X-PAD!\n");
-        return 1;
     }
 
     if (dir && not dls_file.empty()) {
@@ -518,6 +780,8 @@ int main(int argc, char *argv[])
     MagickWandGenesis();
 #endif
 
+    pad_packetizer = new PADPacketizer(padlen);
+
     std::list<slide_metadata_t> slides_to_transmit;
     History slides_history(MAXHISTORYLEN);
 
@@ -555,7 +819,7 @@ int main(int argc, char *argv[])
 
             if (not dls_file.empty()) {
                 // Maybe we have no slides, always update DLS
-                writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
+                writeDLS(output_fd, dls_file, charset, raw_dls);
                 sleep(sleepdelay);
             }
 
@@ -565,7 +829,7 @@ int main(int argc, char *argv[])
                     it != slides_to_transmit.end();
                     ++it) {
 
-                ret = encodeFile(output_fd, it->filepath, it->fidx, padlen, raw_slides);
+                ret = encodeFile(output_fd, it->filepath, it->fidx, raw_slides);
                 if (ret != 1) {
                     fprintf(stderr, "mot-encoder Error: cannot encode file %s\n", it->filepath.c_str());
                 }
@@ -579,7 +843,7 @@ int main(int argc, char *argv[])
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
                 if (not dls_file.empty()) {
-                    writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
+                    writeDLS(output_fd, dls_file, charset, raw_dls);
                 }
 
                 sleep(sleepdelay);
@@ -593,7 +857,7 @@ int main(int argc, char *argv[])
         }
         else if (not dls_file.empty()) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
-            writeDLS(output_fd, dls_file, padlen, charset, raw_dls);
+            writeDLS(output_fd, dls_file, charset, raw_dls);
 
             sleep(sleepdelay);
         }
@@ -602,12 +866,15 @@ int main(int argc, char *argv[])
             closedir(pDir);
         }
     }
+
+    delete pad_packetizer;
+
     return 1;
 }
 
 
 DATA_GROUP* createDataGroupLengthIndicator(size_t len) {
-    DATA_GROUP* dg = new DATA_GROUP(2, 1, -1);    // continuation never used
+    DATA_GROUP* dg = new DATA_GROUP(2, 1, 1);    // continuation never used (except for comparison at short X-PAD)
     uint8_vector_t &data = dg->data;
 
     // Data Group length
@@ -684,7 +951,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
 }
 #endif
 
-int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw_slides)
+int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 {
     int ret = 0;
     int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
@@ -697,6 +964,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
     MSCDG msc;
+    DATA_GROUP* dgli;
     DATA_GROUP* mscdg;
 
     size_t orig_quality;
@@ -866,8 +1134,10 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
         createMscDG(&msc, 3, &cindex_header, 0, 1, fidx, mothdr, mothdrlen);
         // Generate the MSC DG frame (Figure 9 en 300 401)
         mscdg = packMscDG(&msc);
-        writeMotPAD(output_fd, mscdg, padlen);
-        delete mscdg;
+        dgli = createDataGroupLengthIndicator(mscdg->data.size());
+
+        pad_packetizer->queue.push_back(dgli);
+        pad_packetizer->queue.push_back(mscdg);
 
         for (i = 0; i < nseg; i++) {
             curseg = blob + i * MAXSEGLEN;
@@ -882,9 +1152,13 @@ int encodeFile(int output_fd, std::string& fname, int fidx, int padlen, bool raw
 
             createMscDG(&msc, 4, &cindex_body, i, last, fidx, curseg, curseglen);
             mscdg = packMscDG(&msc);
-            writeMotPAD(output_fd, mscdg, padlen);
-            delete mscdg;
+            dgli = createDataGroupLengthIndicator(mscdg->data.size());
+
+            pad_packetizer->queue.push_back(dgli);
+            pad_packetizer->queue.push_back(mscdg);
         }
+
+        pad_packetizer->WriteAllPADs(output_fd);
 
         ret = 1;
     }
@@ -998,7 +1272,7 @@ DATA_GROUP* packMscDG(MSCDG* msc)
 }
 
 
-void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t charset, bool raw_dls)
+void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls)
 {
     std::ifstream dls_fstream(dls_file.c_str());
     if (!dls_fstream.is_open()) {
@@ -1047,19 +1321,20 @@ void writeDLS(int output_fd, const std::string& dls_file, int padlen, uint8_t ch
         charset = CHARSET_COMPLETE_EBU_LATIN;
 
 
-    // (Re)Create data groups (and thereby toggle the toggle bit) only on (first call or) new text
-    bool dlstext_is_new = dls_pads.empty() || (dlstext != dlstext_prev);
+    // Toggle the toggle bit only on (first call or) new text
+    bool dlstext_is_new = !dlstext_prev_set || (dlstext != dlstext_prev);
     if (verbose) {
         fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_is_new ? "new" : "old", dlstext.c_str());
     }
     if (dlstext_is_new) {
-        create_dls_pads(dlstext, padlen, charset);
+        dls_toggle = !dls_toggle;   // indicate changed text
+
         dlstext_prev = dlstext;
+        dlstext_prev_set = true;
     }
 
-    for (size_t i = 0; i < dls_pads.size(); i++) {
-        size_t dummy = write(output_fd, &dls_pads[i].front(), dls_pads[i].size());
-    }
+    prepend_dls_dgs(dlstext, charset);
+    pad_packetizer->WriteAllPADs(output_fd);
 }
 
 
@@ -1106,197 +1381,25 @@ DATA_GROUP* dls_get(const std::string& text, uint8_t charset, unsigned int seg_i
 }
 
 
-void create_dls_pads(const std::string& text, int padlen, uint8_t charset) {
-    int xpadlengthmask = get_xpadlengthmask(padlen);
-
-    dls_pads.clear();
-    dls_toggle = !dls_toggle;   // indicate changed text
-
+void prepend_dls_dgs(const std::string& text, uint8_t charset) {
     // process all DL segments
     int seg_count = dls_count(text);
+    std::vector<DATA_GROUP*> segs;
     for (int seg_index = 0; seg_index < seg_count; seg_index++) {
 #if DEBUG
         fprintf(stderr, "Segment number %d\n", seg_index + 1);
 #endif
-        DATA_GROUP* seg = dls_get(text, charset, seg_index);
-        bool ci_needed = true;  // CI needed only at first data group
-        int dg_len;
-        int used_xpad_len;
-
-        // distribute the segment over one or more PADs
-        while (seg->Available()) {
-            dls_pads.push_back(pad_t(padlen + 1));
-            pad_t &pad = dls_pads.back();
-            int pad_off = padlen - 1;
-
-            bool var_size_pad = padlen != SHORT_PAD;
-
-            if (ci_needed) {
-                dg_len = get_xpadlength(xpadlengthmask);
-
-                // variable size X-PAD: size of first X-PAD = DLS-DG + End of CI list + CI = size of subsequent non-CI X-PADs
-                used_xpad_len = var_size_pad ? dg_len + 1 + 1 : padlen - 2;
-            } else {
-                dg_len = used_xpad_len;
-            }
-            int dg_used = MIN(dg_len, seg->Available());
-
-
-            // F-PAD Byte L   (CI if needed)
-            pad[pad_off--] = ci_needed ? 0x02 : 0x00;
-
-            // F-PAD Byte L-1 (variable size / short X-PAD)
-            pad[pad_off--] = var_size_pad ? 0x20 : 0x10;
-
-            // CI (app type 2 = DLS, start of X-PAD data group)
-            if (ci_needed)
-                pad[pad_off--] = ((var_size_pad ? xpadlengthmask : 0) << 5) | seg->apptype_start;
-
-            // CI end marker
-            if (ci_needed && var_size_pad)
-                pad[pad_off--] = 0x00;
-
-            // segment (part)
-            seg->WriteReversed(&pad[pad_off], dg_used);
-            pad_off -= dg_used;
-
-            // NULL PADDING
-            std::fill_n(pad.begin(), pad_off + 1, 0x00);
-
-            // set used pad len
-            pad[padlen] = FPAD_LEN + used_xpad_len;
-
-#if DEBUG
-            fprintf(stderr, "DLS data group:");
-            for (int i = 0; i < padlen; i++)
-                fprintf(stderr, " %02x", pad[i]);
-            fprintf(stderr, "\n");
-#endif
-
-            if (ci_needed)
-                ci_needed = false;
-        }
-
-        delete seg;
+        segs.push_back(dls_get(text, charset, seg_index));
     }
+
+    // prepend to packetizer
+    pad_packetizer->queue.insert(pad_packetizer->queue.begin(), segs.begin(), segs.end());
+
 #if DEBUG
     fprintf(stderr, "PAD length: %d\n", padlen);
-    fprintf(stderr, "DLS text: %s\n", text);
+    fprintf(stderr, "DLS text: %s\n", text.c_str());
     fprintf(stderr, "Number of DL segments: %d\n", seg_count);
-    fprintf(stderr, "Number of DLS data groups: %zu\n", dls_pads.size());
 #endif
-}
-
-
-void writeMotPAD(int output_fd,
-        DATA_GROUP* mscdg,
-        unsigned short int padlen)
-{
-
-    unsigned char pad[padlen + 1];
-    int xpadlengthmask, k;
-    bool firstseg = true;
-
-    xpadlengthmask = get_xpadlengthmask(padlen);
-
-    // Write MSC Data Groups
-    int curseglen, used_xpad_len;
-    while (mscdg->Available()) {
-#if DEBUG
-        fprintf(stderr,"Segment offset %d\n",i);
-#endif
-
-        if (firstseg) {             // First segment
-            curseglen = get_xpadlength(xpadlengthmask);
-
-            // size of first X-PAD = MSC-DG + DGLI-DG + End of CI list + 2x CI = size of subsequent non-CI X-PADs
-            used_xpad_len = curseglen + 4 + 1 + 2;
-        }
-        else {
-            curseglen = used_xpad_len;
-        }
-
-        curseglen = MIN(curseglen, mscdg->Available());
-
-        if (firstseg) {
-            // FF-PAD Byte L (CI=1)
-            pad[padlen-1] = 0x02;
-
-            // FF-PAD Byte L-1 (Variable size X_PAD)
-            pad[padlen-2] = 0x20;
-
-            // Write Data Group Length Indicator
-            DATA_GROUP* dgli = createDataGroupLengthIndicator(mscdg->data.size());
-
-            // CI for data group length indicator: data length=4, Application Type=1
-            pad[padlen-3]=(0<<5) | dgli->apptype_start;
-            // CI for MOT, start of X-PAD data group: Application Type=12
-            pad[padlen-4]=(xpadlengthmask<<5) | mscdg->apptype_start;
-            // End of CI list
-            pad[padlen-5]=0x00;
-
-            dgli->WriteReversed(&pad[padlen-6], 4);
-            delete dgli;
-
-            k=10;
-        }
-        else {
-            // FF-PAD Byte L (CI=0)
-            pad[padlen-1] = 0x00;
-
-            // FF-PAD Byte L-1 (Variable size X_PAD)
-            pad[padlen-2] = 0x20;
-            k=3;
-        }
-
-        mscdg->WriteReversed(&pad[padlen-k], curseglen);
-
-        memset(pad, 0x00, padlen-k-curseglen + 1);
-
-        // set used pad len
-        pad[padlen] = FPAD_LEN + used_xpad_len;
-
-        size_t dummy = write(output_fd, pad, padlen + 1);
-#if DEBUG
-        fprintf(stderr,"MSC Data Group - Segment %d: ",i);
-        for (j=0;j<padlen;j++)
-            fprintf(stderr,"%02x ",pad[j]);
-        fprintf(stderr,"\n");
-#endif
-
-        if (firstseg)
-            firstseg = false;
-    }
-}
-
-int get_xpadlengthmask(int padlen)
-{
-    int xpadlengthmask;
-
-    /* Don't forget to change ALLOWED_PADLEN
-     * if you change this check
-     */
-    if (padlen == 23)
-        xpadlengthmask = 3;
-    else if (padlen == 26)
-        xpadlengthmask = 4;
-    else if (padlen == 34)
-        xpadlengthmask = 5;
-    else if (padlen == 42)
-        xpadlengthmask = 6;
-    else if (padlen == 58)
-        xpadlengthmask = 7;
-    else if (padlen == SHORT_PAD)
-        xpadlengthmask = 8; // internal value; used later at get_xpadlength
-    else
-        xpadlengthmask = -1; // Error
-
-    return xpadlengthmask;
-}
-
-size_t get_xpadlength(int mask) {
-    size_t length[] = {4, 6, 8, 12, 16, 24, 32, 48, 3}; // last value used for short X-PAD
-    return length[mask];
 }
 
 int History::find(const fingerprint_t& fp) const
