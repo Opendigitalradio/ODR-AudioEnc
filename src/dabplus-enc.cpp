@@ -464,6 +464,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    if (padlen < 0) {
+        fprintf(stderr, "Invalid PAD length specified\n");
+        return 1;
+    }
+
     zmq::context_t zmq_ctx;
     zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
 
