@@ -349,7 +349,7 @@ private:
     void ResetPAD();
     pad_t* FlushPAD();
 public:
-    std::vector<DATA_GROUP*> queue;
+    std::deque<DATA_GROUP*> queue;
 
     PADPacketizer(size_t pad_size);
     ~PADPacketizer();
@@ -374,8 +374,8 @@ PADPacketizer::PADPacketizer(size_t pad_size) :
 
 PADPacketizer::~PADPacketizer() {
     while (!queue.empty()) {
-        delete queue.back();
-        queue.pop_back();
+        delete queue.front();
+        queue.pop_front();
     }
 }
 
@@ -393,7 +393,7 @@ pad_t* PADPacketizer::GetPAD() {
 
         if (dg->Available() == 0) {
             delete dg;
-            queue.erase(queue.begin());
+            queue.pop_front();
         }
     }
 
@@ -529,7 +529,7 @@ pad_t* PADPacketizer::FlushPAD() {
     pad_t* result = new pad_t(xpad_size_max + FPAD_LEN + 1);
     pad_t &pad = *result;
 
-    size_t pad_offset = pad.size() - 1 - FPAD_LEN;
+    size_t pad_offset = xpad_size_max;
 
     if (subfields_size > 0) {
         if (used_cis > 0) {
