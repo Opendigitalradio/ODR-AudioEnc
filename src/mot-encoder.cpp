@@ -233,7 +233,7 @@ struct DATA_GROUP;
 DATA_GROUP* packMscDG(MSCDG* msc);
 
 void prepend_dls_dgs(const std::string& text, uint8_t charset);
-void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls);
+void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls, bool remove_dls);
 
 // PAD related
 #define CRC_LEN 2
@@ -305,6 +305,7 @@ static int cindex_body = 0;
 #define FPAD_LEN 2
 #define DLS_SEG_LEN_PREFIX       2
 #define DLS_SEG_LEN_CHAR_MAX    16
+#define DLS_CMD_REMOVE_LABEL    0x01
 
 CharsetConverter charset_converter;
 
@@ -607,6 +608,7 @@ void usage(char* name)
                     "                          ID =  6: ISO/IEC 10646 using UCS-2 BE\n"
                     "                          ID = 15: ISO/IEC 10646 using UTF-8\n"
                     "                          Default: 15\n"
+                    " -r, --remove-dls       Always insert a DLS Remove Label command when replacing a DLS text.\n"
                     " -C, --raw-dls          Do not convert DLS texts to Complete EBU Latin based repertoire\n"
                     "                          character set encoding.\n"
                     " -R, --raw-slides       Do not process slides. Integrity checks and resizing\n"
@@ -630,6 +632,7 @@ int main(int argc, char *argv[])
     bool raw_slides = false;
     int  charset = CHARSET_UTF8;
     bool raw_dls = false;
+    bool remove_dls = false;
 
     const char* dir = NULL;
     const char* output = "/tmp/pad.fifo";
@@ -638,6 +641,7 @@ int main(int argc, char *argv[])
     const struct option longopts[] = {
         {"charset",    required_argument,  0, 'c'},
         {"raw-dls",    no_argument,        0, 'C'},
+        {"remove-dls", no_argument,        0, 'r'},
         {"dir",        required_argument,  0, 'd'},
         {"erase",      no_argument,        0, 'e'},
         {"output",     required_argument,  0, 'o'},
@@ -653,13 +657,16 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "eChRc:d:o:p:s:t:v", longopts, &index);
+        ch = getopt_long(argc, argv, "eChRrc:d:o:p:s:t:v", longopts, &index);
         switch (ch) {
             case 'c':
                 charset = atoi(optarg);
                 break;
             case 'C':
                 raw_dls = true;
+                break;
+            case 'r':
+                remove_dls = true;
                 break;
             case 'd':
                 dir = optarg;
@@ -816,7 +823,7 @@ int main(int argc, char *argv[])
 
             if (not dls_file.empty()) {
                 // Maybe we have no slides, always update DLS
-                writeDLS(output_fd, dls_file, charset, raw_dls);
+                writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
                 sleep(sleepdelay);
             }
 
@@ -840,7 +847,7 @@ int main(int argc, char *argv[])
 
                 // Always retransmit DLS after each slide, we want it to be updated frequently
                 if (not dls_file.empty()) {
-                    writeDLS(output_fd, dls_file, charset, raw_dls);
+                    writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
                 }
 
                 sleep(sleepdelay);
@@ -854,7 +861,7 @@ int main(int argc, char *argv[])
         }
         else if (not dls_file.empty()) { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
-            writeDLS(output_fd, dls_file, charset, raw_dls);
+            writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
 
             sleep(sleepdelay);
         }
@@ -1269,7 +1276,28 @@ DATA_GROUP* packMscDG(MSCDG* msc)
 }
 
 
-void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls)
+DATA_GROUP* createDynamicLabelCommand(uint8_t command) {
+    DATA_GROUP* dg = new DATA_GROUP(2, 2, 3);
+    uint8_vector_t &seg_data = dg->data;
+
+    // prefix: toggle? + first seg + last seg + command flag + command
+    seg_data[0] =
+            (dls_toggle ? (1 << 7) : 0) +
+            (1 << 6) +
+            (1 << 5) +
+            (1 << 4) +
+            command;
+
+    // prefix: charset (though irrelevant here)
+    seg_data[1] = CHARSET_COMPLETE_EBU_LATIN;
+
+    // CRC
+    dg->AppendCRC();
+
+    return dg;
+}
+
+void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls, bool remove_dls)
 {
     std::ifstream dls_fstream(dls_file.c_str());
     if (!dls_fstream.is_open()) {
@@ -1323,7 +1351,12 @@ void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool 
     if (verbose) {
         fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_is_new ? "new" : "old", dlstext.c_str());
     }
+
+    DATA_GROUP *remove_label_dg = NULL;
     if (dlstext_is_new) {
+        if (remove_dls)
+            remove_label_dg = createDynamicLabelCommand(DLS_CMD_REMOVE_LABEL);
+
         dls_toggle = !dls_toggle;   // indicate changed text
 
         dlstext_prev = dlstext;
@@ -1331,6 +1364,8 @@ void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool 
     }
 
     prepend_dls_dgs(dlstext, charset);
+    if (remove_label_dg)
+        pad_packetizer->queue.push_front(remove_label_dg);
     pad_packetizer->WriteAllPADs(output_fd);
 }
 
