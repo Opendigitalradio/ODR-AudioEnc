@@ -35,7 +35,7 @@ pkgconfig_DATA = fdk-aac-dabplus.pc
 
 lib_LTLIBRARIES = libfdk-aac.la
 
-libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti
+libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti -Wno-narrowing
 libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
     -export-symbols $(top_srcdir)/fdk-aac.sym
 
