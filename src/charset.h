@@ -15,7 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     charset.h
-         Define the EBU charsets for DLS encoding
+         Define the EBU charset according to ETSI TS 101 756v1.8.1 for DLS encoding
 
     Authors:
          Matthias P. Braendli <matthias@mpb.li>
@@ -44,12 +44,12 @@
 #define CHARSET_TABLE_OFFSET 1 // NUL at index 0 cannot be represented
 #define CHARSET_TABLE_ENTRIES (256 - CHARSET_TABLE_OFFSET)
 const char* utf8_encoded_EBU_Latin[CHARSET_TABLE_ENTRIES] = {
-     "Ę", "Į", "Ų", "Ă", "Ė", "Ď", "Ș", "Ț", "Ċ", "\n","\v","Ġ", "\r","Ż", "Ń",
-"ą", "ę", "į", "ų", "ă", "ė", "ď", "ș", "ț", "ċ", "Ň", "Ě", "ġ", "Ĺ", "ż", "\u0082",
-" ", "!", "\"","#", "ĺ", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/",
+     "Ę", "Į", "Ų", "Ă", "Ė", "Ď", "Ș", "Ț", "Ċ", "\n","\v","Ġ", "Ĺ", "Ż", "Ń",
+"ą", "ę", "į", "ų", "ă", "ė", "ď", "ș", "ț", "ċ", "Ň", "Ě", "ġ", "ĺ", "ż", "\u0082",
+" ", "!", "\"","#", "ł", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/",
 "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?",
 "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
-"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "Ů", "]", "Ł", "ł",
+"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "Ů", "]", "Ł", "_",
 "Ą", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o",
 "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "«", "ů", "»", "Ľ", "Ħ",
 "á", "à", "é", "è", "í", "ì", "ó", "ò", "ú", "ù", "Ñ", "Ç", "Ş", "ß", "¡", "Ÿ",
@@ -77,7 +77,7 @@ class CharsetConverter
             }
         }
 
-        /* Convert a UTF-8 encoded text line into a EBU Latin 1 encoded byte stream
+        /* Convert a UTF-8 encoded text line into an EBU Latin encoded byte stream
          */
         std::string convert(std::string line_utf8) {
             using namespace std;
@@ -113,4 +113,3 @@ class CharsetConverter
 };
 
 #endif
-
