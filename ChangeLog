@@ -1,3 +1,14 @@
+2015-10-01: Matthias P. Braendli <matthias@mpb.li>
+	(v0.7.3):
+	* dabplus-enc:
+		Update zmq support to version 4.1.x.
+		Add ability to connect to several ZMQ outputs.
+		Improve ICY-Text write to file for DLS.
+	* mot-encoder:
+		Refactor datagroup encoding to improve encoding
+		efficiency.
+		Update EBU Latin charset.
+		Add remove-dls option.
 2015-05-09: Matthias P. Braendli <matthias@mpb.li>
 	(v0.7.2):
 	* dabplus-enc:
