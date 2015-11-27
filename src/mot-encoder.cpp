@@ -1013,6 +1013,9 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         // By default assume that the image has full quality and can be reduced
         orig_quality = 100;
 
+        // strip unneeded information (profiles, meta data)
+        MagickStripImage(m_wand);
+
         if (orig_format) {
             if (strcmp(orig_format, "JPEG") == 0) {
                 orig_quality = MagickGetImageCompressionQuality(m_wand);
