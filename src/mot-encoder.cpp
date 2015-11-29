@@ -905,6 +905,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
     size_t height = MagickGetImageHeight(m_wand);
     size_t width  = MagickGetImageWidth(m_wand);
 
+    MagickWand *bg_wand = NULL;
     PixelWand  *p_wand = NULL;
 
     while (height > 240 || width > 320) {
@@ -924,23 +925,28 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
 
     // Make sure smaller images are 320x240 pixels, and
     // add a black border
+    bg_wand = NewMagickWand();
+
     p_wand = NewPixelWand();
     PixelSetColor(p_wand, "black");
-    MagickBorderImage(m_wand, p_wand, (320-width)/2, (240-height)/2);
+    MagickNewImage(bg_wand, 320, 240, p_wand);
     DestroyPixelWand(p_wand);
 
-    height = MagickGetImageHeight(m_wand);
-    width  = MagickGetImageWidth(m_wand);
+    MagickCompositeImage(bg_wand, m_wand, OverCompositeOp, (320-width)/2, (240-height)/2);
 
-    MagickSetImageFormat(m_wand, "jpg");
+
+    height = MagickGetImageHeight(bg_wand);
+    width  = MagickGetImageWidth(bg_wand);
+
+    MagickSetImageFormat(bg_wand, "jpg");
 
     int quality = 100;
 
     do {
         quality -= 5;
 
-        MagickSetImageCompressionQuality(m_wand, quality);
-        *blob = MagickGetImagesBlob(m_wand, &blobsize);
+        MagickSetImageCompressionQuality(bg_wand, quality);
+        *blob = MagickGetImagesBlob(bg_wand, &blobsize);
     } while (blobsize > MAXSLIDESIZE && quality > MINQUALITY);
 
     if (blobsize > MAXSLIDESIZE) {
@@ -954,6 +960,8 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
         fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes (q=%d)\n",
                 width, height, blobsize, quality);
     }
+
+    DestroyMagickWand(bg_wand);
     return blobsize;
 }
 #endif
