@@ -929,6 +929,9 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
     MagickBorderImage(m_wand, p_wand, (320-width)/2, (240-height)/2);
     DestroyPixelWand(p_wand);
 
+    height = MagickGetImageHeight(m_wand);
+    width  = MagickGetImageWidth(m_wand);
+
     MagickSetImageFormat(m_wand, "jpg");
 
     int quality = 100;
