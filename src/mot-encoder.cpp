@@ -1228,6 +1228,10 @@ void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* moth
             fidx,
             jfif_not_png ? "jpg" : "png" );
 
+    if (verbose) {
+        fprintf(stderr, "mot-encoder writing image as %s\n", cntemp);
+    }
+
     for (i = 0; i < strlen(cntemp); i++) {
         MotHeaderExt[8+i] = cntemp[i];
     }
