@@ -965,6 +965,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
     MagickBooleanType err;
 #endif
     size_t blobsize, height, width;
+    bool jpeg_progr;
     unsigned char *blob = NULL;
     unsigned char *curseg = NULL;
     MSCDG msc;
@@ -988,6 +989,9 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
      *
      * For JPEG input files that are already at the right resolution and at the
      * right blobsize, we disable this to avoid quality loss due to recompression
+     *
+     * As device support of this feature is optional, we furthermore require JPEG input
+     * files to not have progressive coding.
      */
     bool resize_required = true;
 
@@ -1009,6 +1013,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         height       = MagickGetImageHeight(m_wand);
         width        = MagickGetImageWidth(m_wand);
         orig_format  = MagickGetImageFormat(m_wand);
+        jpeg_progr   = MagickGetImageInterlaceScheme(m_wand) == JPEGInterlace;
 
         // By default assume that the image has full quality and can be reduced
         orig_quality = 100;
@@ -1023,8 +1028,8 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 
                 if (verbose) {
                     fprintf(stderr, "mot-encoder image: %s (id=%d)."
-                            " Original size: %zu x %zu. (%s, q=%zu)\n",
-                            fname.c_str(), fidx, width, height, orig_format, orig_quality);
+                            " Original size: %zu x %zu. (%s, q=%zu, progr=%s)\n",
+                            fname.c_str(), fidx, width, height, orig_format, orig_quality, jpeg_progr ? "y" : "n");
                 }
             }
             else if (strcmp(orig_format, "PNG") == 0) {
@@ -1053,7 +1058,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
                     fname.c_str(), fidx, width, height);
         }
 
-        if ((orig_is_jpeg || orig_is_png) && height == 240 && width == 320) {
+        if ((orig_is_jpeg || orig_is_png) && height == 240 && width == 320 && not jpeg_progr) {
             // Don't recompress the image and check if the blobsize is suitable
             blob = MagickGetImagesBlob(m_wand, &blobsize);
 
