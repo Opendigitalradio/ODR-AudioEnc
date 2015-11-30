@@ -67,9 +67,9 @@ extern "C" {
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
 
-#define MAXSEGLEN 8189 // Bytes (EN 301 234, ch. 5.1.1)
+#define MAXSEGLEN 8189 // Bytes (EN 301 234 v2.1.1, ch. 5.1.1)
 #define MAXDLS 128 // chars
-#define MAXSLIDESIZE 50000 // Bytes
+#define MAXSLIDESIZE 51200 // Bytes (TS 101 499 v3.1.1, ch. 9.1.2)
 
 // Roll-over value for fidx
 #define MAXSLIDEID 9999
