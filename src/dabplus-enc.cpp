@@ -98,8 +98,8 @@ void usage(const char* name) {
     "   For the VLC input:\n"
 #if HAVE_VLC
     "     -v, --vlc-uri=uri                    Enable VLC input and use the URI given as source\n"
-    "     -C, --vlc-cache=ms                   Enable VLC gain control, default 0\n"
-    "     -g, --vlc-gain=db                    Enable VLC network cache\n"
+    "     -C, --vlc-cache=ms                   Enable VLC network cache\n"
+    "     -g, --vlc-gain=db                    Enable VLC gain control, default 0\n"
     "     -V                                   Increase the VLC verbosity by one (can be given \n"
     "                                          multiple times)\n"
     "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that mot-encoder can read it.\n"
