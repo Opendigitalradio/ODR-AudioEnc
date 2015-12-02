@@ -98,6 +98,8 @@ void usage(const char* name) {
     "   For the VLC input:\n"
 #if HAVE_VLC
     "     -v, --vlc-uri=uri                    Enable VLC input and use the URI given as source\n"
+    "     -C, --vlc-cache=ms                   Enable VLC gain control, default 0\n"
+    "     -g, --vlc-gain=db                    Enable VLC network cache\n"
     "     -V                                   Increase the VLC verbosity by one (can be given \n"
     "                                          multiple times)\n"
     "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that mot-encoder can read it.\n"
@@ -252,6 +254,8 @@ int main(int argc, char *argv[])
     // For the VLC input
     std::string vlc_uri = "";
     std::string vlc_icytext_file = "";
+    std::string vlc_gain = "";
+    std::string vlc_cache = "";
     unsigned verbosity = 0;
 
     // For the file output
@@ -318,6 +322,8 @@ int main(int argc, char *argv[])
         {"sbr",            no_argument,        0,  1 },
         {"ps",             no_argument,        0,  2 },
         {"fifo-silence",   no_argument,        0,  3 },
+        {"vlc_gain",       required_argument,  0,  'g' },
+        {"vlc_cache",      required_argument,  0,  'C' },
         {0, 0, 0, 0},
     };
 
@@ -341,7 +347,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:o:r:d:p:P:s:v:w:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:o:r:d:p:P:s:v:w:g:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -425,6 +431,12 @@ int main(int argc, char *argv[])
             break;
         case 'w':
             vlc_icytext_file = optarg;
+            break;
+        case 'g':
+            vlc_gain = optarg;
+            break;
+        case 'C':
+            vlc_cache = optarg;
             break;
 #else
         case 'v':
@@ -597,7 +609,7 @@ int main(int argc, char *argv[])
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
 #endif
 #if HAVE_VLC
-    VLCInput          vlc_in(vlc_uri, sample_rate, channels, verbosity);
+    VLCInput          vlc_in(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache);
 #endif
 
     if (infile) {
