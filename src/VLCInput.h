@@ -44,11 +44,15 @@ class VLCInput
         VLCInput(const std::string& uri,
                  int rate,
                  unsigned channels,
-                 unsigned verbosity) :
+                 unsigned verbosity,
+                 std::string& gain,
+                 std::string& cache) :
             m_uri(uri),
             m_verbosity(verbosity),
             m_channels(channels),
             m_rate(rate),
+            m_cache(cache),
+            m_gain(gain),
             m_vlc(NULL) { }
 
         ~VLCInput() { cleanup(); }
@@ -102,6 +106,13 @@ class VLCInput
         unsigned m_verbosity;
         unsigned m_channels;
         int m_rate;
+
+        // Whether to enable network caching in VLC or not
+        std::string m_cache;
+
+        // value for the VLC compressor filter
+        std::string m_gain;
+
 
         std::future<bool> icy_text_written;
         std::string m_nowplaying;

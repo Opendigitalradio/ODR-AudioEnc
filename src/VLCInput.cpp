@@ -138,7 +138,7 @@ int VLCInput::prepare()
     // VLC options
     char smem_options[512];
     snprintf(smem_options, sizeof(smem_options),
-            "#transcode{acodec=s16l,samplerate=%d}:"
+            "#transcode{acodec=s16l,samplerate=%d,afilter=compressor}:"
             // We are using transcode because smem only support raw audio and
             // video formats
             "smem{"
@@ -153,7 +153,8 @@ int VLCInput::prepare()
 
     char verb_options[512];
     snprintf(verb_options, sizeof(verb_options),
-            "--verbose=%d", m_verbosity);
+            "--verbose=%d --network-caching %s --compressor-makeup-gain=%s ",
+            m_verbosity,(char *)m_cache.c_str(),(char *)m_gain.c_str());
 
     const char * const vlc_args[] = {
         verb_options,
