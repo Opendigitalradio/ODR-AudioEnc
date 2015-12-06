@@ -1073,7 +1073,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
             // Don't recompress the image and check if the blobsize is suitable
             blob = MagickGetImagesBlob(m_wand, &blobsize);
 
-            if (blobsize < MAXSLIDESIZE) {
+            if (blobsize <= MAXSLIDESIZE) {
                 if (verbose) {
                     fprintf(stderr, "mot-encoder image: '%s' (id=%d).  No resize needed: %zu Bytes\n",
                             fname.c_str(), fidx, blobsize);
