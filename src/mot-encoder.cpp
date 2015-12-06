@@ -707,15 +707,15 @@ int main(int argc, char *argv[])
     }
 
     if (dir && not dls_file.empty()) {
-        fprintf(stderr, "mot-encoder encoding Slideshow from %s and DLS from %s to %s\n",
+        fprintf(stderr, "mot-encoder encoding Slideshow from '%s' and DLS from '%s' to '%s'\n",
                 dir, dls_file.c_str(), output);
     }
     else if (dir) {
-        fprintf(stderr, "mot-encoder encoding Slideshow from %s to %s. No DLS.\n",
+        fprintf(stderr, "mot-encoder encoding Slideshow from '%s' to '%s'. No DLS.\n",
                 dir, output);
     }
     else if (not dls_file.empty()) {
-        fprintf(stderr, "mot-encoder encoding DLS from %s to %s. No Slideshow.\n",
+        fprintf(stderr, "mot-encoder encoding DLS from '%s' to '%s'. No Slideshow.\n",
                 dls_file.c_str(), output);
     }
     else {
@@ -809,7 +809,7 @@ int main(int argc, char *argv[])
                     slides_to_transmit.push_back(md);
 
                     if (verbose) {
-                        fprintf(stderr, "mot-encoder found slide %s, fidx %d\n", imagepath, md.fidx);
+                        fprintf(stderr, "mot-encoder found slide '%s', fidx %d\n", imagepath, md.fidx);
                     }
                 }
             }
@@ -835,12 +835,12 @@ int main(int argc, char *argv[])
 
                 ret = encodeFile(output_fd, it->filepath, it->fidx, raw_slides);
                 if (ret != 1) {
-                    fprintf(stderr, "mot-encoder Error: cannot encode file %s\n", it->filepath.c_str());
+                    fprintf(stderr, "mot-encoder Error: cannot encode file '%s'\n", it->filepath.c_str());
                 }
 
                 if (erase_after_tx) {
                     if (unlink(it->filepath.c_str()) == -1) {
-                        fprintf(stderr, "mot-encoder Error: erasing file %s failed: ", it->filepath.c_str());
+                        fprintf(stderr, "mot-encoder Error: erasing file '%s' failed: ", it->filepath.c_str());
                         perror("");
                     }
                 }
@@ -1015,7 +1015,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 
         err = MagickReadImage(m_wand, fname.c_str());
         if (err == MagickFalse) {
-            fprintf(stderr, "mot-encoder Error: Unable to load image %s\n",
+            fprintf(stderr, "mot-encoder Error: Unable to load image '%s'\n",
                     fname.c_str());
 
             goto encodefile_out;
@@ -1038,7 +1038,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
                 orig_is_jpeg = true;
 
                 if (verbose) {
-                    fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                    fprintf(stderr, "mot-encoder image: '%s' (id=%d)."
                             " Original size: %zu x %zu. (%s, q=%zu, progr=%s)\n",
                             fname.c_str(), fidx, width, height, orig_format, orig_quality, jpeg_progr ? "y" : "n");
                 }
@@ -1048,13 +1048,13 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
                 jfif_not_png = false;
 
                 if (verbose) {
-                    fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                    fprintf(stderr, "mot-encoder image: '%s' (id=%d)."
                             " Original size: %zu x %zu. (%s)\n",
                             fname.c_str(), fidx, width, height, orig_format);
                 }
             }
             else if (verbose) {
-                fprintf(stderr, "mot-encoder image: %s (id=%d)."
+                fprintf(stderr, "mot-encoder image: '%s' (id=%d)."
                         " Original size: %zu x %zu. (%s)\n",
                         fname.c_str(), fidx, width, height, orig_format);
             }
@@ -1062,10 +1062,10 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
             free(orig_format);
         }
         else {
-            fprintf(stderr, "mot-encoder Warning: Unable to detect image format %s\n",
+            fprintf(stderr, "mot-encoder Warning: Unable to detect image format of '%s'\n",
                     fname.c_str());
 
-            fprintf(stderr, "mot-encoder image: %s (id=%d).  Original size: %zu x %zu.\n",
+            fprintf(stderr, "mot-encoder image: '%s' (id=%d).  Original size: %zu x %zu.\n",
                     fname.c_str(), fidx, width, height);
         }
 
@@ -1075,7 +1075,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 
             if (blobsize < MAXSLIDESIZE) {
                 if (verbose) {
-                    fprintf(stderr, "mot-encoder image: %s (id=%d).  No resize needed: %zu Bytes\n",
+                    fprintf(stderr, "mot-encoder image: '%s' (id=%d).  No resize needed: %zu Bytes\n",
                             fname.c_str(), fidx, blobsize);
                 }
                 resize_required = false;
@@ -1099,7 +1099,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         // read file
         FILE* pFile = fopen(fname.c_str(), "rb");
         if (pFile == NULL) {
-            fprintf(stderr, "mot-encoder Error: Unable to load file %s\n",
+            fprintf(stderr, "mot-encoder Error: Unable to load file '%s'\n",
                     fname.c_str());
             goto encodefile_out;
         }
@@ -1110,7 +1110,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         rewind(pFile);
 
         if (blobsize > MAXSLIDESIZE) {
-            fprintf(stderr, "mot-encoder Warning: blob in raw-slide %s too large\n",
+            fprintf(stderr, "mot-encoder Warning: blob in raw-slide '%s' too large\n",
                     fname.c_str());
         }
 
@@ -1229,7 +1229,7 @@ void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* moth
             jfif_not_png ? "jpg" : "png" );
 
     if (verbose) {
-        fprintf(stderr, "mot-encoder writing image as %s\n", cntemp);
+        fprintf(stderr, "mot-encoder writing image as '%s'\n", cntemp);
     }
 
     for (i = 0; i < strlen(cntemp); i++) {
