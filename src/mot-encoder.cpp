@@ -892,20 +892,25 @@ DATA_GROUP* createDataGroupLengthIndicator(size_t len) {
 }
 
 
-// Resize the image or add a black border around it
+void warnOnSmallerImage(size_t height, size_t width, std::string& fname) {
+    if (height < 240 || width < 320)
+        fprintf(stderr, "mot-encoder Warning: Image '%s' smaller than recommended size (%zu x %zu < 320 x 240 px)\n", fname.c_str(), width, height);
+}
+
+
+// Scales the image down if needed,
 // so that it is 320x240 pixels.
-// Automatically reduce the quality to make sure the
+// Automatically reduces the quality to make sure the
 // blobsize is not too large.
 //
 // Returns: the blobsize
 #if HAVE_MAGICKWAND
-size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
+size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
 {
     size_t blobsize;
     size_t height = MagickGetImageHeight(m_wand);
     size_t width  = MagickGetImageWidth(m_wand);
 
-    MagickWand *bg_wand = NULL;
     PixelWand  *p_wand = NULL;
 
     while (height > 240 || width > 320) {
@@ -923,30 +928,15 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
     height = MagickGetImageHeight(m_wand);
     width  = MagickGetImageWidth(m_wand);
 
-    // Make sure smaller images are 320x240 pixels, and
-    // add a black border
-    bg_wand = NewMagickWand();
-
-    p_wand = NewPixelWand();
-    PixelSetColor(p_wand, "black");
-    MagickNewImage(bg_wand, 320, 240, p_wand);
-    DestroyPixelWand(p_wand);
-
-    MagickCompositeImage(bg_wand, m_wand, OverCompositeOp, (320-width)/2, (240-height)/2);
-
-
-    height = MagickGetImageHeight(bg_wand);
-    width  = MagickGetImageWidth(bg_wand);
-
-    MagickSetImageFormat(bg_wand, "jpg");
+    MagickSetImageFormat(m_wand, "jpg");
 
     int quality = 100;
 
     do {
         quality -= 5;
 
-        MagickSetImageCompressionQuality(bg_wand, quality);
-        *blob = MagickGetImagesBlob(bg_wand, &blobsize);
+        MagickSetImageCompressionQuality(m_wand, quality);
+        *blob = MagickGetImagesBlob(m_wand, &blobsize);
     } while (blobsize > MAXSLIDESIZE && quality > MINQUALITY);
 
     if (blobsize > MAXSLIDESIZE) {
@@ -961,7 +951,9 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob)
                 width, height, blobsize, quality);
     }
 
-    DestroyMagickWand(bg_wand);
+    // warn if resized image smaller than default dimension
+    warnOnSmallerImage(height, width, fname);
+
     return blobsize;
 }
 #endif
@@ -1069,7 +1061,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
                     fname.c_str(), fidx, width, height);
         }
 
-        if ((orig_is_jpeg || orig_is_png) && height == 240 && width == 320 && not jpeg_progr) {
+        if ((orig_is_jpeg || orig_is_png) && height <= 240 && width <= 320 && not jpeg_progr) {
             // Don't recompress the image and check if the blobsize is suitable
             blob = MagickGetImagesBlob(m_wand, &blobsize);
 
@@ -1083,10 +1075,14 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         }
 
         if (resize_required) {
-            blobsize = resizeImage(m_wand, &blob);
+            blobsize = resizeImage(m_wand, &blob, fname);
 
             // resizeImage always creates a jpg output
             jfif_not_png = true;
+        }
+        else {
+            // warn if unresized image smaller than default dimension
+            warnOnSmallerImage(height, width, fname);
         }
 
 #else
