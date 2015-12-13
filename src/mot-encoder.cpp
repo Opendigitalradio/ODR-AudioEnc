@@ -89,6 +89,11 @@ extern "C" {
 #define CHARSET_UCS2_BE 6 // ISO/IEC 10646 using UCS-2 transformation format, big endian byte order
 #define CHARSET_UTF8 15 // ISO Latin Alphabet No 2
 
+
+typedef std::vector<uint8_t> uint8_vector_t;
+static int verbose = 0;
+
+
 struct MSCDG {
     // MSC Data Group Header (extension field not supported)
     unsigned char extflag;      //  1 bit
@@ -205,24 +210,11 @@ class History {
 };
 
 
-/*
-   typedef struct {
-// MOT HEADER CUSTOMIZED FOR SLIDESHOW APP
-unsigned int bodysize;      // 28 bits
-unsigned short int headsize;    // 13 bits
-unsigned char ctype;        //  6 bits
-unsigned char sctype;       //  9 bits
-unsigned char triggertime[5];   // 0x85 0x00 0x00 0x00 0x00 => NOW
-unsigned char contname[14];     // 0xCC 0x0C 0x00 imgXXXX.jpg
-} MOTSLIDEHDR;
-*/
 int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides);
 
-void createMotHeader(
+uint8_vector_t createMotHeader(
         size_t blobsize,
         int fidx,
-        unsigned char* mothdr,
-        int* mothdrlen,
         bool jfif_not_png);
 
 void createMscDG(MSCDG* msc, unsigned short int dgtype, int *cindex, unsigned short int segnum,
@@ -237,7 +229,6 @@ void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool 
 
 // PAD related
 #define CRC_LEN 2
-typedef std::vector<uint8_t> uint8_vector_t;
 
 struct DATA_GROUP {
     uint8_vector_t data;
@@ -299,6 +290,99 @@ struct DATA_GROUP {
 // MOT Slideshow related
 static int cindex_header = 0;
 static int cindex_body = 0;
+
+
+class MOTHeader {
+private:
+    size_t header_size;
+    uint8_vector_t data;
+
+    void IncrementHeaderSize(size_t size);
+    void AddParamHeader(int pli, int param_id) {data.push_back((pli << 6) | (param_id & 0x3F));}
+public:
+    MOTHeader(size_t body_size, int content_type, int content_subtype);
+
+    void AddExtension(int param_id);
+    void AddExtension8Bit(int param_id, uint8_t data_field);
+    void AddExtension32Bit(int param_id, uint32_t data_field);
+    void AddExtensionVarSize(int param_id, const uint8_t* data_field, size_t data_field_len);
+    const uint8_vector_t GetData() {return data;}
+};
+
+MOTHeader::MOTHeader(size_t body_size, int content_type, int content_subtype)
+: header_size(0), data(uint8_vector_t(7, 0x00)) {
+    // init header core
+
+    // body size
+    data[0] = (body_size >> 20) & 0xFF;
+    data[1] = (body_size >> 12) & 0xFF;
+    data[2] = (body_size >>  4) & 0xFF;
+    data[3] = (body_size <<  4) & 0xF0;
+
+    // header size
+    IncrementHeaderSize(data.size());
+
+    // content type
+    data[5] |= (content_type << 1) & 0x7E;
+
+    // content subtype
+    data[5] |= (content_subtype >> 8) & 0x01;
+    data[6] |=  content_subtype       & 0xFF;
+}
+
+void MOTHeader::IncrementHeaderSize(size_t size) {
+    header_size += size;
+
+    data[3] &= 0xF0;
+    data[3] |= (header_size >> 9) & 0x0F;
+
+    data[4]  = (header_size >> 1) & 0xFF;
+
+    data[5] &= 0x7F;
+    data[5] |= (header_size << 7) & 0x80;
+}
+
+void MOTHeader::AddExtension(int param_id) {
+    AddParamHeader(0b00, param_id);
+
+    IncrementHeaderSize(1);
+}
+
+void MOTHeader::AddExtension8Bit(int param_id, uint8_t data_field) {
+    AddParamHeader(0b01, param_id);
+    data.push_back(data_field);
+
+    IncrementHeaderSize(2);
+}
+
+void MOTHeader::AddExtension32Bit(int param_id, uint32_t data_field) {
+    AddParamHeader(0b10, param_id);
+    data.push_back((data_field >> 24) & 0xFF);
+    data.push_back((data_field >> 16) & 0xFF);
+    data.push_back((data_field >>  8) & 0xFF);
+    data.push_back( data_field        & 0xFF);
+
+    IncrementHeaderSize(5);
+}
+
+void MOTHeader::AddExtensionVarSize(int param_id, const uint8_t* data_field, size_t data_field_len) {
+    AddParamHeader(0b11, param_id);
+
+    // longer field lens use 15 instead of 7 bits
+    bool ext = data_field_len > 127;
+    if (ext) {
+        data.push_back(0x80 | ((data_field_len >> 8) & 0x7F));
+        data.push_back(data_field_len & 0xFF);
+    } else {
+        data.push_back(data_field_len & 0x7F);
+    }
+
+    for (size_t i = 0; i < data_field_len; i++)
+        data.push_back(data_field[i]);
+
+    IncrementHeaderSize(1 + (ext ? 2 : 1) + data_field_len);
+}
+
 
 
 // DLS related
@@ -574,8 +658,6 @@ static PADPacketizer *pad_packetizer;
 
 
 
-
-static int verbose = 0;
 
 void usage(char* name)
 {
@@ -961,8 +1043,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
 int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 {
     int ret = 0;
-    int fd=0, mothdrlen, nseg, lastseglen, i, last, curseglen;
-    unsigned char mothdr[32];
+    int fd=0, nseg, lastseglen, i, last, curseglen;
 #if HAVE_MAGICKWAND
     MagickWand *m_wand = NULL;
     MagickBooleanType err;
@@ -1148,9 +1229,9 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
             nseg++;
         }
 
-        createMotHeader(blobsize, fidx, mothdr, &mothdrlen, jfif_not_png);
+        uint8_vector_t mothdr = createMotHeader(blobsize, fidx, jfif_not_png);
         // Create the MSC Data Group C-Structure
-        createMscDG(&msc, 3, &cindex_header, 0, 1, fidx, mothdr, mothdrlen);
+        createMscDG(&msc, 3, &cindex_header, 0, 1, fidx, &mothdr[0], mothdr.size());
         // Generate the MSC DG frame (Figure 9 en 300 401)
         mscdg = packMscDG(&msc);
         dgli = createDataGroupLengthIndicator(mscdg->data.size());
@@ -1196,49 +1277,27 @@ encodefile_out:
 }
 
 
-void createMotHeader(size_t blobsize, int fidx, unsigned char* mothdr, int* mothdrlen, bool jfif_not_png)
+uint8_vector_t createMotHeader(size_t blobsize, int fidx, bool jfif_not_png)
 {
-    struct stat s;
-    uint8_t MotHeaderCore[7] = {0x00,0x00,0x00,0x00,0x0D,0x04,0x00};
-    uint8_t MotHeaderExt[19] = {0x85,0x00,0x00,0x00,0x00,0xcc,0x0c,
-        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-    char cntemp[12];
-    int i;
+    // prepare ContentName
+    uint8_t cntemp[13];     // = 1 + 11 + 1 = charset + name + terminator
+    cntemp[0] = 0x0 << 4;   // charset: 0 (Complete EBU Latin based) - doesn't really matter here
+    snprintf((char*) (cntemp + 1), sizeof(cntemp) - 1, "img%04d.%s", fidx, jfif_not_png ? "jpg" : "png");
+    if (verbose)
+        fprintf(stderr, "mot-encoder writing image as '%s'\n", cntemp + 1);
 
-    // Set correct content subtype
-    //  ETSI TS 101 756 V1.2.1 Clause 6.1 Table 17
-    if (jfif_not_png) {
-        MotHeaderCore[6] = 0x01;
-    }
-    else {
-        MotHeaderCore[6] = 0x03;
-    }
+    // MOT header - content type: image, content subtype: JFIF / PNG
+    MOTHeader header(blobsize, 0x02, jfif_not_png ? 0x001 : 0x003);
 
-    MotHeaderCore[0] = (blobsize<<4 & 0xFF000000) >> 24;
-    MotHeaderCore[1] = (blobsize<<4 & 0x00FF0000) >> 16;
-    MotHeaderCore[2] = (blobsize<<4 & 0x0000FF00) >> 8;
-    MotHeaderCore[3] = (blobsize<<4 & 0x000000FF);
+    // TriggerTime: NOW
+    header.AddExtension32Bit(0x05, 0x00000000);
 
-    sprintf(cntemp,
-            "img%04d.%s",
-            fidx,
-            jfif_not_png ? "jpg" : "png" );
+    // ContentName: imgXXXX.jpg / imgXXXX.png
+    header.AddExtensionVarSize(0x0C, cntemp, sizeof(cntemp) - 1);   // omit terminator
 
-    if (verbose) {
-        fprintf(stderr, "mot-encoder writing image as '%s'\n", cntemp);
-    }
-
-    for (i = 0; i < strlen(cntemp); i++) {
-        MotHeaderExt[8+i] = cntemp[i];
-    }
-    *mothdrlen = 26;
-    for (i = 0; i < 7; i++)
-        mothdr[i] = MotHeaderCore[i];
-    for (i = 0; i < 19; i++)
-        mothdr[7+i] = MotHeaderExt[i];
-
-    return;
+    return header.GetData();
 }
+
 
 void createMscDG(MSCDG* msc, unsigned short int dgtype,
         int *cindex, unsigned short int segnum, unsigned short int lastseg,
