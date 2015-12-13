@@ -1280,9 +1280,9 @@ encodefile_out:
 uint8_vector_t createMotHeader(size_t blobsize, int fidx, bool jfif_not_png)
 {
     // prepare ContentName
-    uint8_t cntemp[13];     // = 1 + 11 + 1 = charset + name + terminator
+    uint8_t cntemp[10];     // = 1 + 8 + 1 = charset + name + terminator
     cntemp[0] = 0x0 << 4;   // charset: 0 (Complete EBU Latin based) - doesn't really matter here
-    snprintf((char*) (cntemp + 1), sizeof(cntemp) - 1, "img%04d.%s", fidx, jfif_not_png ? "jpg" : "png");
+    snprintf((char*) (cntemp + 1), sizeof(cntemp) - 1, "%04d.%s", fidx, jfif_not_png ? "jpg" : "png");
     if (verbose)
         fprintf(stderr, "mot-encoder writing image as '%s'\n", cntemp + 1);
 
@@ -1292,7 +1292,7 @@ uint8_vector_t createMotHeader(size_t blobsize, int fidx, bool jfif_not_png)
     // TriggerTime: NOW
     header.AddExtension32Bit(0x05, 0x00000000);
 
-    // ContentName: imgXXXX.jpg / imgXXXX.png
+    // ContentName: XXXX.jpg / XXXX.png
     header.AddExtensionVarSize(0x0C, cntemp, sizeof(cntemp) - 1);   // omit terminator
 
     return header.GetData();
