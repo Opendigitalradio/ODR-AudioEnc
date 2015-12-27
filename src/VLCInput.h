@@ -53,7 +53,8 @@ class VLCInput
             m_rate(rate),
             m_cache(cache),
             m_gain(gain),
-            m_vlc(NULL) { }
+            m_vlc(nullptr),
+            m_mp(nullptr) { }
 
         ~VLCInput() { cleanup(); }
 
