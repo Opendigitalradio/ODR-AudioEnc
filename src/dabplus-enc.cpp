@@ -141,8 +141,6 @@ int prepare_aac_encoder(
         int afterburner,
         int *aot)
 {
-    HANDLE_AACENCODER handle = *encoder;
-
     CHANNEL_MODE mode;
     switch (channels) {
         case 1: mode = MODE_1; break;
@@ -153,12 +151,10 @@ int prepare_aac_encoder(
     }
 
 
-    if (aacEncOpen(&handle, 0x01|0x02|0x04, channels) != AACENC_OK) {
+    if (aacEncOpen(encoder, 0x01|0x02|0x04, channels) != AACENC_OK) {
         fprintf(stderr, "Unable to open encoder\n");
         return 1;
     }
-
-    *encoder = handle;
 
     if (*aot == AOT_NONE) {
 
@@ -180,32 +176,32 @@ int prepare_aac_encoder(
             *aot == AOT_DABPLUS_AAC_LC ? "AAC-LC" : "",
             channels, sample_rate);
 
-    if (aacEncoder_SetParam(handle, AACENC_AOT, *aot) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_AOT, *aot) != AACENC_OK) {
         fprintf(stderr, "Unable to set the AOT\n");
         return 1;
     }
-    if (aacEncoder_SetParam(handle, AACENC_SAMPLERATE, sample_rate) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_SAMPLERATE, sample_rate) != AACENC_OK) {
         fprintf(stderr, "Unable to set the sample rate\n");
         return 1;
     }
-    if (aacEncoder_SetParam(handle, AACENC_CHANNELMODE, mode) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_CHANNELMODE, mode) != AACENC_OK) {
         fprintf(stderr, "Unable to set the channel mode\n");
         return 1;
     }
-    if (aacEncoder_SetParam(handle, AACENC_CHANNELORDER, 1) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_CHANNELORDER, 1) != AACENC_OK) {
         fprintf(stderr, "Unable to set the wav channel order\n");
         return 1;
     }
-    if (aacEncoder_SetParam(handle, AACENC_GRANULE_LENGTH, 960) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_GRANULE_LENGTH, 960) != AACENC_OK) {
         fprintf(stderr, "Unable to set the granule length\n");
         return 1;
     }
-    if (aacEncoder_SetParam(handle, AACENC_TRANSMUX, TT_DABPLUS) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_TRANSMUX, TT_DABPLUS) != AACENC_OK) {
         fprintf(stderr, "Unable to set the RAW transmux\n");
         return 1;
     }
 
-    /*if (aacEncoder_SetParam(handle, AACENC_BITRATEMODE, AACENC_BR_MODE_SFR)
+    /*if (aacEncoder_SetParam(*encoder, AACENC_BITRATEMODE, AACENC_BR_MODE_SFR)
      * != AACENC_OK) {
         fprintf(stderr, "Unable to set the bitrate mode\n");
         return 1;
@@ -213,18 +209,18 @@ int prepare_aac_encoder(
 
 
     fprintf(stderr, "AAC bitrate set to: %d\n", subchannel_index*8000);
-    if (aacEncoder_SetParam(handle, AACENC_BITRATE, subchannel_index*8000) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_BITRATE, subchannel_index*8000) != AACENC_OK) {
         fprintf(stderr, "Unable to set the bitrate\n");
         return 1;
     }
-    if (aacEncoder_SetParam(handle, AACENC_AFTERBURNER, afterburner) != AACENC_OK) {
+    if (aacEncoder_SetParam(*encoder, AACENC_AFTERBURNER, afterburner) != AACENC_OK) {
         fprintf(stderr, "Unable to set the afterburner mode\n");
         return 1;
     }
     if (!afterburner) {
         fprintf(stderr, "Warning: Afterburned disabled!\n");
     }
-    if (aacEncEncode(handle, NULL, NULL, NULL, NULL) != AACENC_OK) {
+    if (aacEncEncode(*encoder, NULL, NULL, NULL, NULL) != AACENC_OK) {
         fprintf(stderr, "Unable to initialize the encoder\n");
         return 1;
     }
