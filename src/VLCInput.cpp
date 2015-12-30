@@ -220,7 +220,7 @@ void VLCInput::exit_cb()
     fprintf(stderr, "VLC exit, restarting...\n");
 
     cleanup();
-    m_current_buf.empty();
+    m_current_buf.clear();
     prepare();
 }
 

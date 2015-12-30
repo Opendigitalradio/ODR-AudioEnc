@@ -98,6 +98,8 @@ int JackInput::prepare()
         fprintf (stderr, "JACK: cannot activate client");
         return -1;
     }
+
+    return 0;
 }
 
 void JackInput::jack_process(jack_nframes_t nframes)
