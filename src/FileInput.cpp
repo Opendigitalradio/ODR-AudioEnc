@@ -61,7 +61,7 @@ int FileInput::prepare(void)
             fprintf(stderr, "Unsupported WAV sample depth %d\n", bits_per_sample);
             return 1;
         }
-        if (channels != 2) {
+        if ( !(channels == 1 or channels == 2)) {
             fprintf(stderr, "Unsupported WAV channels %d\n", channels);
             return 1;
         }
