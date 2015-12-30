@@ -151,18 +151,41 @@ int VLCInput::prepare()
             prepareRender_address,
             (long long int)(intptr_t)this);
 
-    char verb_options[512];
-    snprintf(verb_options, sizeof(verb_options),
-            "--verbose=%d --network-caching %s --compressor-makeup-gain=%s ",
-            m_verbosity,(char *)m_cache.c_str(),(char *)m_gain.c_str());
 
-    const char * const vlc_args[] = {
-        verb_options,
-        "--sout", smem_options // Stream to memory
-    };
+    const char* vlc_args[6];
+    size_t arg_ix = 0;
+    std::stringstream arg_verbose;
+    arg_verbose << "--verbose=" << m_verbosity;
+    vlc_args[arg_ix++] = arg_verbose.str().c_str();
+
+    std::string arg_network_caching;
+    if (not m_cache.empty()) {
+        stringstream ss;
+        ss << "--network-caching=" << m_cache;
+        arg_network_caching = ss.str();
+        vlc_args[arg_ix++] = arg_network_caching.c_str();
+    }
+
+    std::string arg_gain;
+    if (not m_gain.empty()) {
+        stringstream ss;
+        ss << "--compressor-makeup=" << m_gain;
+        arg_gain = ss.str();
+        vlc_args[arg_ix++] = arg_gain.c_str();
+    }
+
+    vlc_args[arg_ix++] = "--sout";
+    vlc_args[arg_ix++] = smem_options; // Stream to memory
+
+    fprintf(stderr, "VLC opt:\n");
+    for (size_t i = 0; i < arg_ix; i++) {
+        fprintf(stderr, "  %s\n", vlc_args[i]);
+    }
+
+    fprintf(stderr, "End of VLC opt\n");
 
     // Launch VLC
-    m_vlc = libvlc_new(sizeof(vlc_args) / sizeof(vlc_args[0]), vlc_args);
+    m_vlc = libvlc_new(arg_ix, vlc_args);
 
     libvlc_set_exit_handler(m_vlc, handleVLCExit, this);
 
