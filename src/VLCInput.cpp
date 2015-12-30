@@ -177,12 +177,12 @@ int VLCInput::prepare()
     vlc_args[arg_ix++] = "--sout";
     vlc_args[arg_ix++] = smem_options; // Stream to memory
 
-    fprintf(stderr, "VLC opt:\n");
-    for (size_t i = 0; i < arg_ix; i++) {
-        fprintf(stderr, "  %s\n", vlc_args[i]);
+    if (m_verbosity) {
+        fprintf(stderr, "Initialising VLC with options:\n");
+        for (size_t i = 0; i < arg_ix; i++) {
+            fprintf(stderr, "  %s\n", vlc_args[i]);
+        }
     }
-
-    fprintf(stderr, "End of VLC opt\n");
 
     // Launch VLC
     m_vlc = libvlc_new(arg_ix, vlc_args);
