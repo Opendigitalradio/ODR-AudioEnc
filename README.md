@@ -208,9 +208,9 @@ transmitted as PNG without any recompression.
 
 RAW Format
 ----------
-If ImageMagick is not available, or when enable with the -R option, the images
+If ImageMagick is not compiled in, or when enabled with the -R option, the images
 are not modified, and are transmitted as-is. Use this if you can guarantee that
-the generated files are smaller than 50kB and exactly 320x240 pixels.
+the generated files are smaller than 50kB and not larger than 320x240 pixels.
 
 Supported Encoders
 ------------------
@@ -240,6 +240,9 @@ must specify both --charset=0 and --raw-dls.
 
 Known Limitations
 -----------------
+The gain option for libVLC enables the VLC audio compressor with default
+settings. This has more impact than just changing the volume of the audio.
+
 *mot-encoder* encodes slides in a 10 second interval, which is not linked
 to the rate at which the encoder reads the PAD data. It also doesn't prioritise
 DLS transmission over Slides.
