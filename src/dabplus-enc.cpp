@@ -605,7 +605,7 @@ int main(int argc, char *argv[])
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
 #endif
 #if HAVE_VLC
-    VLCInput          vlc_in(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache);
+    VLCInputDirect    vlc_in(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache);
 #endif
 
     if (infile) {

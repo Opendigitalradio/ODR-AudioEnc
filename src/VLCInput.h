@@ -38,6 +38,9 @@
 // 16 bits per sample is fine for now
 #define BYTES_PER_SAMPLE 2
 
+/* Common functionality for the direct libvlc input and the
+ * threaded libvlc input
+ */
 class VLCInput
 {
     public:
@@ -60,15 +63,6 @@ class VLCInput
 
         /* Prepare the audio input */
         int prepare();
-
-        /* Read exactly length bytes into buf.
-         * Blocks if not enough data is available,
-         * or returns zero if EOF reached.
-         *
-         * Returns the number of bytes written into
-         * the buffer.
-         */
-        ssize_t read(uint8_t* buf, size_t length);
 
         /* Write the last received ICY-Text to the
          * file.
@@ -125,6 +119,28 @@ class VLCInput
 
     private:
         VLCInput(const VLCInput& other) {}
+};
+
+class VLCInputDirect : public VLCInput
+{
+    public:
+        VLCInputDirect(const std::string& uri,
+                       int rate,
+                       unsigned channels,
+                       unsigned verbosity,
+                       std::string& gain,
+                       std::string& cache) :
+            VLCInput(uri, rate, channels, verbosity, gain, cache) {}
+
+        /* Read exactly length bytes into buf.
+         * Blocks if not enough data is available,
+         * or returns zero if EOF reached.
+         *
+         * Returns the number of bytes written into
+         * the buffer.
+         */
+        ssize_t read(uint8_t* buf, size_t length);
+
 };
 
 #endif // HAVE_VLC

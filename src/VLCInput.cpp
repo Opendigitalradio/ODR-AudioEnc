@@ -309,7 +309,7 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
     return err;
 }
 
-ssize_t VLCInput::read(uint8_t* buf, size_t length)
+ssize_t VLCInputDirect::read(uint8_t* buf, size_t length)
 {
     int bytes_per_frame = m_channels * BYTES_PER_SAMPLE;
     assert(length % bytes_per_frame == 0);
