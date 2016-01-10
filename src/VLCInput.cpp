@@ -354,6 +354,40 @@ void VLCInput::write_icy_text(const std::string& filename)
     }
 }
 
+
+// ==================== VLCInputThreaded ====================
+
+void VLCInputThreaded::start()
+{
+    if (m_fault) {
+        fprintf(stderr, "Cannot start VLC input. Fault detected previsouly!\n");
+    }
+    else {
+        m_running = true;
+        m_thread = std::thread(&VLCInputThreaded::process, this);
+    }
+}
+
+void VLCInputThreaded::process()
+{
+    uint8_t samplebuf[NUM_SAMPLES_PER_CALL * BYTES_PER_SAMPLE * m_channels];
+    while (m_running) {
+        ssize_t n = m_read(samplebuf, NUM_SAMPLES_PER_CALL);
+
+        if (n < 0) {
+            m_running = false;
+            m_fault = true;
+            break;
+        }
+
+        m_queue.push(samplebuf, BYTES_PER_SAMPLE*m_channels*n);
+    }
+}
+
+
+
+
+
 /* VLC up to version 2.1.0 used a different callback function signature.
  * VLC 2.2.0 uses size_t
  *

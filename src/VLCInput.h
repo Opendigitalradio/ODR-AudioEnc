@@ -38,6 +38,9 @@
 // 16 bits per sample is fine for now
 #define BYTES_PER_SAMPLE 2
 
+// How many samples we insert into the queue each call
+#define NUM_SAMPLES_PER_CALL 10 // 10 samples @ 32kHz = 3.125ms
+
 /* Common functionality for the direct libvlc input and the
  * threaded libvlc input
  */
@@ -140,6 +143,47 @@ class VLCInputDirect : public VLCInput
          * the buffer.
          */
         ssize_t read(uint8_t* buf, size_t length);
+
+};
+
+class VLCInputThreaded : public VLCInput
+{
+    public:
+        VLCInputThreaded(const std::string& uri,
+                         int rate,
+                         unsigned channels,
+                         unsigned verbosity,
+                         std::string& gain,
+                         std::string& cache,
+                         SampleQueue<uint8_t>& queue) :
+            VLCInput(uri, rate, channels, verbosity, gain, cache),
+            m_fault(false),
+            m_running(false),
+            m_queue(queue) {}
+
+        ~VLCInputThreaded()
+        {
+            if (m_running) {
+                m_running = false;
+                m_thread.join();
+            }
+        }
+
+        /* Start the libVLC thread that fills the queue */
+        virtual void start();
+
+        bool fault_detected() { return m_fault; };
+
+    private:
+        VLCInputThreaded(const VLCInputThreaded& other) = delete;
+        VLCInputThreaded& operator=(const VLCInputThreaded& other) = delete;
+
+        void process();
+
+        std::atomic<bool> m_fault;
+        std::atomic<bool> m_running;
+        std::thread m_thread;
+        SampleQueue<uint8_t>& m_queue;
 
 };
 

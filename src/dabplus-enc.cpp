@@ -64,7 +64,7 @@ void usage(const char* name) {
     "because it would have to throw away or insert a full DAB+ superframe,\n"
     "which would create audible artifacts. This drift compensation can\n"
     "make sure that the encoding rate is correct by inserting or deleting\n"
-    "audio samples.\n"
+    "audio samples. It can be used for both ALSA and VLC inputs.\n"
     "\n"
     "When this option is enabled, you will see U and O printed in the\n"
     "console. These correspond to audio underruns and overruns caused\n"
@@ -84,7 +84,6 @@ void usage(const char* name) {
     fprintf(stderr,
     "   For the alsa input:\n"
     "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
-    "     -D, --drift-comp                     Enable ALSA sound card drift compensation.\n"
     "   For the file input:\n"
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
@@ -106,6 +105,8 @@ void usage(const char* name) {
 #else
     "     The VLC input was disabled at compile-time\n"
 #endif
+    "   Drift compensation\n"
+    "     -D, --drift-comp                     Enable ALSA/VLC sound card drift compensation.\n"
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
     "     -A, --no-afterburner                 Disable AAC encoder quality increaser.\n"
@@ -605,7 +606,8 @@ int main(int argc, char *argv[])
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
 #endif
 #if HAVE_VLC
-    VLCInputDirect    vlc_in(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache);
+    VLCInputDirect    vlc_in_direct(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache);
+    VLCInputThreaded  vlc_in_threaded(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, queue);
 #endif
 
     if (infile) {
@@ -624,15 +626,26 @@ int main(int argc, char *argv[])
 #endif
 #if HAVE_VLC
     else if (vlc_uri != "") {
-        if (vlc_in.prepare() != 0) {
-            fprintf(stderr, "VLC preparation failed\n");
-            return 1;
+        if (drift_compensation) {
+            if (vlc_in_threaded.prepare() != 0) {
+                fprintf(stderr, "VLC with drift compensation: preparation failed\n");
+                return 1;
+            }
+
+            fprintf(stderr, "Start VLC thread\n");
+            vlc_in_threaded.start();
+        }
+        else {
+            if (vlc_in_direct.prepare() != 0) {
+                fprintf(stderr, "VLC preparation failed\n");
+                return 1;
+            }
         }
     }
 #endif
     else if (drift_compensation) {
         if (alsa_in_threaded.prepare() != 0) {
-            fprintf(stderr, "Alsa preparation failed\n");
+            fprintf(stderr, "Alsa with drift compensation: preparation failed\n");
             return 1;
         }
 
@@ -759,18 +772,44 @@ int main(int argc, char *argv[])
         }
 #if HAVE_VLC
         else if (not vlc_uri.empty()) {
-            read = vlc_in.read(input_buf, input_size);
-            if (read < 0) {
-                fprintf(stderr, "Detected fault in VLC input!\n");
-                break;
+            VLCInput* vlc_in = nullptr;
+
+            if (drift_compensation) {
+                vlc_in = &vlc_in_threaded;
+
+                if (drift_compensation && vlc_in_threaded.fault_detected()) {
+                    fprintf(stderr, "Detected fault in VLC input!\n");
+                    retval = 5;
+                    break;
+                }
+
+                size_t overruns;
+                read = queue.pop(input_buf, input_size, &overruns); // returns bytes
+
+                if (read != input_size) {
+                    status |= STATUS_UNDERRUN;
+                }
+
+                if (overruns) {
+                    status |= STATUS_OVERRUN;
+                }
             }
-            else if (read != input_size) {
-                fprintf(stderr, "Short VLC read !\n");
-                break;
+            else {
+                vlc_in = &vlc_in_direct;
+
+                read = vlc_in_direct.read(input_buf, input_size);
+                if (read < 0) {
+                    fprintf(stderr, "Detected fault in VLC input!\n");
+                    break;
+                }
+                else if (read != input_size) {
+                    fprintf(stderr, "Short VLC read !\n");
+                    break;
+                }
             }
 
             if (not vlc_icytext_file.empty()) {
-                vlc_in.write_icy_text(vlc_icytext_file);
+                vlc_in->write_icy_text(vlc_icytext_file);
             }
         }
 #endif
