@@ -136,9 +136,17 @@ int VLCInput::prepare()
 
 
     // VLC options
+    std::stringstream transcode_options_ss;
+    transcode_options_ss << "acodec=s16l";
+    transcode_options_ss << ",samplerate=" << m_rate;
+    if (not m_gain.empty()) {
+        transcode_options_ss << ",afilter=compressor";
+    }
+    string transcode_options = transcode_options_ss.str();
+
     char smem_options[512];
     snprintf(smem_options, sizeof(smem_options),
-            "#transcode{acodec=s16l,samplerate=%d,afilter=compressor}:"
+            "#transcode{%s}:"
             // We are using transcode because smem only support raw audio and
             // video formats
             "smem{"
@@ -146,7 +154,7 @@ int VLCInput::prepare()
                 "audio-prerender-callback=%lld,"
                 "audio-data=%lld"
             "}",
-            m_rate,
+            transcode_options.c_str(),
             handleStream_address,
             prepareRender_address,
             (long long int)(intptr_t)this);
