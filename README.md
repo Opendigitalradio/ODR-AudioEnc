@@ -9,15 +9,15 @@ The main tool is the *dabplus-enc* encoder, which can read audio from
 a file (raw or wav), from an ALSA source, from JACK or using libVLC,
 and encode to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
 
-The ALSA input supports experimental sound card clock drift compensation, that
-can compensate for imprecise sound card clocks.
-
 The JACK input does not automatically connect to anything. The encoder runs
 at the rate defined by the system clock, and therefore sound
 card clock drift compensation is also used.
 
 The libVLC input allows the encoder to use all inputs supported by VLC, and
 therefore also webstreams, and other network sources.
+
+The ALSA and libVLC inputs support experimental sound card clock drift
+compensation, that can compensate for imprecise sound card clocks.
 
 *dabplus-enc* includes support for DAB MOT Slideshow and DLS, contributed by
 [CSP](http://rd.csp.it).
@@ -92,6 +92,12 @@ The ZeroMQ output included in FDK-AAC-DABplus is able to connect to
 one or several instances of ODR-DabMux. The -o option can be used
 more than once to achieve this.
 
+Scenario *wav file for offline processing*
+------------------------------------------
+Wave file encoding, for non-realtime processing
+
+    dabplus-enc -b $BITRATE -i wave_file.wav -o station1.dabp
+
 Scenario *ALSA*
 ---------------
 Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:
@@ -114,7 +120,12 @@ Read a webstream and send it to ODR-DabMux over ZMQ:
 
     dabplus-enc -v $URL -r 32000 -c 2 -o $DST -l -b $BITRATE
 
-This scenario does not yet support ICY-text extraction for DLS.
+If you need to extract the ICY-Text information, e.g. for DLS, you can use the
+**-w <filename>** option to write the ICY-Text into a file that can be read by
+*mot-encoder*.
+
+If the webstream bitrate is slightly wrong (bad clock at the source), you can
+enable drift compensation with **-D**.
 
 Scenario *JACK input*
 ---------------------
@@ -149,21 +160,10 @@ Then, you can use any media player that has an alsa output to play whatever sour
 Important: you must specify the correct sample rate on both "sides" of the virtual sound card.
 
 
-Scenario *sox and pipes*
-------------------------
-Live Stream encoding and preparing for DAB muxer, with ZMQ output, at 32kHz, using sox.
-This illustrates the fifo input over standard input of *dabplus-enc*.
-
-    sox -t alsa $ALSASRC -b 16 -t raw - rate 32k channels 2 | \
-    dabplus-enc -r 32000 -l \
-    -i - -b $BITRATE -f raw -o $DST -p 53
-
-The -p 53 sets the padlen, compatible with the default *mot-encoder* setting. *mot-encoder* needs
-to be given the same value for this option.
-
-
 Scenario *mplayer and fifo*
 ---------------------------
+*Warning*: Connection through pipes to ODR-DabMux are deprecated in favour of ZeroMQ.
+
 Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB muxer, with FIFO to odr-dabmux
 using mplayer. If there are no data in FIFO, encoder generates silence.
 
@@ -171,14 +171,7 @@ using mplayer. If there are no data in FIFO, encoder generates silence.
     dabplus-enc -l -f raw --fifo-silence -i /tmp/aac.fifo -r 32000 -c 2 -b 72 -o /dev/stdout \
     mbuffer -q -m 10k -P 100 -s 1080 > station1.fifo
 
-*Note*: Do not use /dev/stdout for pcm oputput in mplayer. Mplayer log messages on stdout.
-
-Scenario *wav file for offline processing*
-------------------------------------------
-Wave file encoding, for non-realtime processing
-
-    dabplus-enc -b $BITRATE -i wave_file.wav -o station1.dabp
-
+*Note*: Do not use /dev/stdout for pcm output in mplayer. Mplayer log messages on stdout.
 
 Return values
 -------------
@@ -189,7 +182,7 @@ dabplus-enc returns:
  * 2 if the silence timeout was reached
  * 3 if the AAC encoder failed
  * 4 it the ZeroMQ send failed
- * 5 if the ALSA input had a fault
+ * 5 if the input had a fault
 
 Usage of MOT Slideshow and DLS
 ==============================
