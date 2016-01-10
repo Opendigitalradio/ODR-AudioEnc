@@ -38,9 +38,6 @@
 // 16 bits per sample is fine for now
 #define BYTES_PER_SAMPLE 2
 
-// How many samples we insert into the queue each call
-#define NUM_SAMPLES_PER_CALL 10 // 10 samples @ 32kHz = 3.125ms
-
 /* Common functionality for the direct libvlc input and the
  * threaded libvlc input
  */
@@ -93,6 +90,7 @@ class VLCInput
     protected:
         void cleanup(void);
 
+        // Fill exactly length bytes into buf. Blocking.
         ssize_t m_read(uint8_t* buf, size_t length);
 
         std::vector<uint8_t> m_current_buf;

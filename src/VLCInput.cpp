@@ -368,11 +368,15 @@ void VLCInputThreaded::start()
     }
 }
 
+// How many samples we insert into the queue each call
+// 10 samples @ 32kHz = 3.125ms
+#define NUM_BYTES_PER_CALL (10 * BYTES_PER_SAMPLE)
+
 void VLCInputThreaded::process()
 {
-    uint8_t samplebuf[NUM_SAMPLES_PER_CALL * BYTES_PER_SAMPLE * m_channels];
+    uint8_t samplebuf[NUM_BYTES_PER_CALL];
     while (m_running) {
-        ssize_t n = m_read(samplebuf, NUM_SAMPLES_PER_CALL);
+        ssize_t n = m_read(samplebuf, NUM_BYTES_PER_CALL);
 
         if (n < 0) {
             m_running = false;
@@ -380,7 +384,7 @@ void VLCInputThreaded::process()
             break;
         }
 
-        m_queue.push(samplebuf, BYTES_PER_SAMPLE*m_channels*n);
+        m_queue.push(samplebuf, n);
     }
 }
 
