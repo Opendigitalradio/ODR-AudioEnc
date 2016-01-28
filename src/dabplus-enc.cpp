@@ -584,7 +584,7 @@ int main(int argc, char *argv[])
 
     uint8_t input_buf[input_size];
 
-    int max_size = 4*input_size + NUM_SAMPLES_PER_CALL;
+    int max_size = 8*input_size + NUM_SAMPLES_PER_CALL;
 
     SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, channels, max_size);
 
