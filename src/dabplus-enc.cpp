@@ -987,9 +987,6 @@ int main(int argc, char *argv[])
                             status & STATUS_UNDERRUN ? "U" : " ",
                             status & STATUS_OVERRUN ? "O" : " ");
                 }
-
-                peak_right = 0;
-                peak_left = 0;
             }
             else {
                 if (status & STATUS_OVERRUN) {
@@ -1001,6 +998,9 @@ int main(int argc, char *argv[])
                 }
 
             }
+
+            peak_right = 0;
+            peak_left = 0;
 
             status = 0;
         }
