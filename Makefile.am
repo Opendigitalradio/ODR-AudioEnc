@@ -18,13 +18,13 @@ AM_CPPFLAGS = \
     -I$(top_srcdir)/libFDK/include \
     -I$(top_srcdir)/libPCMutils/include
 
-libfdk_aac_la_LINK = $(LINK) $(libfdk_aac_la_LDFLAGS)
+libfdk_dabplus_la_LINK = $(LINK) $(libfdk_dabplus_la_LDFLAGS)
 libtoolame_dab_la_LINK = $(LINK) $(libtoolame_dab_la_LDFLAGS)
 # Mention a dummy pure C file to trigger generation of the $(LINK) variable
-nodist_EXTRA_libfdk_aac_la_SOURCES = dummy.c
+nodist_EXTRA_libfdk_dabplus_la_SOURCES = dummy.c
 
-fdk_aacincludedir = $(includedir)/fdk-aac
-fdk_aacinclude_HEADERS = \
+fdk_dabplusincludedir = $(includedir)/fdk-dabplus
+fdk_dabplusinclude_HEADERS = \
     $(top_srcdir)/libSYS/include/machine_type.h \
     $(top_srcdir)/libSYS/include/genericStds.h \
     $(top_srcdir)/libSYS/include/FDK_audio.h \
@@ -69,20 +69,20 @@ toolame_dabinclude_HEADERS = \
 	$(top_srcdir)/libtoolame-dab/vlc_input.h
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = fdk-aac-dabplus.pc
+pkgconfig_DATA = fdk-dabplus.pc
 
-lib_LTLIBRARIES = libfdk-aac.la libtoolame-dab.la
+lib_LTLIBRARIES = libfdk-dabplus.la libtoolame-dab.la
 
 libtoolame_dab_la_CXXFLAGS = -fomit-frame-pointer
 libtoolame_dab_la_LDFLAGS = -version-info @LIBTOOLAME_DAB_VERSION@ \
 							-no-undefined \
 							-export-symbols $(top_srcdir)/libtoolame-dab.sym
 
-libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti -Wno-narrowing
-libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
-						-export-symbols $(top_srcdir)/fdk-aac.sym
+libfdk_dabplus_la_CXXFLAGS = -fno-exceptions -fno-rtti -Wno-narrowing
+libfdk_dabplus_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
+						-export-symbols $(top_srcdir)/fdk-dabplus.sym
 
-#aac_enc_LDADD   = libfdk-aac.la
+#aac_enc_LDADD   = libfdk-dabplus.la
 #aac_enc_SOURCES = src/aac-enc.c \
 #				  src/wavreader.c
 
@@ -94,7 +94,7 @@ endif
 
 
 dabplus_enc_LDFLAGS     = -no-install
-dabplus_enc_LDADD       = libfdk-aac.la libtoolame-dab.la \
+dabplus_enc_LDADD       = libfdk-dabplus.la libtoolame-dab.la \
 						  -lfec -lzmq -lasound \
 						  -lrt $(dabplus_enc_LDADD_JACK) \
 						  $(LIBVLC_LIBS)
@@ -268,7 +268,7 @@ SYS_SRC = \
     libSYS/src/genericStds.cpp \
     libSYS/src/wav_file.cpp
 
-libfdk_aac_la_SOURCES = \
+libfdk_dabplus_la_SOURCES = \
     $(AACDEC_SRC) $(AACENC_SRC) \
     $(MPEGTPDEC_SRC) $(MPEGTPENC_SRC) \
     $(SBRDEC_SRC) $(SBRENC_SRC) \
@@ -307,7 +307,7 @@ EXTRA_DIST = \
     $(top_srcdir)/NOTICE \
     $(top_srcdir)/README.md \
     $(top_srcdir)/Android.mk \
-    $(top_srcdir)/fdk-aac.sym \
+    $(top_srcdir)/fdk-dabplus.sym \
     $(top_srcdir)/documentation/*.pdf \
     $(top_srcdir)/libAACdec/src/*.h \
     $(top_srcdir)/libAACdec/src/arm/*.cpp \
