@@ -19,6 +19,7 @@ AM_CPPFLAGS = \
     -I$(top_srcdir)/libPCMutils/include
 
 libfdk_aac_la_LINK = $(LINK) $(libfdk_aac_la_LDFLAGS)
+libtoolame_dab_la_LINK = $(LINK) $(libtoolame_dab_la_LDFLAGS)
 # Mention a dummy pure C file to trigger generation of the $(LINK) variable
 nodist_EXTRA_libfdk_aac_la_SOURCES = dummy.c
 
@@ -30,14 +31,56 @@ fdk_aacinclude_HEADERS = \
     $(top_srcdir)/libAACenc/include/aacenc_lib.h \
     $(top_srcdir)/libAACdec/include/aacdecoder_lib.h
 
+toolame_dabincludedir = $(includedir)/libtoolame-dab
+toolame_dabinclude_HEADERS = \
+	$(top_srcdir)/libtoolame-dab/absthr.h \
+	$(top_srcdir)/libtoolame-dab/ath.h \
+	$(top_srcdir)/libtoolame-dab/audio_read.h \
+	$(top_srcdir)/libtoolame-dab/availbits.h \
+	$(top_srcdir)/libtoolame-dab/bitstream.h \
+	$(top_srcdir)/libtoolame-dab/common.h \
+	$(top_srcdir)/libtoolame-dab/crc.h \
+	$(top_srcdir)/libtoolame-dab/critband.h \
+	$(top_srcdir)/libtoolame-dab/encode.h \
+	$(top_srcdir)/libtoolame-dab/encode_new.h \
+	$(top_srcdir)/libtoolame-dab/encoder.h \
+	$(top_srcdir)/libtoolame-dab/enwindow.h \
+	$(top_srcdir)/libtoolame-dab/fft.h \
+	$(top_srcdir)/libtoolame-dab/freqtable.h \
+	$(top_srcdir)/libtoolame-dab/ieeefloat.h \
+	$(top_srcdir)/libtoolame-dab/mem.h \
+	$(top_srcdir)/libtoolame-dab/musicin.h \
+	$(top_srcdir)/libtoolame-dab/options.h \
+	$(top_srcdir)/libtoolame-dab/portableio.h \
+	$(top_srcdir)/libtoolame-dab/psycho_0.h \
+	$(top_srcdir)/libtoolame-dab/psycho_1.h \
+	$(top_srcdir)/libtoolame-dab/psycho_1_priv.h \
+	$(top_srcdir)/libtoolame-dab/psycho_2.h \
+	$(top_srcdir)/libtoolame-dab/psycho_3.h \
+	$(top_srcdir)/libtoolame-dab/psycho_3priv.h \
+	$(top_srcdir)/libtoolame-dab/psycho_4.h \
+	$(top_srcdir)/libtoolame-dab/psycho_n1.h \
+	$(top_srcdir)/libtoolame-dab/subband.h \
+	$(top_srcdir)/libtoolame-dab/tables.h \
+	$(top_srcdir)/libtoolame-dab/toolame.h \
+	$(top_srcdir)/libtoolame-dab/utils.h \
+	$(top_srcdir)/libtoolame-dab/xpad.h \
+	$(top_srcdir)/libtoolame-dab/zmqoutput.h \
+	$(top_srcdir)/libtoolame-dab/vlc_input.h
+
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = fdk-aac-dabplus.pc
 
-lib_LTLIBRARIES = libfdk-aac.la
+lib_LTLIBRARIES = libfdk-aac.la libtoolame-dab.la
+
+libtoolame_dab_la_CXXFLAGS = -fomit-frame-pointer
+libtoolame_dab_la_LDFLAGS = -version-info @LIBTOOLAME_DAB_VERSION@ \
+							-no-undefined \
+							-export-symbols $(top_srcdir)/libtoolame-dab.sym
 
 libfdk_aac_la_CXXFLAGS = -fno-exceptions -fno-rtti -Wno-narrowing
 libfdk_aac_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
-    -export-symbols $(top_srcdir)/fdk-aac.sym
+						-export-symbols $(top_srcdir)/fdk-aac.sym
 
 #aac_enc_LDADD   = libfdk-aac.la
 #aac_enc_SOURCES = src/aac-enc.c \
@@ -51,7 +94,8 @@ endif
 
 
 dabplus_enc_LDFLAGS     = -no-install
-dabplus_enc_LDADD       = libfdk-aac.la -lfec -lzmq -lasound \
+dabplus_enc_LDADD       = libfdk-aac.la libtoolame-dab.la \
+						  -lfec -lzmq -lasound \
 						  -lrt $(dabplus_enc_LDADD_JACK) \
 						  $(LIBVLC_LIBS)
 dabplus_enc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
@@ -229,6 +273,34 @@ libfdk_aac_la_SOURCES = \
     $(MPEGTPDEC_SRC) $(MPEGTPENC_SRC) \
     $(SBRDEC_SRC) $(SBRENC_SRC) \
     $(PCMUTILS_SRC) $(FDK_SRC) $(SYS_SRC)
+
+libtoolame_dab_la_SOURCES = \
+							libtoolame-dab/common.c \
+							libtoolame-dab/encode.c \
+							libtoolame-dab/ieeefloat.c \
+							libtoolame-dab/toolame.c \
+							libtoolame-dab/portableio.c \
+							libtoolame-dab/psycho_n1.c \
+							libtoolame-dab/psycho_0.c \
+							libtoolame-dab/psycho_1.c \
+							libtoolame-dab/psycho_2.c \
+							libtoolame-dab/psycho_3.c \
+							libtoolame-dab/psycho_4.c \
+							libtoolame-dab/fft.c \
+							libtoolame-dab/subband.c \
+							libtoolame-dab/audio_read.c \
+							libtoolame-dab/bitstream.c \
+							libtoolame-dab/mem.c \
+							libtoolame-dab/crc.c \
+							libtoolame-dab/tables.c \
+							libtoolame-dab/availbits.c \
+							libtoolame-dab/ath.c \
+							libtoolame-dab/encode_new.c \
+							libtoolame-dab/zmqoutput.c \
+							libtoolame-dab/utils.c \
+							libtoolame-dab/xpad.c \
+							libtoolame-dab/vlc_input.c
+
 
 EXTRA_DIST = \
     $(top_srcdir)/bootstrap \
