@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "zmqoutput.h"
 #include "common.h"
 #include "mem.h"
 #include "bitstream.h"
@@ -112,10 +111,6 @@ void empty_buffer (Bit_stream_struc * bs, int minimum)
 
         fflush (bs->pt);		/* NEW SS to assist in debugging */
     }
-    else if (bs->zmq_sock) {
-        for (i = bs->buf_size - 1; i >= minimum; i--)
-            zmqoutput_write_byte(bs, bs->buf[i]);
-    }
 
     for (i = minimum - 1; i >= 0; i--)
         bs->buf[bs->buf_size - minimum + i] = bs->buf[i];
@@ -129,8 +124,6 @@ void empty_buffer (Bit_stream_struc * bs, int minimum)
 /* open the device to write the bit stream into it */
 void open_bit_stream_w (Bit_stream_struc * bs, int size)
 {
-    bs->zmq_sock = NULL;
-
     bs->pt = NULL; // we're not using file output
     alloc_buffer (bs, size);
     bs->buf_byte_idx = size - 1;
@@ -147,7 +140,6 @@ void close_bit_stream_w (Bit_stream_struc * bs)
     putbits (bs, 0, 7);
     empty_buffer (bs, bs->buf_byte_idx + 1);
     if (bs->pt) fclose(bs->pt);
-    zmqoutput_close(bs);
     desalloc_buffer (bs);
 }
 

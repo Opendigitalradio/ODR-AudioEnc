@@ -35,7 +35,6 @@ toolame_dabincludedir = $(includedir)/libtoolame-dab
 toolame_dabinclude_HEADERS = \
 	$(top_srcdir)/libtoolame-dab/absthr.h \
 	$(top_srcdir)/libtoolame-dab/ath.h \
-	$(top_srcdir)/libtoolame-dab/audio_read.h \
 	$(top_srcdir)/libtoolame-dab/availbits.h \
 	$(top_srcdir)/libtoolame-dab/bitstream.h \
 	$(top_srcdir)/libtoolame-dab/common.h \
@@ -63,10 +62,7 @@ toolame_dabinclude_HEADERS = \
 	$(top_srcdir)/libtoolame-dab/subband.h \
 	$(top_srcdir)/libtoolame-dab/tables.h \
 	$(top_srcdir)/libtoolame-dab/toolame.h \
-	$(top_srcdir)/libtoolame-dab/utils.h \
-	$(top_srcdir)/libtoolame-dab/xpad.h \
-	$(top_srcdir)/libtoolame-dab/zmqoutput.h \
-	$(top_srcdir)/libtoolame-dab/vlc_input.h
+	$(top_srcdir)/libtoolame-dab/utils.h
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = fdk-dabplus.pc
@@ -288,7 +284,6 @@ libtoolame_dab_la_SOURCES = \
 							libtoolame-dab/psycho_4.c \
 							libtoolame-dab/fft.c \
 							libtoolame-dab/subband.c \
-							libtoolame-dab/audio_read.c \
 							libtoolame-dab/bitstream.c \
 							libtoolame-dab/mem.c \
 							libtoolame-dab/crc.c \
@@ -296,10 +291,7 @@ libtoolame_dab_la_SOURCES = \
 							libtoolame-dab/availbits.c \
 							libtoolame-dab/ath.c \
 							libtoolame-dab/encode_new.c \
-							libtoolame-dab/zmqoutput.c \
-							libtoolame-dab/utils.c \
-							libtoolame-dab/xpad.c \
-							libtoolame-dab/vlc_input.c
+							libtoolame-dab/utils.c
 
 
 EXTRA_DIST = \
