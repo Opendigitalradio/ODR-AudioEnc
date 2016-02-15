@@ -127,23 +127,11 @@ void empty_buffer (Bit_stream_struc * bs, int minimum)
 
 
 /* open the device to write the bit stream into it */
-void open_bit_stream_w (Bit_stream_struc * bs, char *bs_filenam, int size)
+void open_bit_stream_w (Bit_stream_struc * bs, int size)
 {
     bs->zmq_sock = NULL;
 
-    if (bs_filenam[0] == '-')
-        bs->pt = stdout;
-    else if (strncmp(bs_filenam, "tcp://", 4) == 0) {
-        if (zmqoutput_open(bs, bs_filenam) != 0) {
-            fprintf(stderr, "Could not initialise ZMQ\n");
-            exit(1);
-        }
-        bs->pt = NULL; // we're not using file output
-    }
-    else if ((bs->pt = fopen (bs_filenam, "wb")) == NULL) {
-        fprintf (stderr, "Could not create \"%s\".\n", bs_filenam);
-        exit (1);
-    }
+    bs->pt = NULL; // we're not using file output
     alloc_buffer (bs, size);
     bs->buf_byte_idx = size - 1;
     bs->buf_bit_idx = 8;

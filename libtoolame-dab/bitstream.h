@@ -1,6 +1,6 @@
 int refill_buffer (Bit_stream_struc *);
 void empty_buffer (Bit_stream_struc *, int);
-void open_bit_stream_w (Bit_stream_struc *, char *, int);
+void open_bit_stream_w (Bit_stream_struc *, int);
 void close_bit_stream_w (Bit_stream_struc *);
 void alloc_buffer (Bit_stream_struc *, int);
 void desalloc_buffer (Bit_stream_struc *);

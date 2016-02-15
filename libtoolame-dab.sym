@@ -1,1 +1,8 @@
+toolame_init
+toolame_enable_downmix_stereo
+toolame_enable_byteswap
+toolame_set_channel_mode
+toolame_set_psy_model
+toolame_set_bitrate
+toolame_set_pad
 toolame_encode_frame
