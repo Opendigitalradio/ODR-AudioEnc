@@ -351,7 +351,8 @@ int toolame_encode_frame(
             for (int sb = 0; sb < SBLIMIT; sb++)
                 smr[ch][sb] = smrdef[ch][sb];
         }
-    } else {
+    }
+    else {
         /* calculate the psymodel */
         switch (model) {
             case -1:
@@ -446,19 +447,17 @@ int toolame_encode_frame(
                 exit (0);
         }
 
-        if (glopts.quickmode == TRUE)
+        if (glopts.quickmode == TRUE) {
             /* copy the smr values and reuse them later */
             for (int ch = 0; ch < nch; ch++) {
                 for (int sb = 0; sb < SBLIMIT; sb++)
                     smrdef[ch][sb] = smr[ch][sb];
             }
+        }
 
-        if (glopts.verbosity > 4)
+        if (glopts.verbosity > 4) {
             smr_dump(smr, nch);
-
-
-
-
+        }
     }
 
 #ifdef NEWENCODE
@@ -466,13 +465,15 @@ int toolame_encode_frame(
     main_bit_allocation_new (smr, scfsi, bit_alloc, &adb, &frame, &glopts);
     //main_bit_allocation (smr, scfsi, bit_alloc, &adb, &frame, &glopts);
 
-    if (error_protection)
+    if (error_protection) {
         CRC_calc (&frame, bit_alloc, scfsi, &crc);
+    }
 
     write_header (&frame, &bs);
     //encode_info (&frame, &bs);
-    if (error_protection)
+    if (error_protection) {
         putbits (&bs, crc, 16);
+    }
     write_bit_alloc (bit_alloc, &frame, &bs);
     //encode_bit_alloc (bit_alloc, &frame, &bs);
     write_scalefactors(bit_alloc, scfsi, scalar, &frame, &bs);
@@ -486,11 +487,13 @@ int toolame_encode_frame(
 #else
     transmission_pattern (scalar, scfsi, &frame);
     main_bit_allocation (smr, scfsi, bit_alloc, &adb, &frame, &glopts);
-    if (error_protection)
+    if (error_protection) {
         CRC_calc (&frame, bit_alloc, scfsi, &crc);
+    }
     encode_info (&frame, &bs);
-    if (error_protection)
+    if (error_protection) {
         encode_CRC (crc, &bs);
+    }
     encode_bit_alloc (bit_alloc, &frame, &bs);
     encode_scale (bit_alloc, scfsi, scalar, &frame, &bs);
     subband_quantization (scalar, *sb_sample, j_scale, *j_sample, bit_alloc,
@@ -538,16 +541,19 @@ int toolame_encode_frame(
     return bs.output_buffer_written;
 }
 
-void smr_dump(double smr[2][SBLIMIT], int nch) {
-    int ch, sb;
+// Dump function for psy model comparison
+void smr_dump(double smr[2][SBLIMIT], int nch)
+{
+    fprintf(stdout, "SMR:");
 
-    fprintf(stdout,"SMR:");
-    for (ch = 0;ch<nch; ch++) {
-        if (ch==1)
-            fprintf(stdout,"    ");
-        for (sb=0;sb<SBLIMIT;sb++)
-            fprintf(stdout,"%3.0f ",smr[ch][sb]);
-        fprintf(stdout,"\n");
+    for (int ch = 0; ch < nch; ch++) {
+        if (ch==1) {
+            fprintf(stdout, "    ");
+        }
+        for (int sb = 0; sb < SBLIMIT; sb++) {
+            fprintf(stdout, "%3.0f ", smr[ch][sb]);
+        }
+        fprintf(stdout, "\n");
     }
 }
 

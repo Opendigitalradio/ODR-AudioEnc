@@ -9,8 +9,10 @@
  *
  *  bit_stream.c package
  *  Author:  Jean-Georges Fritsch, C-Cube Microsystems
+ *           Matthias P. Braendli, www.opendigitalradio.org
  *  Changes
  *       Apr 2000 - removed all the file input routines. MFC
+ *       Feb 2016 - removed all sort of things to make Toolame a library. mpb
  *****************************************************************************/
 
 /********************************************************************
@@ -26,17 +28,9 @@
 /*close_bit_stream();  close the device containing the bit stream         */
 /*alloc_buffer();      open and initialize the buffer;                    */
 /*desalloc_buffer();   empty and close the buffer                         */
-/*back_track_buffer();     goes back N bits in the buffer                 */
 /*put1bit(); write 1 bit from the bit stream  */
 /*put1bit(); write 1 bit from the bit stream  */
 /*putbits(); write N bits from the bit stream */
-/*byte_ali_putbits(); write byte aligned the next N bits into the bit stream*/
-/*unsigned long sstell(); return the current bit stream length (in bits)    */
-/*int end_bs(); return 1 if the end of bit stream reached otherwise 0       */
-/*int seek_sync(); return 1 if a sync word was found in the bit stream      */
-/*                 otherwise returns 0                                      */
-
-/* refill the buffer from the input device when the buffer becomes empty    */
 
 /* You must have one frame in memory if you are in DAB mode                 */
 /* in conformity of the norme ETS 300 401 http://www.etsi.org               */
@@ -47,9 +41,13 @@ int minimum = MINIMUM;
 void empty_buffer (Bit_stream_struc * bs, int minimum)
 {
     int j = 0;
+    if (bs->output_buffer_written != 0) {
+        fprintf(stderr, "ERROR: libtoolame output buffer was not emptied\n");
+    }
+
     for (int i = bs->buf_size - 1; i >= minimum; i--) {
         if (j >= bs->output_buffer_size) {
-            fprintf(stderr, "Warning: libtoolame output buffer too small (%d vs %d)!\n",
+            fprintf(stderr, "ERROR: libtoolame output buffer too small (%d vs %d)!\n",
                     bs->output_buffer_size, bs->buf_size - minimum);
             break;
         }
@@ -102,29 +100,7 @@ void desalloc_buffer (Bit_stream_struc * bs)
     free (bs->buf);
 }
 
-int putmask[9] = { 0x0, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
-int clearmask[9] = { 0xff, 0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x0 };
-
-void back_track_buffer (Bit_stream_struc * bs, int N)
-    /* goes back N bits in the buffer */
-{
-    int tmp = N - (N / 8) * 8;
-    register int i;
-
-    bs->totbit -= N;
-    for (i = bs->buf_byte_idx; i < bs->buf_byte_idx + N / 8 - 1; i++)
-        bs->buf[i] = 0;
-    bs->buf_byte_idx += N / 8;
-    if ((tmp + bs->buf_bit_idx) <= 8) {
-        bs->buf_bit_idx += tmp;
-    } else {
-        bs->buf_byte_idx++;
-        bs->buf_bit_idx += (tmp - 8);
-    }
-    bs->buf[bs->buf_byte_idx] &= clearmask[bs->buf_bit_idx];
-}
-
-int mask[8] = { 0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80 };
+const int putmask[9] = { 0x0, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
 
 /*write 1 bit from the bit stream */
 void put1bit (Bit_stream_struc * bs, int bit)
@@ -168,61 +144,3 @@ void putbits (Bit_stream_struc * bs, unsigned int val, int N)
     }
 }
 
-/*write N bits byte aligned into the bit stream */
-void byte_ali_putbits (Bit_stream_struc * bs, unsigned int val, int N)
-{
-    unsigned long aligning;
-
-    if (N > MAX_LENGTH)
-        fprintf (stderr, "Cannot read or write more than %d bits at a time.\n",
-                MAX_LENGTH);
-    aligning = sstell (bs) % 8;
-    if (aligning)
-        putbits (bs, (unsigned int) 0, (int) (8 - aligning));
-
-    putbits (bs, val, N);
-}
-
-/*return the current bit stream length (in bits)*/
-unsigned long sstell (Bit_stream_struc * bs)
-{
-    return (bs->totbit);
-}
-
-/*return the status of the bit stream*/
-/* returns 1 if end of bit stream was reached */
-/* returns 0 if end of bit stream was not reached */
-int end_bs (Bit_stream_struc * bs)
-{
-    return (bs->eobs);
-}
-
-/*****************************************************************************
- *
- *  End of bit_stream.c package
- *
- *****************************************************************************/
-
-#define BUFSIZE 4096
-static unsigned long offset, totbit = 0;
-static unsigned int buf[BUFSIZE];
-
-/*return the current bit stream length (in bits)*/
-unsigned long hsstell ()
-{
-    return (totbit);
-}
-
-/* int putmask[9]={0x0, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff}; */
-//extern int putmask[9]; MFC Feb 2003 Redundant redeclaration
-
-/*write N bits into the bit stream */
-void hputbuf (unsigned int val, int N)
-{
-    if (N != 8) {
-        fprintf (stderr, "Not Supported yet!!\n");
-        exit (-3);
-    }
-    buf[offset % BUFSIZE] = val;
-    offset++;
-}
