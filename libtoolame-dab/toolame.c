@@ -154,6 +154,19 @@ int toolame_init(void)
     return 0;
 }
 
+int toolame_finish(
+        unsigned char *output_buffer,
+        size_t output_buffer_size)
+{
+    bs.output_buffer = output_buffer;
+    bs.output_buffer_size = output_buffer_size;
+    bs.output_buffer_written = 0;
+
+    close_bit_stream_w(&bs);
+
+    return bs.output_buffer_written;
+}
+
 int toolame_enable_downmix_stereo(void)
 {
     glopts.downmix = TRUE;
@@ -233,6 +246,17 @@ int toolame_set_bitrate(int brate)
     return err;
 }
 
+int toolame_set_samplerate(long sample_rate)
+{
+    int s_freq = SmpFrqIndex(sample_rate, &header.version);
+    if (s_freq < 0) {
+        return s_freq;
+    }
+
+    header.sampling_frequency = s_freq;
+    return 0;
+}
+
 int toolame_set_pad(int pad_len)
 {
     header.dab_length = pad_len;
@@ -247,13 +271,20 @@ int toolame_set_pad(int pad_len)
 int toolame_encode_frame(
         short buffer[2][1152],
         unsigned char *xpad_data,
-        unsigned char *output_buffer)
+        unsigned char *output_buffer,
+        size_t output_buffer_size)
 {
     extern int minimum;
     const int nch = frame.nch;
     const int error_protection = header.error_protection;
 
+    bs.output_buffer = output_buffer;
+    bs.output_buffer_size = output_buffer_size;
+    bs.output_buffer_written = 0;
+
+#ifdef REFERENCECODE
     short *win_buf[2] = {&buffer[0][0], &buffer[1][0]};
+#endif
 
     int adb = available_bits (&header, &glopts);
     int lg_frame = adb / 8;
@@ -503,6 +534,8 @@ int toolame_encode_frame(
     else {
         putbits (&bs, 0, 16); // FPAD is all-zero
     }
+
+    return bs.output_buffer_written;
 }
 
 void smr_dump(double smr[2][SBLIMIT], int nch) {

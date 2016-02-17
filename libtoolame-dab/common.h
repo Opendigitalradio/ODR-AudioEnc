@@ -142,9 +142,10 @@ frame_info;
 
 typedef struct bit_stream_struc
 {
-  FILE *pt;			/* pointer to bit stream device */
-  void *zmq_sock;   /* zmq socket */
-  int zmq_framesize; /* zmq frame size */
+  unsigned char *output_buffer;		/* output buffer */
+  int            output_buffer_size;
+  int            output_buffer_written;
+
   unsigned char *buf;		/* bit stream buffer */
   int buf_size;			/* size of buffer (in number of bytes) */
   long totbit;			/* bit counter of bit stream */

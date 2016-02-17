@@ -117,11 +117,17 @@ void usage(const char* name) {
     "   Drift compensation\n"
     "     -D, --drift-comp                     Enable ALSA/VLC sound card drift compensation.\n"
     "   Encoder parameters:\n"
-    "     -a, --dab                            Encode in DAB and not in DAB+.\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
-    "     -A, --no-afterburner                 Disable AAC encoder quality increaser.\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
     "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
+    "   DAB specific options\n"
+    "     -a, --dab                            Encode in DAB and not in DAB+.\n"
+    "         --dabmode=MODE                   Channel mode: s/d/j/m\n"
+    "                                          (default: j if stereo, m if mono).\n",
+    "         --dabpsy=PSY                     Psychoacoustic model 0/1/2/3\n"
+    "                                          (default: 1).\n",
+    "   DAB+ specific options\n"
+    "     -A, --no-afterburner                 Disable AAC encoder quality increaser.\n"
     "         --aaclc                          Force the usage of AAC-LC (no SBR, no PS)\n"
     "         --sbr                            Force the usage of SBR\n"
     "         --ps                             Force the usage of PS\n"
@@ -248,7 +254,7 @@ int prepare_aac_encoder(
 
 int main(int argc, char *argv[])
 {
-    int bitrate = 64; //64kbps subchannel
+    int bitrate = 0; // 0 is default
     int ch=0;
 
     encoder_selection_t selected_encoder = encoder_selection_t::fdk_dabplus;
@@ -281,6 +287,9 @@ int main(int argc, char *argv[])
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
+
+    char dab_channel_mode = '\0';
+    int  dab_psy_model = 1;
 
     /* Keep track of peaks */
     int peak_left  = 0;
@@ -325,6 +334,8 @@ int main(int argc, char *argv[])
         {"write-icy-text", required_argument,  0, 'w'},
         {"aaclc",          no_argument,        0,  0 },
         {"dab",            no_argument,        0, 'a'},
+        {"dabmode",        no_argument,        0,  4 },
+        {"dabpsy",         no_argument,        0,  5 },
         {"drift-comp",     no_argument,        0, 'D'},
         {"fifo-silence",   no_argument,        0,  3 },
         {"help",           no_argument,        0, 'h'},
@@ -368,7 +379,11 @@ int main(int argc, char *argv[])
             aot = AOT_DABPLUS_PS;
             break;
         case 3: // FIFO SILENCE
-            inFifoSilence = true;
+        case 4: // DAB channel mode
+            dab_channel_mode = optarg[0];
+            break;
+        case 5: // DAB psy model
+            dab_psy_model = atoi(optarg);
             break;
         case 'a':
             selected_encoder = encoder_selection_t::toolame_dab;
@@ -475,6 +490,10 @@ int main(int argc, char *argv[])
     }
 
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
+        if (bitrate == 0) {
+            bitrate = 64;
+        }
+
         int subchannel_index = bitrate / 8;
 
         if (subchannel_index < 1 || subchannel_index > 24) {
@@ -489,6 +508,10 @@ int main(int argc, char *argv[])
         }
     }
     else if (selected_encoder == encoder_selection_t::toolame_dab) {
+        if (bitrate == 0) {
+            bitrate = 192;
+        }
+
         if ( ! (sample_rate == 24000 || sample_rate == 48000)) {
             fprintf(stderr, "Invalid sample rate. Possible values are: 24000, 48000.\n");
             return 1;
@@ -603,7 +626,28 @@ int main(int argc, char *argv[])
         int err = toolame_init();
 
         if (err == 0) {
-            toolame_set_bitrate(bitrate);
+            err = toolame_set_samplerate(sample_rate);
+        }
+
+        if (err == 0) {
+            err = toolame_set_bitrate(bitrate);
+        }
+
+        if (dab_channel_mode == '\0') {
+            if (channels == 2) {
+                dab_channel_mode = 'j'; // Default to joint-stereo
+            }
+            else if (channels == 1) {
+                dab_channel_mode = 'm'; // Default to mono
+            }
+            else {
+                fprintf(stderr, "Unsupported channels number %d\n", channels);
+                return 1;
+            }
+        }
+
+        if (err == 0) {
+            err = toolame_set_channel_mode(dab_channel_mode);
         }
 
         if (err) {
@@ -613,7 +657,7 @@ int main(int argc, char *argv[])
 
         // TODO int toolame_set_pad(int pad_len);
 
-        input_buf.resize(2 * 1152);
+        input_buf.resize(2 * 1152 * BYTES_PER_SAMPLE);
     }
 
     /* We assume that we need to call the encoder
@@ -711,21 +755,22 @@ int main(int argc, char *argv[])
         outbuf_size = bitrate/8*120;
         outbuf.resize(24*120);
         zmqframebuf.resize(ZMQ_HEADER_SIZE + 24*120);
+
+        if(outbuf_size % 5 != 0) {
+            fprintf(stderr, "Warning: (outbuf_size mod 5) = %d\n", outbuf_size % 5);
+        }
     }
     else if (selected_encoder == encoder_selection_t::toolame_dab) {
-        outbuf_size = 3 * bitrate;
+        outbuf_size = 4092;
         outbuf.resize(outbuf_size);
         zmqframebuf.resize(ZMQ_HEADER_SIZE + outbuf_size);
+        fprintf(stderr, "Setting outbuf size to %zu\n", outbuf.size());
+
     }
 
     zmq_frame_header_t *zmq_frame_header = (zmq_frame_header_t*)&zmqframebuf[0];
 
-
     unsigned char pad_buf[padlen + 1];
-
-    if(outbuf_size % 5 != 0) {
-        fprintf(stderr, "(outbuf_size mod 5) = %d\n", outbuf_size % 5);
-    }
 
     fprintf(stderr, "Starting encoding\n");
 
@@ -735,15 +780,9 @@ int main(int argc, char *argv[])
     clock_gettime(CLOCK_MONOTONIC, &tp_next);
 
     int calls = 0; // for checking
-    while (1) {
-        int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
-        int out_identifier = OUT_BITSTREAM_DATA;
-
+    ssize_t read_bytes = 0;
+    do {
         AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
-        void *in_ptr[2], *out_ptr;
-        int in_size[2], in_elem_size[2];
-        int out_size, out_elem_size;
-
 
         // -------------- wait the right amount of time
         if (drift_compensation || jack_name) {
@@ -805,22 +844,21 @@ int main(int argc, char *argv[])
         memset(&outbuf[0], 0x00, outbuf_size);
         memset(&input_buf[0], 0x00, input_buf.size());
 
-        ssize_t read;
         if (infile) {
-            read = file_in.read(&input_buf[0], input_buf.size());
-            if (read < 0) {
+            read_bytes = file_in.read(&input_buf[0], input_buf.size());
+            if (read_bytes < 0) {
                 break;
             }
-            else if (read != input_buf.size()) {
+            else if (read_bytes != input_buf.size()) {
                 if (inFifoSilence && file_in.eof()) {
                     memset(&input_buf[0], 0, input_buf.size());
-                    read = input_buf.size();
+                    read_bytes = input_buf.size();
                     usleep((long)input_buf.size() * 1000000 /
                             (BYTES_PER_SAMPLE * channels * sample_rate));
                 }
                 else {
                     fprintf(stderr, "Short file read !\n");
-                    break;
+                    read_bytes = 0;
                 }
             }
         }
@@ -838,9 +876,9 @@ int main(int argc, char *argv[])
                 }
 
                 size_t overruns;
-                read = queue.pop(input_buf, input_buf.size(), &overruns); // returns bytes
+                read_bytes = queue.pop(input_buf, input_buf.size(), &overruns); // returns bytes
 
-                if (read != input_buf.size()) {
+                if (read_bytes != input_buf.size()) {
                     status |= STATUS_UNDERRUN;
                 }
 
@@ -851,12 +889,12 @@ int main(int argc, char *argv[])
             else {
                 vlc_in = &vlc_in_direct;
 
-                read = vlc_in_direct.read(input_buf, input_buf.size());
-                if (read < 0) {
+                read_bytes = vlc_in_direct.read(input_buf, input_buf.size());
+                if (read_bytes < 0) {
                     fprintf(stderr, "Detected fault in VLC input!\n");
                     break;
                 }
-                else if (read != input_buf.size()) {
+                else if (read_bytes != input_buf.size()) {
                     fprintf(stderr, "Short VLC read !\n");
                     break;
                 }
@@ -875,9 +913,9 @@ int main(int argc, char *argv[])
             }
 
             size_t overruns;
-            read = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+            read_bytes = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
 
-            if (read != input_buf.size()) {
+            if (read_bytes != input_buf.size()) {
                 status |= STATUS_UNDERRUN;
             }
 
@@ -886,16 +924,16 @@ int main(int argc, char *argv[])
             }
         }
         else {
-            read = alsa_in_direct.read(&input_buf[0], input_buf.size());
-            if (read < 0) {
+            read_bytes = alsa_in_direct.read(&input_buf[0], input_buf.size());
+            if (read_bytes < 0) {
                 break;
             }
-            else if (read != input_buf.size()) {
+            else if (read_bytes != input_buf.size()) {
                 fprintf(stderr, "Short alsa read !\n");
             }
         }
 
-        for (int i = 0; i < read; i+=4) {
+        for (int i = 0; i < read_bytes; i+=4) {
             int16_t l = input_buf[i] | (input_buf[i+1] << 8);
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
             peak_left  = MAX(peak_left,  l);
@@ -922,17 +960,24 @@ int main(int argc, char *argv[])
         }
 
         int numOutBytes = 0;
-        if (selected_encoder == encoder_selection_t::fdk_dabplus) {
+        if (read_bytes and
+                selected_encoder == encoder_selection_t::fdk_dabplus) {
             AACENC_InArgs in_args = { 0 };
             AACENC_OutArgs out_args = { 0 };
             // -------------- AAC Encoding
-
+            //
+            int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
+            int out_identifier = OUT_BITSTREAM_DATA;
             const int calculated_padlen = ret > 0 ? pad_buf[padlen] : 0;
             const int subchannel_index = bitrate / 8;
 
+            void *in_ptr[2], *out_ptr;
+            int in_size[2], in_elem_size[2];
+            int out_size, out_elem_size;
+
             in_ptr[0] = &input_buf[0];
             in_ptr[1] = pad_buf + (padlen - calculated_padlen); // offset due to unused PAD bytes
-            in_size[0] = read;
+            in_size[0] = read_bytes;
             in_size[1] = calculated_padlen;
             in_elem_size[0] = BYTES_PER_SAMPLE;
             in_elem_size[1] = sizeof(uint8_t);
@@ -975,20 +1020,27 @@ int main(int argc, char *argv[])
             short input_buffers[2][1152];
 
             if (channels == 1) {
-                memcpy(input_buffers[0], &input_buf[0], 1152);
+                memcpy(input_buffers[0], &input_buf[0], 1152 * BYTES_PER_SAMPLE);
             }
             else if (channels == 2) {
-                for (int ch = 0; ch < 2; ch++) {
-                    for (int i = 0; i < 1152; i++) {
-                        input_buffers[ch][i] = input_buf[2*i + ch];
-                    }
+                for (int i = 0; i < 1152; i++) {
+                    int16_t l = input_buf[4*i]   | (input_buf[4*i+1] << 8);
+                    int16_t r = input_buf[4*i+2] | (input_buf[4*i+3] << 8);
+
+                    input_buffers[0][i] = l;
+                    input_buffers[1][i] = r;
                 }
             }
             else {
                 fprintf(stderr, "INTERNAL ERROR! invalid number of channels\n");
             }
 
-            toolame_encode_frame(input_buffers, xpad_data, &outbuf[0]);
+            if (read_bytes) {
+                numOutBytes = toolame_encode_frame(input_buffers, xpad_data, &outbuf[0], outbuf.size());
+            }
+            else {
+                numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
+            }
         }
 
         /* Check if the encoder has generated output data */
@@ -1020,11 +1072,13 @@ int main(int argc, char *argv[])
                     assert(subchannel_index * col + row < outbuf_size);
                 }
             }
+
+            numOutBytes = outbuf_size;
         }
 
         if (numOutBytes != 0) {
             if (out_fh) {
-                fwrite(&outbuf[0], 1, outbuf_size, out_fh);
+                fwrite(&outbuf[0], 1, numOutBytes, out_fh);
             }
             else {
                 // ------------ ZeroMQ transmit
@@ -1036,14 +1090,14 @@ int main(int argc, char *argv[])
                     else if (selected_encoder == encoder_selection_t::toolame_dab) {
                         zmq_frame_header->encoder = ZMQ_ENCODER_TOOLAME;
                     }
-                    zmq_frame_header->datasize = outbuf_size;
+                    zmq_frame_header->datasize = numOutBytes;
                     zmq_frame_header->audiolevel_left = peak_left;
                     zmq_frame_header->audiolevel_right = peak_right;
 
                     assert(ZMQ_FRAME_SIZE(zmq_frame_header) <= zmqframebuf.size());
 
                     memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
-                            &outbuf[0], outbuf_size);
+                            &outbuf[0], numOutBytes);
 
                     zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
                             ZMQ_DONTWAIT);
@@ -1099,7 +1153,8 @@ int main(int argc, char *argv[])
         }
 
         fflush(stdout);
-    }
+    } while (read_bytes > 0);
+
     fprintf(stderr, "\n");
 
     if (out_fh) {
@@ -1109,7 +1164,9 @@ int main(int argc, char *argv[])
     zmq_sock.close();
     free_rs_char(rs_handler);
 
-    aacEncClose(&encoder);
+    if (selected_encoder == encoder_selection_t::fdk_dabplus) {
+        aacEncClose(&encoder);
+    }
 
     return retval;
 }

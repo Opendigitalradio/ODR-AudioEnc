@@ -42,89 +42,35 @@
 /* in conformity of the norme ETS 300 401 http://www.etsi.org               */
 /* see toollame.c                                                           */
 int minimum = MINIMUM;
-int refill_buffer (Bit_stream_struc * bs)
-{
-    register int i = bs->buf_size - 2 - bs->buf_byte_idx;
-    register unsigned long n = 1;
-    register int index = 0;
-    char val[2];
-
-    while ((i >= 0) && (!bs->eob)) {
-
-        if (bs->format == BINARY)
-            n = fread (&bs->buf[i--], sizeof (unsigned char), 1, bs->pt);
-
-        else {
-            while ((index < 2) && n) {
-                n = fread (&val[index], sizeof (char), 1, bs->pt);
-                switch (val[index]) {
-                    case 0x30:
-                    case 0x31:
-                    case 0x32:
-                    case 0x33:
-                    case 0x34:
-                    case 0x35:
-                    case 0x36:
-                    case 0x37:
-                    case 0x38:
-                    case 0x39:
-                    case 0x41:
-                    case 0x42:
-                    case 0x43:
-                    case 0x44:
-                    case 0x45:
-                    case 0x46:
-                        index++;
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            if (val[0] <= 0x39)
-                bs->buf[i] = (val[0] - 0x30) << 4;
-            else
-                bs->buf[i] = (val[0] - 0x37) << 4;
-            if (val[1] <= 0x39)
-                bs->buf[i--] |= (val[1] - 0x30);
-            else
-                bs->buf[i--] |= (val[1] - 0x37);
-            index = 0;
-        }
-
-        if (!n) {
-            bs->eob = i + 1;
-        }
-
-    }
-    return 0;
-}
 
 /* empty the buffer to the output device when the buffer becomes full */
 void empty_buffer (Bit_stream_struc * bs, int minimum)
 {
-    int i;
+    int j = 0;
+    for (int i = bs->buf_size - 1; i >= minimum; i--) {
+        if (j >= bs->output_buffer_size) {
+            fprintf(stderr, "Warning: libtoolame output buffer too small (%d vs %d)!\n",
+                    bs->output_buffer_size, bs->buf_size - minimum);
+            break;
+        }
 
-    if (bs->pt) {
-        for (i = bs->buf_size - 1; i >= minimum; i--)
-            fwrite (&bs->buf[i], sizeof (unsigned char), 1, bs->pt);
-
-        fflush (bs->pt);		/* NEW SS to assist in debugging */
+        bs->output_buffer[j] = bs->buf[i];
+        j++;
     }
+    bs->output_buffer_written = j;
 
-    for (i = minimum - 1; i >= 0; i--)
+    for (int i = minimum - 1; i >= 0; i--) {
         bs->buf[bs->buf_size - minimum + i] = bs->buf[i];
+    }
 
     bs->buf_byte_idx = bs->buf_size - 1 - minimum;
     bs->buf_bit_idx = 8;
-
 }
 
 
 /* open the device to write the bit stream into it */
 void open_bit_stream_w (Bit_stream_struc * bs, int size)
 {
-    bs->pt = NULL; // we're not using file output
     alloc_buffer (bs, size);
     bs->buf_byte_idx = size - 1;
     bs->buf_bit_idx = 8;
@@ -139,7 +85,6 @@ void close_bit_stream_w (Bit_stream_struc * bs)
 {
     putbits (bs, 0, 7);
     empty_buffer (bs, bs->buf_byte_idx + 1);
-    if (bs->pt) fclose(bs->pt);
     desalloc_buffer (bs);
 }
 
