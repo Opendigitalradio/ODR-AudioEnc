@@ -633,6 +633,10 @@ int main(int argc, char *argv[])
             err = toolame_set_bitrate(bitrate);
         }
 
+        if (err == 0) {
+            err = toolame_set_psy_model(dab_psy_model);
+        }
+
         if (dab_channel_mode == '\0') {
             if (channels == 2) {
                 dab_channel_mode = 'j'; // Default to joint-stereo
