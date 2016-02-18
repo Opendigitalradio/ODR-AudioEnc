@@ -268,6 +268,9 @@ int toolame_set_pad(int pad_len)
     return 0;
 }
 
+
+static int encode_first_call = 1;
+
 int toolame_encode_frame(
         short buffer[2][1152],
         unsigned char *xpad_data,
@@ -277,6 +280,11 @@ int toolame_encode_frame(
     extern int minimum;
     const int nch = frame.nch;
     const int error_protection = header.error_protection;
+
+    if (encode_first_call) {
+        hdr_to_frps(&frame);
+        encode_first_call = 0;
+    }
 
     bs.output_buffer = output_buffer;
     bs.output_buffer_size = output_buffer_size;
@@ -459,6 +467,10 @@ int toolame_encode_frame(
             smr_dump(smr, nch);
         }
     }
+
+    fprintf(stderr, "FRAME nch: %d sblimit %d\n",
+            frame.nch,
+            frame.sblimit);
 
 #ifdef NEWENCODE
     sf_transmission_pattern (scalar, scfsi, &frame);
