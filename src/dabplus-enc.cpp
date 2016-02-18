@@ -318,6 +318,8 @@ int main(int argc, char *argv[])
     const struct option longopts[] = {
         {"bitrate",        required_argument,  0, 'b'},
         {"channels",       required_argument,  0, 'c'},
+        {"dabmode",        required_argument,  0,  4 },
+        {"dabpsy",         required_argument,  0,  5 },
         {"device",         required_argument,  0, 'd'},
         {"format",         required_argument,  0, 'f'},
         {"input",          required_argument,  0, 'i'},
@@ -334,8 +336,6 @@ int main(int argc, char *argv[])
         {"write-icy-text", required_argument,  0, 'w'},
         {"aaclc",          no_argument,        0,  0 },
         {"dab",            no_argument,        0, 'a'},
-        {"dabmode",        no_argument,        0,  4 },
-        {"dabpsy",         no_argument,        0,  5 },
         {"drift-comp",     no_argument,        0, 'D'},
         {"fifo-silence",   no_argument,        0,  3 },
         {"help",           no_argument,        0, 'h'},
