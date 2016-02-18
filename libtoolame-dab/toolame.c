@@ -468,10 +468,6 @@ int toolame_encode_frame(
         }
     }
 
-    fprintf(stderr, "FRAME nch: %d sblimit %d\n",
-            frame.nch,
-            frame.sblimit);
-
 #ifdef NEWENCODE
     sf_transmission_pattern (scalar, scfsi, &frame);
     main_bit_allocation_new (smr, scfsi, bit_alloc, &adb, &frame, &glopts);
