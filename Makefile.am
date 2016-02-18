@@ -69,7 +69,7 @@ pkgconfig_DATA = fdk-dabplus.pc
 
 lib_LTLIBRARIES = libfdk-dabplus.la libtoolame-dab.la
 
-libtoolame_dab_la_CXXFLAGS = -fomit-frame-pointer -DNEWENCODE
+libtoolame_dab_la_CFLAGS  = -fomit-frame-pointer -DNEWENCODE
 libtoolame_dab_la_LDFLAGS = -version-info @LIBTOOLAME_DAB_VERSION@ \
 							-no-undefined \
 							-export-symbols $(top_srcdir)/libtoolame-dab.sym
