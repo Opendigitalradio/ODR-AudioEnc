@@ -109,9 +109,9 @@ int encode_init(frame_info *frame) {
   ws = frame->header->sampling_frequency;
   sfrq = s_freq[frame->header->version][ws];
   /* decision rules refer to per-channel bitrates (kbits/sec/chan) */
-  if (frame->header->version == MPEG_AUDIO_ID) {	/* MPEG-1 */
+  if (frame->header->version == MPEG_AUDIO_ID) {        /* MPEG-1 */
     if ((sfrq == 48 && br_per_ch >= 56)
-	|| (br_per_ch >= 56 && br_per_ch <= 80))
+        || (br_per_ch >= 56 && br_per_ch <= 80))
       tablenum = 0;
     else if (sfrq != 48 && br_per_ch >= 96)
       tablenum = 1;
@@ -119,7 +119,7 @@ int encode_init(frame_info *frame) {
       tablenum = 2;
     else
       tablenum = 3;
-  } else {			/* MPEG-2 LSF */
+  } else {                      /* MPEG-2 LSF */
     tablenum = 4;
   }
   fprintf(stdout,"encode_init: using tablenum %i with sblimit %i\n",tablenum, table_sblimit[tablenum]);
@@ -134,18 +134,18 @@ int encode_init(frame_info *frame) {
       fprintf(stdout,"Tablenum %i\n",tablenumber);
       fprintf(stdout,"sb nbal ");
       for (j=0;j<16;j++)
-	fprintf(stdout,"%6i ",j);
+        fprintf(stdout,"%6i ",j);
       fprintf(stdout,"\n");
       fprintf(stdout,"-----------------------------------------------------------------------------------------------------------------------\n");
       
       sblimit = table_sblimit[tablenumber];
       for (sb=0;sb<SBLIMIT;sb++) {
-	int thisline = line[tablenumber][sb];
-	fprintf(stdout,"%2i %4i ",sb,nbal[thisline]);
-	if (nbal[thisline] != 0)
-	  for (j=0; j<(1<<nbal[thisline]); j++)
-	    fprintf(stdout,"%6i ", steps[ step_index[thisline][j] ]);
-	fprintf(stdout,"\n");
+        int thisline = line[tablenumber][sb];
+        fprintf(stdout,"%2i %4i ",sb,nbal[thisline]);
+        if (nbal[thisline] != 0)
+          for (j=0; j<(1<<nbal[thisline]); j++)
+            fprintf(stdout,"%6i ", steps[ step_index[thisline][j] ]);
+        fprintf(stdout,"\n");
       }
       fprintf(stdout,"\n");
     }
@@ -177,8 +177,8 @@ int encode_init(frame_info *frame) {
 
 
 void scalefactor_calc_new (double sb_sample[][3][SCALE_BLOCK][SBLIMIT],
-			unsigned int sf_index[][3][SBLIMIT], int nch,
-			int sblimit)
+                        unsigned int sf_index[][3][SBLIMIT], int nch,
+                        int sblimit)
 {
   /* Optimized to use binary search instead of linear scan through the
      scalefactor table; guarantees to find scalefactor in only 5
@@ -193,38 +193,38 @@ void scalefactor_calc_new (double sb_sample[][3][SCALE_BLOCK][SBLIMIT],
     for (gr = 3; gr--;) {
       int sb;
       for (sb = sblimit; sb--;) {
-	int j;
-	unsigned int l;
-	register double temp;
-	unsigned int scale_fac;
-	/* Determination of max. over each set of 12 subband samples:  */
-	/* PDS TODO: maybe this could/should ??!! be integrated into   */
-	/* the subband filtering routines?                             */
-	register double cur_max = fabs (sb_sample[ch][gr][SCALE_BLOCK - 1][sb]);
-	for (j = SCALE_BLOCK - 1; j--;) {
-	  if ((temp = fabs (sb_sample[ch][gr][j][sb])) > cur_max)
-	    cur_max = temp;
-	}
-	/* PDS: binary search in the scalefactor table: */
-	/* This is the real speed up: */
-	for (l = 16, scale_fac = 32; l; l >>= 1) {
-	  if (cur_max <= scalefactor[scale_fac])
-	    scale_fac += l;
-	  else
-	    scale_fac -= l;
-	}
-	if (cur_max > scalefactor[scale_fac])
-	  scale_fac--;
-	sf_index[ch][gr][sb] = scale_fac;
-	/* There is a direct way of working out the index, if the 
-	   maximum value is known but since
-	   it involves a log it isn't really speedy.
-	   Items in the scalefactor[] table are calculated by:
-	     the n'th entry = 2 / (cuberoot(2) ^ n)
-	   And so using a bit of maths you get:
-	  index = (int)(log(2.0/cur_max) / LNCUBEROOTTWO);
-	  fprintf(stdout,"cur_max %.14lf scalefactorindex %i multiple %.14lf\n",cur_max, scale_fac, scalefactor[scale_fac]);
-	*/
+        int j;
+        unsigned int l;
+        register double temp;
+        unsigned int scale_fac;
+        /* Determination of max. over each set of 12 subband samples:  */
+        /* PDS TODO: maybe this could/should ??!! be integrated into   */
+        /* the subband filtering routines?                             */
+        register double cur_max = fabs (sb_sample[ch][gr][SCALE_BLOCK - 1][sb]);
+        for (j = SCALE_BLOCK - 1; j--;) {
+          if ((temp = fabs (sb_sample[ch][gr][j][sb])) > cur_max)
+            cur_max = temp;
+        }
+        /* PDS: binary search in the scalefactor table: */
+        /* This is the real speed up: */
+        for (l = 16, scale_fac = 32; l; l >>= 1) {
+          if (cur_max <= scalefactor[scale_fac])
+            scale_fac += l;
+          else
+            scale_fac -= l;
+        }
+        if (cur_max > scalefactor[scale_fac])
+          scale_fac--;
+        sf_index[ch][gr][sb] = scale_fac;
+        /* There is a direct way of working out the index, if the 
+           maximum value is known but since
+           it involves a log it isn't really speedy.
+           Items in the scalefactor[] table are calculated by:
+             the n'th entry = 2 / (cuberoot(2) ^ n)
+           And so using a bit of maths you get:
+          index = (int)(log(2.0/cur_max) / LNCUBEROOTTWO);
+          fprintf(stdout,"cur_max %.14lf scalefactorindex %i multiple %.14lf\n",cur_max, scale_fac, scalefactor[scale_fac]);
+        */
       }
     }
 }
@@ -235,14 +235,14 @@ double mod (double a)
 
 /* Combine L&R channels into a mono joint stereo channel */
 void combine_LR_new (double sb_sample[2][3][SCALE_BLOCK][SBLIMIT],
-		     double joint_sample[3][SCALE_BLOCK][SBLIMIT], int sblimit) {
+                     double joint_sample[3][SCALE_BLOCK][SBLIMIT], int sblimit) {
   int sb, sample, gr;
 
   for (sb = 0; sb < sblimit; ++sb)
     for (sample = 0; sample < SCALE_BLOCK; ++sample)
       for (gr = 0; gr < 3; ++gr)
-	joint_sample[gr][sample][sb] =
-	  .5 * (sb_sample[0][gr][sample][sb] + sb_sample[1][gr][sample][sb]);
+        joint_sample[gr][sample][sb] =
+          .5 * (sb_sample[0][gr][sample][sb] + sb_sample[1][gr][sample][sb]);
 }
 
 /* PURPOSE:For each subband, puts the smallest scalefactor of the 3
@@ -258,7 +258,7 @@ void combine_LR_new (double sb_sample[2][3][SCALE_BLOCK][SBLIMIT],
    MFC FIX: Feb 2003 - is this only needed for psy model 1?
 */
 void find_sf_max (unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
-		 double sf_max[2][SBLIMIT])
+                 double sf_max[2][SBLIMIT])
 {
   int sb, gr, ch;
   int lowest_sf_index;
@@ -268,8 +268,8 @@ void find_sf_max (unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
   for (ch = 0; ch < nch; ch++)
     for (sb = 0; sb < sblimit; sb++) {
       for (gr = 1, lowest_sf_index = sf_index[ch][0][sb]; gr < 3; gr++)
-	if (lowest_sf_index > sf_index[ch][gr][sb])
-	  lowest_sf_index = sf_index[ch][gr][sb];
+        if (lowest_sf_index > sf_index[ch][gr][sb])
+          lowest_sf_index = sf_index[ch][gr][sb];
       sf_max[ch][sb] = multiple[lowest_sf_index];
     }
   for (sb = sblimit; sb < SBLIMIT; sb++)
@@ -286,8 +286,8 @@ void find_sf_max (unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
     Table C.4 "LayerII Scalefactors Transmission Pattern"
 */
 void sf_transmission_pattern (unsigned int sf_index[2][3][SBLIMIT],
-			   unsigned int sf_selectinfo[2][SBLIMIT],
-			   frame_info * frame)
+                           unsigned int sf_selectinfo[2][SBLIMIT],
+                           frame_info * frame)
 {
   int nch = frame->nch;
   int sblimit = frame->sblimit;
@@ -305,50 +305,50 @@ void sf_transmission_pattern (unsigned int sf_index[2][3][SBLIMIT],
       dscf[0] = (sf_index[k][0][i] - sf_index[k][1][i]);
       dscf[1] = (sf_index[k][1][i] - sf_index[k][2][i]);
       for (j = 0; j < 2; j++) {
-	if (dscf[j] <= -3)
-	  class[j] = 0;
-	else if (dscf[j] > -3 && dscf[j] < 0)
-	  class[j] = 1;
-	else if (dscf[j] == 0)
-	  class[j] = 2;
-	else if (dscf[j] > 0 && dscf[j] < 3)
-	  class[j] = 3;
-	else
-	  class[j] = 4;
+        if (dscf[j] <= -3)
+          class[j] = 0;
+        else if (dscf[j] > -3 && dscf[j] < 0)
+          class[j] = 1;
+        else if (dscf[j] == 0)
+          class[j] = 2;
+        else if (dscf[j] > 0 && dscf[j] < 3)
+          class[j] = 3;
+        else
+          class[j] = 4;
       }
       switch (pattern[class[0]][class[1]]) {
       case 0x123:
-	sf_selectinfo[k][i] = 0;
-	break;
+        sf_selectinfo[k][i] = 0;
+        break;
       case 0x122:
-	sf_selectinfo[k][i] = 3;
-	sf_index[k][2][i] = sf_index[k][1][i];
-	break;
+        sf_selectinfo[k][i] = 3;
+        sf_index[k][2][i] = sf_index[k][1][i];
+        break;
       case 0x133:
-	sf_selectinfo[k][i] = 3;
-	sf_index[k][1][i] = sf_index[k][2][i];
-	break;
+        sf_selectinfo[k][i] = 3;
+        sf_index[k][1][i] = sf_index[k][2][i];
+        break;
       case 0x113:
-	sf_selectinfo[k][i] = 1;
-	sf_index[k][1][i] = sf_index[k][0][i];
-	break;
+        sf_selectinfo[k][i] = 1;
+        sf_index[k][1][i] = sf_index[k][0][i];
+        break;
       case 0x111:
-	sf_selectinfo[k][i] = 2;
-	sf_index[k][1][i] = sf_index[k][2][i] = sf_index[k][0][i];
-	break;
+        sf_selectinfo[k][i] = 2;
+        sf_index[k][1][i] = sf_index[k][2][i] = sf_index[k][0][i];
+        break;
       case 0x222:
-	sf_selectinfo[k][i] = 2;
-	sf_index[k][0][i] = sf_index[k][2][i] = sf_index[k][1][i];
-	break;
+        sf_selectinfo[k][i] = 2;
+        sf_index[k][0][i] = sf_index[k][2][i] = sf_index[k][1][i];
+        break;
       case 0x333:
-	sf_selectinfo[k][i] = 2;
-	sf_index[k][0][i] = sf_index[k][1][i] = sf_index[k][2][i];
-	break;
+        sf_selectinfo[k][i] = 2;
+        sf_index[k][0][i] = sf_index[k][1][i] = sf_index[k][2][i];
+        break;
       case 0x444:
-	sf_selectinfo[k][i] = 2;
-	if (sf_index[k][0][i] > sf_index[k][2][i])
-	  sf_index[k][0][i] = sf_index[k][2][i];
-	sf_index[k][1][i] = sf_index[k][2][i] = sf_index[k][0][i];
+        sf_selectinfo[k][i] = 2;
+        if (sf_index[k][0][i] > sf_index[k][2][i])
+          sf_index[k][0][i] = sf_index[k][2][i];
+        sf_index[k][1][i] = sf_index[k][2][i] = sf_index[k][0][i];
       }
     }
 }
@@ -357,14 +357,14 @@ void write_header (frame_info * frame, Bit_stream_struc * bs)
 {
   frame_header *header = frame->header;
 
-  putbits (bs, 0xfff, 12);	/* syncword 12 bits */
-  put1bit (bs, header->version);	/* ID        1 bit  */
-  putbits (bs, 4 - header->lay, 2);	/* layer     2 bits */
-  put1bit (bs, !header->error_protection);	/* bit set => no err prot */
+  putbits (bs, 0xfff, 12);      /* syncword 12 bits */
+  put1bit (bs, header->version);        /* ID        1 bit  */
+  putbits (bs, 4 - header->lay, 2);     /* layer     2 bits */
+  put1bit (bs, !header->error_protection);      /* bit set => no err prot */
   putbits (bs, header->bitrate_index, 4);
   putbits (bs, header->sampling_frequency, 2);
   put1bit (bs, header->padding);
-  put1bit (bs, header->extension);	/* private_bit */
+  put1bit (bs, header->extension);      /* private_bit */
   putbits (bs, header->mode, 2);
   putbits (bs, header->mode_ext, 2);
   put1bit (bs, header->copyright);
@@ -381,7 +381,7 @@ void write_header (frame_info * frame, Bit_stream_struc * bs)
 
 ************************************************************************/
 void write_bit_alloc (unsigned int bit_alloc[2][SBLIMIT],
-		       frame_info * frame, Bit_stream_struc * bs)
+                       frame_info * frame, Bit_stream_struc * bs)
 {
   int sb, ch;
   int nch = frame->nch;
@@ -391,7 +391,7 @@ void write_bit_alloc (unsigned int bit_alloc[2][SBLIMIT],
   for (sb = 0; sb < sblimit; sb++) {
     if (sb < jsbound) {
       for (ch = 0; ch < ((sb < jsbound) ? nch : 1); ch++)
-	putbits (bs, bit_alloc[ch][sb], nbal[ line[tablenum][sb] ]); // (*alloc)[sb][0].bits);
+        putbits (bs, bit_alloc[ch][sb], nbal[ line[tablenum][sb] ]); // (*alloc)[sb][0].bits);
     }
     else
       putbits (bs, bit_alloc[0][sb], nbal[ line[tablenum][sb] ]); //(*alloc)[sb][0].bits);
@@ -411,9 +411,9 @@ void write_bit_alloc (unsigned int bit_alloc[2][SBLIMIT],
 ************************************************************************/
 
 void write_scalefactors (unsigned int bit_alloc[2][SBLIMIT],
-	      unsigned int sf_selectinfo[2][SBLIMIT],
-	      unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
-	      Bit_stream_struc * bs)
+              unsigned int sf_selectinfo[2][SBLIMIT],
+              unsigned int sf_index[2][3][SBLIMIT], frame_info * frame,
+              Bit_stream_struc * bs)
 {
   int nch = frame->nch;
   int sblimit = frame->sblimit;
@@ -423,24 +423,24 @@ void write_scalefactors (unsigned int bit_alloc[2][SBLIMIT],
   for (sb = 0; sb < sblimit; sb++)
     for (ch = 0; ch < nch; ch++)
       if (bit_alloc[ch][sb])
-	putbits (bs, sf_selectinfo[ch][sb], 2);
+        putbits (bs, sf_selectinfo[ch][sb], 2);
 
   for (sb = 0; sb < sblimit; sb++)
     for (ch = 0; ch < nch; ch++)
-      if (bit_alloc[ch][sb])	/* above jsbound, bit_alloc[0][i] == ba[1][i] */
-	switch (sf_selectinfo[ch][sb]) {
-	case 0:
-	  for (gr = 0; gr < 3; gr++)
-	    putbits (bs, sf_index[ch][gr][sb], 6);
-	  break;
-	case 1:
-	case 3:
-	  putbits (bs, sf_index[ch][0][sb], 6);
-	  putbits (bs, sf_index[ch][2][sb], 6);
-	  break;
-	case 2:
-	  putbits (bs, sf_index[ch][0][sb], 6);
-	}
+      if (bit_alloc[ch][sb])    /* above jsbound, bit_alloc[0][i] == ba[1][i] */
+        switch (sf_selectinfo[ch][sb]) {
+        case 0:
+          for (gr = 0; gr < 3; gr++)
+            putbits (bs, sf_index[ch][gr][sb], 6);
+          break;
+        case 1:
+        case 3:
+          putbits (bs, sf_index[ch][0][sb], 6);
+          putbits (bs, sf_index[ch][2][sb], 6);
+          break;
+        case 2:
+          putbits (bs, sf_index[ch][0][sb], 6);
+        }
 }
 
 
@@ -478,12 +478,12 @@ static double b[18] = {
 ************************************************************************/
 void
 subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
-		      double sb_samples[2][3][SCALE_BLOCK][SBLIMIT],
-		      unsigned int j_scale[3][SBLIMIT],
-		      double j_samps[3][SCALE_BLOCK][SBLIMIT],
-		      unsigned int bit_alloc[2][SBLIMIT],
-		      unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
-		      frame_info * frame)
+                      double sb_samples[2][3][SCALE_BLOCK][SBLIMIT],
+                      unsigned int j_scale[3][SBLIMIT],
+                      double j_samps[3][SCALE_BLOCK][SBLIMIT],
+                      unsigned int bit_alloc[2][SBLIMIT],
+                      unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
+                      frame_info * frame)
 {
   int sb, j, ch, gr, qnt_coeff_index, sig;
   int nch = frame->nch;
@@ -493,57 +493,57 @@ subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
 
     for (gr = 0; gr < 3; gr++)
       for (j = 0; j < SCALE_BLOCK; j++)
-	for (sb = 0; sb < sblimit; sb++)
-	  for (ch = 0; ch < ((sb < jsbound) ? nch : 1); ch++)
+        for (sb = 0; sb < sblimit; sb++)
+          for (ch = 0; ch < ((sb < jsbound) ? nch : 1); ch++)
 
-	  if (bit_alloc[ch][sb]) {
-	    /* scale and quantize FLOATing point sample */
-	    if (nch == 2 && sb >= jsbound)	/* use j-stereo samples */
-	      d = j_samps[gr][j][sb] / scalefactor[j_scale[gr][sb]];
-	    else
-	      d = sb_samples[ch][gr][j][sb] / scalefactor[sf_index[ch][gr][sb]];
+          if (bit_alloc[ch][sb]) {
+            /* scale and quantize FLOATing point sample */
+            if (nch == 2 && sb >= jsbound)      /* use j-stereo samples */
+              d = j_samps[gr][j][sb] / scalefactor[j_scale[gr][sb]];
+            else
+              d = sb_samples[ch][gr][j][sb] / scalefactor[sf_index[ch][gr][sb]];
 
-	    /* Check that the wrong scale factor hasn't been chosen -
-	       which would result in a scaled sample being > 1.0 
-	       This error shouldn't ever happen *unless* something went wrong in 
-	       scalefactor calc
+            /* Check that the wrong scale factor hasn't been chosen -
+               which would result in a scaled sample being > 1.0 
+               This error shouldn't ever happen *unless* something went wrong in 
+               scalefactor calc
 
-	     if (mod (d) > 1.0)
-	       fprintf (stderr, "Not scaled properly %d %d %d %d\n", ch, gr, j,
-	      sb); 
-	    */
-	    
-	    {
-	      /* 'index' indicates which "step line" we are using */
-	      int index = line[tablenum][sb];
-	      
-	      /* Find the "step index" within that line */
-	      qnt_coeff_index = step_index[index][bit_alloc[ch][sb]];
-	    }
-	    d = d * a[qnt_coeff_index] + b[qnt_coeff_index];
+             if (mod (d) > 1.0)
+               fprintf (stderr, "Not scaled properly %d %d %d %d\n", ch, gr, j,
+              sb); 
+            */
+            
+            {
+              /* 'index' indicates which "step line" we are using */
+              int index = line[tablenum][sb];
+              
+              /* Find the "step index" within that line */
+              qnt_coeff_index = step_index[index][bit_alloc[ch][sb]];
+            }
+            d = d * a[qnt_coeff_index] + b[qnt_coeff_index];
 
-	    /* extract MSB N-1 bits from the FLOATing point sample */
-	    if (d >= 0)
-	      sig = 1;
-	    else {
-	      sig = 0;
-	      d += 1.0;
-	    }
+            /* extract MSB N-1 bits from the FLOATing point sample */
+            if (d >= 0)
+              sig = 1;
+            else {
+              sig = 0;
+              d += 1.0;
+            }
 
-	    sbband[ch][gr][j][sb] = (unsigned int) (d * (double)steps2n[qnt_coeff_index]);
-	    /* tag the inverted sign bit to sbband at position N */
-	    /* The bit inversion is a must for grouping with 3,5,9 steps
-	       so it is done for all subbands */
-	    if (sig)
-	      sbband[ch][gr][j][sb] |= steps2n[qnt_coeff_index];
-	  }
+            sbband[ch][gr][j][sb] = (unsigned int) (d * (double)steps2n[qnt_coeff_index]);
+            /* tag the inverted sign bit to sbband at position N */
+            /* The bit inversion is a must for grouping with 3,5,9 steps
+               so it is done for all subbands */
+            if (sig)
+              sbband[ch][gr][j][sb] |= steps2n[qnt_coeff_index];
+          }
 
   /* Set everything above the sblimit to 0 */
   for (ch = 0; ch < nch; ch++)
     for (gr = 0; gr < 3; gr++)
       for (sb = 0; sb < SCALE_BLOCK; sb++)
-	for (j = sblimit; j < SBLIMIT; j++)
-	  sbband[ch][gr][sb][j] = 0;
+        for (j = sblimit; j < SBLIMIT; j++)
+          sbband[ch][gr][sb][j] = 0;
 }
 
 /************************************************************************
@@ -558,8 +558,8 @@ subband_quantization_new (unsigned int sf_index[2][3][SBLIMIT],
 
 ***********************************************************************/
 void write_samples_new (unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
-		      unsigned int bit_alloc[2][SBLIMIT],
-		      frame_info * frame, Bit_stream_struc * bs)
+                      unsigned int bit_alloc[2][SBLIMIT],
+                      frame_info * frame, Bit_stream_struc * bs)
 {
   unsigned int temp;
   unsigned int sb, j, ch, gr, x, y;
@@ -570,31 +570,31 @@ void write_samples_new (unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
   for (gr = 0; gr < 3; gr++)
     for (j = 0; j < SCALE_BLOCK; j += 3)
       for (sb = 0; sb < sblimit; sb++)
-	for (ch = 0; ch < ((sb < jsbound) ? nch : 1); ch++)
+        for (ch = 0; ch < ((sb < jsbound) ? nch : 1); ch++)
 
-	  if (bit_alloc[ch][sb]) {
-	    int thisline = line[tablenum][sb];
-	    int thisstep_index = step_index[thisline][bit_alloc[ch][sb]];
-	    /* Check how many samples per codeword */
-	    if (group[thisstep_index] == 3) {
-	      /* Going to send 1 sample per codeword -> 3 samples */
-	      for (x = 0; x < 3; x++) {
-		putbits (bs, sbband[ch][gr][j + x][sb], bits[thisstep_index]); 
-	      }
-	    } else {
-	      /* ISO11172 Sec C.1.5.2.8 
-		 If steps=3, 5 or 9, then three consecutive samples are coded
-		 as one codeword i.e. only one value (V) is transmitted for this 
-		 triplet. If the 3 subband samples are x,y,z then
-		 V = (steps*steps)*z + steps*y +x
-	      */
-	      y = steps[thisstep_index];
-	      temp =
-		sbband[ch][gr][j][sb] + sbband[ch][gr][j + 1][sb] * y +
-		sbband[ch][gr][j + 2][sb] * y * y;
-	      putbits (bs, temp, bits[thisstep_index]); 
-	    }
-	  }
+          if (bit_alloc[ch][sb]) {
+            int thisline = line[tablenum][sb];
+            int thisstep_index = step_index[thisline][bit_alloc[ch][sb]];
+            /* Check how many samples per codeword */
+            if (group[thisstep_index] == 3) {
+              /* Going to send 1 sample per codeword -> 3 samples */
+              for (x = 0; x < 3; x++) {
+                putbits (bs, sbband[ch][gr][j + x][sb], bits[thisstep_index]); 
+              }
+            } else {
+              /* ISO11172 Sec C.1.5.2.8 
+                 If steps=3, 5 or 9, then three consecutive samples are coded
+                 as one codeword i.e. only one value (V) is transmitted for this 
+                 triplet. If the 3 subband samples are x,y,z then
+                 V = (steps*steps)*z + steps*y +x
+              */
+              y = steps[thisstep_index];
+              temp =
+                sbband[ch][gr][j][sb] + sbband[ch][gr][j + 1][sb] * y +
+                sbband[ch][gr][j + 2][sb] * y * y;
+              putbits (bs, temp, bits[thisstep_index]); 
+            }
+          }
 }
 
 
@@ -632,8 +632,8 @@ void write_samples_new (unsigned int sbband[2][3][SCALE_BLOCK][SBLIMIT],
 ************************************************************************/
 
 int bits_for_nonoise_new (double SMR[2][SBLIMIT],
-			  unsigned int scfsi[2][SBLIMIT], frame_info * frame, float min_mnr,
-			  unsigned int bit_alloc[2][SBLIMIT])
+                          unsigned int scfsi[2][SBLIMIT], frame_info * frame, float min_mnr,
+                          unsigned int bit_alloc[2][SBLIMIT])
 {
   int sb, ch, ba;
   int nch = frame->nch;
@@ -641,7 +641,7 @@ int bits_for_nonoise_new (double SMR[2][SBLIMIT],
   int jsbound = frame->jsbound;
   int req_bits = 0, bbal = 0, berr = 0, banc = 32;
   int maxAlloc, sel_bits, sc_bits, smp_bits;
-  static int sfsPerScfsi[] = { 3, 2, 1, 2 };	/* lookup # sfs per scfsi */
+  static int sfsPerScfsi[] = { 3, 2, 1, 2 };    /* lookup # sfs per scfsi */
 
   /* MFC Feb 2003
      This works out the basic number of bits just to get a valid (but empty)
@@ -673,31 +673,31 @@ int bits_for_nonoise_new (double SMR[2][SBLIMIT],
       maxAlloc = (1 << nbal[ line[tablenum][sb] ]) -1; //(*alloc)[sb][0].bits) - 1;
       sel_bits = sc_bits = smp_bits = 0;
       /* Keep choosing the next number of steps (and hence our SNR value)
-	 until we have the required MNR value */
+         until we have the required MNR value */
       for (ba = 0; ba < maxAlloc - 1; ++ba) {
         int thisstep_index = step_index[thisline][ba];
-	if ((SNR[thisstep_index] - SMR[ch][sb]) >= min_mnr)
-	  break;		/* we found enough bits */
+        if ((SNR[thisstep_index] - SMR[ch][sb]) >= min_mnr)
+          break;                /* we found enough bits */
       }
-      if (nch == 2 && sb >= jsbound)	/* check other JS channel */
-	for (; ba < maxAlloc - 1; ++ba) {
-	  int thisstep_index = step_index[thisline][ba];
-	  if ((SNR[thisstep_index] - SMR[1-ch][sb]) >= min_mnr)
-	    break;
-	}
+      if (nch == 2 && sb >= jsbound)    /* check other JS channel */
+        for (; ba < maxAlloc - 1; ++ba) {
+          int thisstep_index = step_index[thisline][ba];
+          if ((SNR[thisstep_index] - SMR[1-ch][sb]) >= min_mnr)
+            break;
+        }
       if (ba > 0) {
-	//smp_bits = SCALE_BLOCK * ((*alloc)[sb][ba].group * (*alloc)[sb][ba].bits);
-	int thisstep_index = step_index[thisline][ba];
-	smp_bits = SCALE_BLOCK * group[thisstep_index] * bits[thisstep_index];
-	/* scale factor bits required for subband */
-	sel_bits = 2;
-	sc_bits = 6 * sfsPerScfsi[scfsi[ch][sb]];
-	if (nch == 2 && sb >= jsbound) {
-	  /* each new js sb has L+R scfsis */
-	  sel_bits += 2;
-	  sc_bits += 6 * sfsPerScfsi[scfsi[1 - ch][sb]];
-	}
-	req_bits += smp_bits + sel_bits + sc_bits;
+        //smp_bits = SCALE_BLOCK * ((*alloc)[sb][ba].group * (*alloc)[sb][ba].bits);
+        int thisstep_index = step_index[thisline][ba];
+        smp_bits = SCALE_BLOCK * group[thisstep_index] * bits[thisstep_index];
+        /* scale factor bits required for subband */
+        sel_bits = 2;
+        sc_bits = 6 * sfsPerScfsi[scfsi[ch][sb]];
+        if (nch == 2 && sb >= jsbound) {
+          /* each new js sb has L+R scfsis */
+          sel_bits += 2;
+          sc_bits += 6 * sfsPerScfsi[scfsi[1 - ch][sb]];
+        }
+        req_bits += smp_bits + sel_bits + sc_bits;
       }
       bit_alloc[ch][sb] = ba;
     }
@@ -731,13 +731,13 @@ int bits_for_nonoise_new (double SMR[2][SBLIMIT],
 *
 ************************************************************************/
 void main_bit_allocation_new (double SMR[2][SBLIMIT],
-			      unsigned int scfsi[2][SBLIMIT],
-			      unsigned int bit_alloc[2][SBLIMIT], int *adb,
-			      frame_info * frame, options * glopts)
+                              unsigned int scfsi[2][SBLIMIT],
+                              unsigned int bit_alloc[2][SBLIMIT], int *adb,
+                              frame_info * frame, options * glopts)
 {
   int noisy_sbs;
   int mode, mode_ext, lay;
-  int rq_db;			/* av_db = *adb; Not Used MFC Nov 99 */
+  int rq_db;                    /* av_db = *adb; Not Used MFC Nov 99 */
 
   /* these are the tables which specify the limits within which the VBR can vary 
      You can't vary outside these ranges, otherwise a new alloc table would have to 
@@ -777,7 +777,7 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
       upper = 14;
     } else {
       if (frame->actual_mode == MPG_MD_MONO)
-	nch = 1;
+        nch = 1;
       sfreq = header->sampling_frequency;
       lower = vbrlimits[nch-1][sfreq][0];
       upper = vbrlimits[nch-1][sfreq][1];
@@ -785,16 +785,16 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
     if (glopts->verbosity > 2)
       fprintf (stdout, "VBR bitrate index limits [%i -> %i]\n", lower, upper);
 
-    {				
+    {                           
       /* set up a conversion table for bitrateindex->bits for this version/sampl freq 
-	 This will be used to find the best bitrate to cope with the number of bits that
-	 are needed (as determined by VBR_bits_for_nonoise) */
+         This will be used to find the best bitrate to cope with the number of bits that
+         are needed (as determined by VBR_bits_for_nonoise) */
       int brindex;
       frame_header *header = frame->header;
       for (brindex = lower; brindex <= upper; brindex++) {
-	bitrateindextobits[brindex] =
-	  (int) (1152.0 / s_freq[header->version][header->sampling_frequency]) *
-	  ((double) bitrate[header->version][brindex]);
+        bitrateindextobits[brindex] =
+          (int) (1152.0 / s_freq[header->version][header->sampling_frequency]) *
+          ((double) bitrate[header->version][brindex]);
       }
     }
 
@@ -806,23 +806,23 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
     frame->jsbound = frame->sblimit;
     if ((rq_db = bits_for_nonoise_new (SMR, scfsi, frame, 0, bit_alloc)) > *adb) {
       frame->header->mode = MPG_MD_JOINT_STEREO;
-      mode_ext = 4;		/* 3 is least severe reduction */
+      mode_ext = 4;             /* 3 is least severe reduction */
       lay = frame->header->lay;
       do {
-	--mode_ext;
-	frame->jsbound = js_bound (mode_ext);
-	rq_db = bits_for_nonoise_new (SMR, scfsi, frame, 0, bit_alloc);
+        --mode_ext;
+        frame->jsbound = js_bound (mode_ext);
+        rq_db = bits_for_nonoise_new (SMR, scfsi, frame, 0, bit_alloc);
       }
       while ((rq_db > *adb) && (mode_ext > 0));
       frame->header->mode_ext = mode_ext;
-    }				/* well we either eliminated noisy sbs or mode_ext == 0 */
+    }                           /* well we either eliminated noisy sbs or mode_ext == 0 */
   }
 
   /* decide on which bit allocation method to use */
   if (glopts->vbr == FALSE) {
     /* Just do the old bit allocation method */
     noisy_sbs = a_bit_allocation_new (SMR, scfsi, bit_alloc, adb, frame);
-  } else {			
+  } else {                      
     /* do the VBR bit allocation method */
     frame->header->bitrate_index = lower;
     *adb = available_bits (frame->header, glopts);
@@ -832,26 +832,26 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
 
       /* Work out how many bits are needed for there to be no noise (ie all MNR > VBRLEVEL) */
       int req =
-	bits_for_nonoise_new (SMR, scfsi, frame, glopts->vbrlevel, bit_alloc);
+        bits_for_nonoise_new (SMR, scfsi, frame, glopts->vbrlevel, bit_alloc);
 
       /* Look up this value in the bitrateindextobits table to find what bitrate we should use for 
          this frame */
       for (brindex = lower; brindex <= upper; brindex++) {
-	if (bitrateindextobits[brindex] > req) {
-	  /* this method always *overestimates* the bits that are needed
-	     i.e. it will usually  guess right but
-	     when it's wrong it'll guess a higher bitrate than actually required.
-	     e.g. on "messages from earth" track 6, the guess was 
-	     wrong on 75/36341 frames. each time it guessed higher. 
-	     MFC Feb 2003 */
-	  guessindex = brindex;
-	  found = TRUE;
-	  break;
-	}
+        if (bitrateindextobits[brindex] > req) {
+          /* this method always *overestimates* the bits that are needed
+             i.e. it will usually  guess right but
+             when it's wrong it'll guess a higher bitrate than actually required.
+             e.g. on "messages from earth" track 6, the guess was 
+             wrong on 75/36341 frames. each time it guessed higher. 
+             MFC Feb 2003 */
+          guessindex = brindex;
+          found = TRUE;
+          break;
+        }
       }
       /* Just for sanity */
       if (found == FALSE)
-	guessindex = upper;
+        guessindex = upper;
     }
 
     frame->header->bitrate_index = guessindex;
@@ -865,18 +865,18 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
       static int count = 0;
       int i;
       if ((count++ % 1000) == 0) {
-	for (i = 1; i < 15; i++)
-	  fprintf (stdout, "%4i ", vbrstats_new[i]);
-	fprintf (stdout, "\n");
+        for (i = 1; i < 15; i++)
+          fprintf (stdout, "%4i ", vbrstats_new[i]);
+        fprintf (stdout, "\n");
       }
 
       /* Print out *every* frames bitrateindex, bits required, and bits available at this bitrate */
       if (glopts->verbosity > 5)
-	fprintf (stdout,
-		 "> bitrate index %2i has %i bits available to encode the %i bits\n",
-		 frame->header->bitrate_index, *adb,
-		 bits_for_nonoise_new (SMR, scfsi, frame,
-				       glopts->vbrlevel, bit_alloc));
+        fprintf (stdout,
+                 "> bitrate index %2i has %i bits available to encode the %i bits\n",
+                 frame->header->bitrate_index, *adb,
+                 bits_for_nonoise_new (SMR, scfsi, frame,
+                                       glopts->vbrlevel, bit_alloc));
 
     }
 
@@ -886,7 +886,7 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
 }
 
 void VBR_maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
-		 int nch, int *min_sb, int *min_ch, options * glopts)
+                 int nch, int *min_sb, int *min_ch, options * glopts)
 {
   int sb, ch;
   double small;
@@ -901,11 +901,11 @@ void VBR_maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
   for (ch=0;ch<nch;ch++)
     for (sb=0;sb<sblimit;sb++)
       if (mnr[ch][sb] < glopts->vbrlevel) {
-	*min_sb = sb;
-	*min_ch = ch;
-	//fprintf(stdout,".");
-	//fflush(stdout);
-	return;
+        *min_sb = sb;
+        *min_ch = ch;
+        //fprintf(stdout,".");
+        //fflush(stdout);
+        return;
       }
 #endif
 
@@ -913,9 +913,9 @@ void VBR_maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
   for (ch = 0; ch < nch; ++ch)
     for (sb = 0; sb < sblimit; sb++)
       if (used[ch][sb] != 2 && small > mnr[ch][sb]) {
-	small = mnr[ch][sb];
-	*min_sb = sb;
-	*min_ch = ch;
+        small = mnr[ch][sb];
+        *min_sb = sb;
+        *min_ch = ch;
       }
   //fprintf(stdout,"Min sb: %i\n",*min_sb);
 }
@@ -932,9 +932,9 @@ This function doesn't chew much CPU, so I haven't made any attempt
 to do this yet.
 *********************/
 int VBR_bit_allocation_new (double SMR[2][SBLIMIT],
-			    unsigned int scfsi[2][SBLIMIT],
-			    unsigned int bit_alloc[2][SBLIMIT], int *adb,
-			    frame_info * frame, options *glopts)
+                            unsigned int scfsi[2][SBLIMIT],
+                            unsigned int bit_alloc[2][SBLIMIT], int *adb,
+                            frame_info * frame, options *glopts)
 {
   int sb, min_ch, min_sb, oth_ch, ch, increment, scale, seli, ba;
   int bspl, bscf, bsel, ad, bbal = 0;
@@ -946,14 +946,14 @@ int VBR_bit_allocation_new (double SMR[2][SBLIMIT],
   //al_table *alloc = frame->alloc;
   static char init = 0;
   static int banc = 32, berr = 0;
-  static int sfsPerScfsi[] = { 3, 2, 1, 2 };	/* lookup # sfs per scfsi */
+  static int sfsPerScfsi[] = { 3, 2, 1, 2 };    /* lookup # sfs per scfsi */
 
   int thisstep_index;
 
   if (!init) {
     init = 1;
     if (frame->header->error_protection)
-      berr = 16;		/* added 92-08-11 shn */
+      berr = 16;                /* added 92-08-11 shn */
   }
 
   /* No need to worry about jsbound here as JS is disabled for VBR mode */
@@ -974,52 +974,52 @@ int VBR_bit_allocation_new (double SMR[2][SBLIMIT],
     /* locate the subband with minimum SMR */
     VBR_maxmnr_new (mnr, used, sblimit, nch, &min_sb, &min_ch, glopts);
 
-    if (min_sb > -1) {		/* there was something to find */
+    if (min_sb > -1) {          /* there was something to find */
       int thisline = line[tablenum][min_sb]; {
-	/* find increase in bit allocation in subband [min] */
-	int nextstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]+1];					  
-	increment = SCALE_BLOCK * group[nextstep_index] * bits[nextstep_index];
+        /* find increase in bit allocation in subband [min] */
+        int nextstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]+1];                                   
+        increment = SCALE_BLOCK * group[nextstep_index] * bits[nextstep_index];
       }
       if (used[min_ch][min_sb]) {
-	/* If we've already increased the limit on this ch/sb, then
-	   subtract the last thing that we added */
-	thisstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]];
-	increment -= SCALE_BLOCK * group[thisstep_index] * bits[thisstep_index];
+        /* If we've already increased the limit on this ch/sb, then
+           subtract the last thing that we added */
+        thisstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]];
+        increment -= SCALE_BLOCK * group[thisstep_index] * bits[thisstep_index];
       }
 
       /* scale factor bits required for subband [min] */
-      oth_ch = 1 - min_ch;	/* above js bound, need both chans */
+      oth_ch = 1 - min_ch;      /* above js bound, need both chans */
       if (used[min_ch][min_sb])
-	scale = seli = 0;
-      else {			/* this channel had no bits or scfs before */
-	seli = 2;
-	scale = 6 * sfsPerScfsi[scfsi[min_ch][min_sb]];
-	if (nch == 2 && min_sb >= jsbound) {
-	  /* each new js sb has L+R scfsis */
-	  seli += 2;
-	  scale += 6 * sfsPerScfsi[scfsi[oth_ch][min_sb]];
-	}
+        scale = seli = 0;
+      else {                    /* this channel had no bits or scfs before */
+        seli = 2;
+        scale = 6 * sfsPerScfsi[scfsi[min_ch][min_sb]];
+        if (nch == 2 && min_sb >= jsbound) {
+          /* each new js sb has L+R scfsis */
+          seli += 2;
+          scale += 6 * sfsPerScfsi[scfsi[oth_ch][min_sb]];
+        }
       }
 
       /* check to see enough bits were available for */
       /* increasing resolution in the minimum band */
       if (ad >= bspl + bscf + bsel + seli + scale + increment) {
-	/* Then there are enough bits to have another go at allocating */
-	ba = ++bit_alloc[min_ch][min_sb];	/* next up alloc */
-	bspl += increment;	/* bits for subband sample */
-	bscf += scale;		/* bits for scale factor */
-	bsel += seli;		/* bits for scfsi code */
-	used[min_ch][min_sb] = 1;	/* subband has bits */
-	thisstep_index = step_index[thisline][ba];
-	mnr[min_ch][min_sb] = SNR[thisstep_index] - SMR[min_ch][min_sb];
-	/* Check if this min_sb subband has been fully allocated max bits */
-	if (ba >= (1 << nbal[ line[tablenum][min_sb] ]) -1 ) //(*alloc)[min_sb][0].bits) - 1)
-	  used[min_ch][min_sb] = 2;	/* don't let this sb get any more bits */
+        /* Then there are enough bits to have another go at allocating */
+        ba = ++bit_alloc[min_ch][min_sb];       /* next up alloc */
+        bspl += increment;      /* bits for subband sample */
+        bscf += scale;          /* bits for scale factor */
+        bsel += seli;           /* bits for scfsi code */
+        used[min_ch][min_sb] = 1;       /* subband has bits */
+        thisstep_index = step_index[thisline][ba];
+        mnr[min_ch][min_sb] = SNR[thisstep_index] - SMR[min_ch][min_sb];
+        /* Check if this min_sb subband has been fully allocated max bits */
+        if (ba >= (1 << nbal[ line[tablenum][min_sb] ]) -1 ) //(*alloc)[min_sb][0].bits) - 1)
+          used[min_ch][min_sb] = 2;     /* don't let this sb get any more bits */
       } else
-	used[min_ch][min_sb] = 2;	/* can't increase this alloc */
+        used[min_ch][min_sb] = 2;       /* can't increase this alloc */
     }
   }
-  while (min_sb > -1);		/* until could find no channel */
+  while (min_sb > -1);          /* until could find no channel */
 
   /* Calculate the number of bits left */
   ad -= bspl + bscf + bsel;
@@ -1059,7 +1059,7 @@ int VBR_bit_allocation_new (double SMR[2][SBLIMIT],
 ************************************************************************/
 
 void maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
-	     int nch, int *min_sb, int *min_ch)
+             int nch, int *min_sb, int *min_ch)
 {
   int sb, ch;
   double small;
@@ -1070,15 +1070,15 @@ void maxmnr_new (double mnr[2][SBLIMIT], char used[2][SBLIMIT], int sblimit,
   for (ch = 0; ch < nch; ++ch)
     for (sb = 0; sb < sblimit; sb++)
       if (used[ch][sb] != 2 && small > mnr[ch][sb]) {
-	small = mnr[ch][sb];
-	*min_sb = sb;
-	*min_ch = ch;
+        small = mnr[ch][sb];
+        *min_sb = sb;
+        *min_ch = ch;
       }
 }
 int a_bit_allocation_new (double SMR[2][SBLIMIT],
-			    unsigned int scfsi[2][SBLIMIT],
-			    unsigned int bit_alloc[2][SBLIMIT], int *adb,
-			    frame_info * frame)
+                            unsigned int scfsi[2][SBLIMIT],
+                            unsigned int bit_alloc[2][SBLIMIT], int *adb,
+                            frame_info * frame)
 {
   int sb, min_ch, min_sb, oth_ch, ch, increment, scale, seli, ba;
   int bspl, bscf, bsel, ad, bbal = 0;
@@ -1090,14 +1090,14 @@ int a_bit_allocation_new (double SMR[2][SBLIMIT],
   //al_table *alloc = frame->alloc;
   static char init = 0;
   static int banc = 32, berr = 0;
-  static int sfsPerScfsi[] = { 3, 2, 1, 2 };	/* lookup # sfs per scfsi */
+  static int sfsPerScfsi[] = { 3, 2, 1, 2 };    /* lookup # sfs per scfsi */
 
   int thisstep_index;
 
   if (!init) {
     init = 1;
     if (frame->header->error_protection)
-      berr = 16;		/* added 92-08-11 shn */
+      berr = 16;                /* added 92-08-11 shn */
   }
 
   for (sb = 0; sb < jsbound; sb++)
@@ -1119,62 +1119,62 @@ int a_bit_allocation_new (double SMR[2][SBLIMIT],
     /* locate the subband with minimum SMR */
     maxmnr_new (mnr, used, sblimit, nch, &min_sb, &min_ch);
 
-    if (min_sb > -1) {		/* there was something to find */
+    if (min_sb > -1) {          /* there was something to find */
       int thisline = line[tablenum][min_sb]; {
-	/* find increase in bit allocation in subband [min] */
-	int nextstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]+1];					  
-	increment = SCALE_BLOCK * group[nextstep_index] * bits[nextstep_index];
+        /* find increase in bit allocation in subband [min] */
+        int nextstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]+1];                                   
+        increment = SCALE_BLOCK * group[nextstep_index] * bits[nextstep_index];
       }
       if (used[min_ch][min_sb]) {
-	/* If we've already increased the limit on this ch/sb, then
-	   subtract the last thing that we added */
-	thisstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]];
-	increment -= SCALE_BLOCK * group[thisstep_index] * bits[thisstep_index];
+        /* If we've already increased the limit on this ch/sb, then
+           subtract the last thing that we added */
+        thisstep_index = step_index[thisline][bit_alloc[min_ch][min_sb]];
+        increment -= SCALE_BLOCK * group[thisstep_index] * bits[thisstep_index];
       }
 
       /* scale factor bits required for subband [min] */
-      oth_ch = 1 - min_ch;	/* above js bound, need both chans */
+      oth_ch = 1 - min_ch;      /* above js bound, need both chans */
       if (used[min_ch][min_sb])
-	scale = seli = 0;
-      else {			/* this channel had no bits or scfs before */
-	seli = 2;
-	scale = 6 * sfsPerScfsi[scfsi[min_ch][min_sb]];
-	if (nch == 2 && min_sb >= jsbound) {
-	  /* each new js sb has L+R scfsis */
-	  seli += 2;
-	  scale += 6 * sfsPerScfsi[scfsi[oth_ch][min_sb]];
-	}
+        scale = seli = 0;
+      else {                    /* this channel had no bits or scfs before */
+        seli = 2;
+        scale = 6 * sfsPerScfsi[scfsi[min_ch][min_sb]];
+        if (nch == 2 && min_sb >= jsbound) {
+          /* each new js sb has L+R scfsis */
+          seli += 2;
+          scale += 6 * sfsPerScfsi[scfsi[oth_ch][min_sb]];
+        }
       }
 
       /* check to see enough bits were available for */
       /* increasing resolution in the minimum band */
       if (ad >= bspl + bscf + bsel + seli + scale + increment) {
-	/* Then there are enough bits to have another go at allocating */
-	ba = ++bit_alloc[min_ch][min_sb];	/* next up alloc */
-	bspl += increment;	/* bits for subband sample */
-	bscf += scale;		/* bits for scale factor */
-	bsel += seli;		/* bits for scfsi code */
-	used[min_ch][min_sb] = 1;	/* subband has bits */
-	thisstep_index = step_index[thisline][ba];
-	mnr[min_ch][min_sb] = SNR[thisstep_index] - SMR[min_ch][min_sb];
-	/* Check if this min_sb subband has been fully allocated max bits */
-	if (ba >= (1 << nbal[ line[tablenum][min_sb] ]) -1 ) //(*alloc)[min_sb][0].bits) - 1)
-	  used[min_ch][min_sb] = 2;	/* don't let this sb get any more bits */
+        /* Then there are enough bits to have another go at allocating */
+        ba = ++bit_alloc[min_ch][min_sb];       /* next up alloc */
+        bspl += increment;      /* bits for subband sample */
+        bscf += scale;          /* bits for scale factor */
+        bsel += seli;           /* bits for scfsi code */
+        used[min_ch][min_sb] = 1;       /* subband has bits */
+        thisstep_index = step_index[thisline][ba];
+        mnr[min_ch][min_sb] = SNR[thisstep_index] - SMR[min_ch][min_sb];
+        /* Check if this min_sb subband has been fully allocated max bits */
+        if (ba >= (1 << nbal[ line[tablenum][min_sb] ]) -1 ) //(*alloc)[min_sb][0].bits) - 1)
+          used[min_ch][min_sb] = 2;     /* don't let this sb get any more bits */
       } else
-	used[min_ch][min_sb] = 2;	/* can't increase this alloc */
+        used[min_ch][min_sb] = 2;       /* can't increase this alloc */
 
       if (min_sb >= jsbound && nch == 2) {
-	/* above jsbound, alloc applies L+R */
-	ba = bit_alloc[oth_ch][min_sb] = bit_alloc[min_ch][min_sb];
-	used[oth_ch][min_sb] = used[min_ch][min_sb];
-	thisstep_index = step_index[thisline][ba];
-	mnr[oth_ch][min_sb] = SNR[thisstep_index] - SMR[oth_ch][min_sb];
-	//mnr[oth_ch][min_sb] = SNR[(*alloc)[min_sb][ba].quant + 1] - SMR[oth_ch][min_sb];
+        /* above jsbound, alloc applies L+R */
+        ba = bit_alloc[oth_ch][min_sb] = bit_alloc[min_ch][min_sb];
+        used[oth_ch][min_sb] = used[min_ch][min_sb];
+        thisstep_index = step_index[thisline][ba];
+        mnr[oth_ch][min_sb] = SNR[thisstep_index] - SMR[oth_ch][min_sb];
+        //mnr[oth_ch][min_sb] = SNR[(*alloc)[min_sb][ba].quant + 1] - SMR[oth_ch][min_sb];
       }
 
     }
   }
-  while (min_sb > -1);		/* until could find no channel */
+  while (min_sb > -1);          /* until could find no channel */
 
   /* Calculate the number of bits left */
   ad -= bspl + bscf + bsel;
