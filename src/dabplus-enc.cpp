@@ -880,7 +880,7 @@ int main(int argc, char *argv[])
                 }
 
                 size_t overruns;
-                read_bytes = queue.pop(input_buf, input_buf.size(), &overruns); // returns bytes
+                read_bytes = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
 
                 if (read_bytes != input_buf.size()) {
                     status |= STATUS_UNDERRUN;
@@ -893,7 +893,7 @@ int main(int argc, char *argv[])
             else {
                 vlc_in = &vlc_in_direct;
 
-                read_bytes = vlc_in_direct.read(input_buf, input_buf.size());
+                read_bytes = vlc_in_direct.read(&input_buf[0], input_buf.size());
                 if (read_bytes < 0) {
                     fprintf(stderr, "Detected fault in VLC input!\n");
                     break;
