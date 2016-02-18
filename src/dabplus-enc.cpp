@@ -123,9 +123,9 @@ void usage(const char* name) {
     "   DAB specific options\n"
     "     -a, --dab                            Encode in DAB and not in DAB+.\n"
     "         --dabmode=MODE                   Channel mode: s/d/j/m\n"
-    "                                          (default: j if stereo, m if mono).\n",
+    "                                          (default: j if stereo, m if mono).\n"
     "         --dabpsy=PSY                     Psychoacoustic model 0/1/2/3\n"
-    "                                          (default: 1).\n",
+    "                                          (default: 1).\n"
     "   DAB+ specific options\n"
     "     -A, --no-afterburner                 Disable AAC encoder quality increaser.\n"
     "         --aaclc                          Force the usage of AAC-LC (no SBR, no PS)\n"
