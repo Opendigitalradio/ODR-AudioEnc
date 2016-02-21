@@ -1,7 +1,7 @@
 FDK-AAC-DABplus Package
 =======================
 
-This package contains an DAB+ encoder that uses the standalone library
+This package contains an DAB+ encoder that uses a modified library
 of the Fraunhofer FDK AAC code from Android, patched for
 960-transform to do DAB+ broadcast encoding.
 
@@ -247,4 +247,26 @@ v0.7.0 fixes most issues, and PAD now works much more reliably.
 
 Version 0.4.0 of the encoder changed the ZeroMQ framing. It will only work with
 ODR-DabMux v0.7.0 and later.
+
+LICENCE
+=======
+
+It's complicated. The FDK-AAC-DABplus project contains
+
+ - The Third-Party Modified Version of the Fraunhofer FDK AAC Codec Library for
+   Android, which is under its own licence. See NOTICE.
+ - The code for dabplus-enc in src/ licensed under the Apache Licence v2.0. See
+   http://www.apache.org/licenses/LICENSE-2.0
+ - libtoolame-dab, derived from TooLAME, licensed under LGPL v2.1 or later. See
+   libtoolame-dab/LGPL.txt
+
+These source files are compiled and linked together into the dabplus-enc encoder.
+
+In addition to the audio encoder, there is also mot-encoder, containing code
+
+ - in src/ that is GPL v3+ licensed
+ - and a crc library with unclear licence situation in contrib/
+
+Whether it is legal or not to distribute compiled binaries from these sources
+is unclear to me. Please seek legal advice to answer this question.
 

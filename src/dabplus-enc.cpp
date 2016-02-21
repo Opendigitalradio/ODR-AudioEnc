@@ -59,9 +59,11 @@ using namespace std;
 
 void usage(const char* name) {
     fprintf(stderr,
-    "dabplus-enc %s is a HE-AACv2 encoder for DAB+\n"
-    "based on fdk-aac-dabplus and a Toolame-based MPEG\n"
-    "encoder for DAB that can read from JACK, ALSA or\n"
+    "dabplus-enc %s is an audio encoder for both DAB and DAB+.\n"
+    "The DAB+ HE-AACv2 encoder is based on a Thirt-Party Modified\n"
+    "Version of the Fraunhofer FDK AAC Codec Library for Android,\n"
+    "and the DAB encoder is using the tooLAME MPEG\n"
+    "encoder sources. The encoder can read from JACK, ALSA or\n"
     "a file source and encode to a ZeroMQ output for ODR-DabMux.\n"
     "(Experimental!)It can also use libvlc as an input.\n"
     "\n"
