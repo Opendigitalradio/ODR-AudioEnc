@@ -17,12 +17,13 @@
  * -------------------------------------------------------------------
  */
 
-#include <cstdio>
-#include <string>
-
-#include <alsa/asoundlib.h>
+#include "config.h"
+#if HAVE_ALSA
 
 #include "AlsaInput.h"
+#include <cstdio>
+#include <string>
+#include <alsa/asoundlib.h>
 #include <sys/time.h>
 
 using namespace std;
@@ -158,4 +159,6 @@ ssize_t AlsaInputDirect::read(uint8_t* buf, size_t length)
 
     return (read > 0) ? read * bytes_per_frame : read;
 }
+
+#endif // HAVE_ALSA
 

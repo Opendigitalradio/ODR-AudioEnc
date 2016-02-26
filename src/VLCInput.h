@@ -34,9 +34,7 @@
 #include <vlc/vlc.h>
 
 #include "SampleQueue.h"
-
-// 16 bits per sample is fine for now
-#define BYTES_PER_SAMPLE 2
+#include "common.h"
 
 /* Common functionality for the direct libvlc input and the
  * threaded libvlc input

@@ -27,20 +27,29 @@ AC_SEARCH_LIBS([init_rs_char], [fec], [], [
 
 AC_CHECK_LIB([rt], [clock_gettime], [], [AC_MSG_ERROR([library rt is missing])])
 
-AM_PATH_ALSA(1.0.25)
+# Check for options
+AC_ARG_ENABLE([alsa],
+        AS_HELP_STRING([--enable-alsa], [Enable ALSA input]))
 
-# Check for JACK
 AC_ARG_ENABLE([jack],
         AS_HELP_STRING([--enable-jack], [Enable JACK input]))
 
 AC_ARG_ENABLE([vlc],
         AS_HELP_STRING([--enable-vlc], [Enable libvlc input]))
 
+
+AS_IF([test "x$enable_alsa" = "xyes"],
+      [AM_PATH_ALSA(1.0.25)])
+AS_IF([test "x$enable_alsa" = "xyes"],
+       AC_DEFINE(HAVE_ALSA, [1], [Define if ALSA input is enabled]))
+
+
 AS_IF([test "x$enable_jack" = "xyes"],
        AC_CHECK_LIB(jack, jack_client_open, [],
                     [AC_MSG_ERROR([JACK is required])]))
 AS_IF([test "x$enable_jack" = "xyes"],
        AC_DEFINE(HAVE_JACK, [1], [Define if JACK input is enabled]))
+
 
 AS_IF([test "x$enable_vlc" = "xyes"], [
     PKG_CHECK_MODULES([LIBVLC], [libvlc])
@@ -51,8 +60,9 @@ AS_IF([test "x$enable_vlc" = "xyes"],
        AC_DEFINE(HAVE_VLC, [1], [Define if VLC input is enabled]))
 
 
-# Link against jack
+# Link against jack and alsa conditionally
 AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
+AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
 
 # fdk-aac-dabplus-zmq needs ZeroMQ
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
@@ -94,7 +104,7 @@ echo
 echo "Features enabled:"
 enabled=""
 disabled=""
-for feature in jack vlc
+for feature in jack vlc alsa
 do
     eval var=\$enable_$feature
     AS_IF([test "x$var" = "xyes"],

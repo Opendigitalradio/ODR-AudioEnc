@@ -24,6 +24,7 @@
 #include "VLCInput.h"
 #include "SampleQueue.h"
 #include "zmq.hpp"
+#include "common.h"
 
 extern "C" {
 #include "encryption.h"
@@ -41,6 +42,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "libAACenc/include/aacenc_lib.h"
 
@@ -48,6 +50,8 @@ extern "C" {
 #include <fec.h>
 #include "libtoolame-dab/toolame.h"
 }
+
+
 
 // Enumerate which encoder we can use
 enum class encoder_selection_t {
@@ -83,7 +87,7 @@ void usage(const char* name) {
     "This encoder includes PAD (DLS and MOT Slideshow) support by\n"
     "http://rd.csp.it to be used with mot-encoder\n"
     "\nUsage:\n"
-    "%s (-i file|-d alsa_device) [OPTION...]\n",
+    "%s [INPUT SELECTION] [OPTION...]\n",
 #if defined(GITVERSION)
     GITVERSION
 #else
@@ -92,7 +96,11 @@ void usage(const char* name) {
     , name);
     fprintf(stderr,
     "   For the alsa input:\n"
+#if HAVE_ALSA
     "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
+#else
+    "     The Alsa input was disabled at compile time\n"
+#endif
     "   For the file input:\n"
     "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
@@ -694,8 +702,10 @@ int main(int argc, char *argv[])
     }
 
     // We'll use one of the tree possible inputs
+#if HAVE_ALSA
     AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
     AlsaInputDirect   alsa_in_direct(alsa_device, channels, sample_rate);
+#endif
     FileInput         file_in(infile, raw_input, sample_rate);
 #if HAVE_JACK
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
@@ -738,6 +748,7 @@ int main(int argc, char *argv[])
         }
     }
 #endif
+#if HAVE_ALSA
     else if (drift_compensation) {
         if (alsa_in_threaded.prepare() != 0) {
             fprintf(stderr, "Alsa with drift compensation: preparation failed\n");
@@ -753,6 +764,12 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+#else
+    else {
+        fprintf(stderr, "No input defined\n");
+        return 1;
+    }
+#endif
 
     int outbuf_size;
     std::vector<uint8_t> zmqframebuf;
@@ -912,11 +929,13 @@ int main(int argc, char *argv[])
         }
 #endif
         else if (drift_compensation || jack_name) {
+#if HAVE_ALSA
             if (drift_compensation && alsa_in_threaded.fault_detected()) {
                 fprintf(stderr, "Detected fault in alsa input!\n");
                 retval = 5;
                 break;
             }
+#endif
 
             size_t overruns;
             read_bytes = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
@@ -930,6 +949,7 @@ int main(int argc, char *argv[])
             }
         }
         else {
+#if HAVE_ALSA
             read_bytes = alsa_in_direct.read(&input_buf[0], input_buf.size());
             if (read_bytes < 0) {
                 break;
@@ -937,6 +957,7 @@ int main(int argc, char *argv[])
             else if (read_bytes != input_buf.size()) {
                 fprintf(stderr, "Short alsa read !\n");
             }
+#endif
         }
 
         for (int i = 0; i < read_bytes; i+=4) {

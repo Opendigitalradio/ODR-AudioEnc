@@ -19,6 +19,11 @@
 
 #ifndef __ALSA_H_
 #define __ALSA_H_
+
+#include "config.h"
+
+#if HAVE_ALSA
+
 #include <cstdio>
 #include <string>
 #include <thread>
@@ -27,12 +32,7 @@
 #include <alsa/asoundlib.h>
 
 #include "SampleQueue.h"
-
-// 16 bits per sample is fine for now
-#define BYTES_PER_SAMPLE 2
-
-// How many samples we insert into the queue each call
-#define NUM_SAMPLES_PER_CALL 10 // 10 samples @ 32kHz = 3.125ms
+#include "common.h"
 
 /* Common functionality for the direct alsa input and the
  * threaded alsa input
@@ -132,5 +132,8 @@ class AlsaInputThreaded : public AlsaInput
 
 };
 
-#endif
+#endif // HAVE_ALSA
+
+#endif // __ALSA_H_
+
 

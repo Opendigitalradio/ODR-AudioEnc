@@ -34,7 +34,18 @@ script:
     sudo make install
     popd
   - |
-    ./bootstrap
-    ./configure --enable-jack --enable-vlc
+    ./configure
+    make
+  - |
+    ./configure --enable-vlc
+    make
+  - |
+    ./configure --enable-alsa
+    make
+  - |
+    ./configure --enable-jack
+    make
+  - |
+    ./configure --enable-alsa --enable-jack --enable-vlc
     make
 

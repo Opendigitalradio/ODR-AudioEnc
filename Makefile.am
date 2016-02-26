@@ -88,11 +88,17 @@ else
 dabplus_enc_LDADD_JACK  =
 endif
 
+if HAVE_ALSA
+dabplus_enc_LDADD_ALSA  = -lasound
+else
+dabplus_enc_LDADD_ALSA  =
+endif
 
 dabplus_enc_LDFLAGS     = -no-install
 dabplus_enc_LDADD       = libfdk-dabplus.la libtoolame-dab.la \
-						  -lfec -lzmq -lasound \
+						  -lfec -lzmq \
 						  -lrt $(dabplus_enc_LDADD_JACK) \
+						  $(dabplus_enc_LDADD_ALSA) \
 						  $(LIBVLC_LIBS)
 dabplus_enc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
 dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
@@ -115,7 +121,8 @@ dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
 						  src/utf8.h \
 						  src/utf8/checked.h \
 						  src/utf8/unchecked.h \
-						  src/utf8/core.h
+						  src/utf8/core.h \
+						  src/common.h
 
 mot_encoder_CXXFLAGS = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
