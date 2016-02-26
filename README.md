@@ -55,9 +55,9 @@ This package:
     make
     sudo make install
 
-If you want to use the JACK and libVLC input, please use
+If you want to use ALSA, JACK and libVLC inputs, please use
 
-    ./configure --enable-jack --enable-vlc
+    ./configure --enable-alsa --enable-jack --enable-vlc
 
 * See the possible scenarios below on how to use the tools
 * use *mot-encoder* to encode images into MOT Slideshow
