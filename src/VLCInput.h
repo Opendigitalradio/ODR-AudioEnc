@@ -49,12 +49,14 @@ class VLCInput
                  unsigned channels,
                  unsigned verbosity,
                  std::string& gain,
-                 std::string& cache) :
+                 std::string& cache,
+                 std::vector<std::string>& additional_opts) :
             m_uri(uri),
             m_verbosity(verbosity),
             m_channels(channels),
             m_rate(rate),
             m_cache(cache),
+            m_additional_opts(additional_opts),
             m_gain(gain),
             m_vlc(nullptr),
             m_mp(nullptr) { }
@@ -106,6 +108,9 @@ class VLCInput
         // Whether to enable network caching in VLC or not
         std::string m_cache;
 
+        // Given as-is to libvlc
+        std::vector<std::string> m_additional_opts;
+
         // value for the VLC compressor filter
         std::string m_gain;
 
@@ -130,8 +135,9 @@ class VLCInputDirect : public VLCInput
                        unsigned channels,
                        unsigned verbosity,
                        std::string& gain,
-                       std::string& cache) :
-            VLCInput(uri, rate, channels, verbosity, gain, cache) {}
+                       std::string& cache,
+                       std::vector<std::string>& additional_opts) :
+            VLCInput(uri, rate, channels, verbosity, gain, cache, additional_opts) {}
 
         /* Read exactly length bytes into buf.
          * Blocks if not enough data is available,
@@ -153,8 +159,9 @@ class VLCInputThreaded : public VLCInput
                          unsigned verbosity,
                          std::string& gain,
                          std::string& cache,
+                         std::vector<std::string>& additional_opts,
                          SampleQueue<uint8_t>& queue) :
-            VLCInput(uri, rate, channels, verbosity, gain, cache),
+            VLCInput(uri, rate, channels, verbosity, gain, cache, additional_opts),
             m_fault(false),
             m_running(false),
             m_queue(queue) {}

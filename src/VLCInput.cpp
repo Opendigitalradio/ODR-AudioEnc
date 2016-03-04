@@ -159,8 +159,8 @@ int VLCInput::prepare()
             prepareRender_address,
             (long long int)(intptr_t)this);
 
-
-    const char* vlc_args[6];
+#define VLC_ARGS_LEN 32
+    const char* vlc_args[VLC_ARGS_LEN];
     size_t arg_ix = 0;
     std::stringstream arg_verbose;
     arg_verbose << "--verbose=" << m_verbosity;
@@ -184,6 +184,16 @@ int VLCInput::prepare()
 
     vlc_args[arg_ix++] = "--sout";
     vlc_args[arg_ix++] = smem_options; // Stream to memory
+
+    for (const auto& opt : m_additional_opts) {
+        if (arg_ix < VLC_ARGS_LEN) {
+            vlc_args[arg_ix++] = opt.c_str();
+        }
+        else {
+            fprintf(stderr, "Too many VLC options given");
+            return 1;
+        }
+    }
 
     if (m_verbosity) {
         fprintf(stderr, "Initialising VLC with options:\n");
