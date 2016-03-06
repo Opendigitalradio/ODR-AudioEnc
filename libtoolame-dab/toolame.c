@@ -145,7 +145,7 @@ int toolame_init(void)
     header.version = MPEG_AUDIO_ID;	/* Default: MPEG-1 */
     header.copyright = 0;
     header.original = 0;
-    header.error_protection = FALSE;
+    header.error_protection = TRUE;
     header.dab_extension = 1;
     header.lay = DFLT_LAY;
 
