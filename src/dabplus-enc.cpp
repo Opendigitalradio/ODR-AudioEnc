@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013,2014,2015 Matthias P. Braendli
+ * Copyright (C) 2016 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ extern "C" {
 }
 
 #include <vector>
+#include <deque>
 #include <string>
 #include <getopt.h>
 #include <cstdio>
@@ -303,6 +304,7 @@ int main(int argc, char *argv[])
 
     char dab_channel_mode = '\0';
     int  dab_psy_model = 1;
+    std::deque<uint8_t> toolame_output_buffer;
 
     /* Keep track of peaks */
     int peak_left  = 0;
@@ -686,11 +688,10 @@ int main(int argc, char *argv[])
      * frame. This information is used when the alsa drift compensation
      * is active
      */
-    int enc_calls_per_output = 1; // Valid for libtoolame-dab
-
-    if (selected_encoder == encoder_selection_t::fdk_dabplus) {
-        enc_calls_per_output = (aot == AOT_DABPLUS_AAC_LC) ? sample_rate / 8000 : sample_rate / 16000;
-    }
+    const int enc_calls_per_output =
+        (selected_encoder == encoder_selection_t::fdk_dabplus) ?
+        ((aot == AOT_DABPLUS_AAC_LC) ? sample_rate / 8000 : sample_rate / 16000) :
+        1;
 
     int max_size = 8*input_buf.size() + NUM_SAMPLES_PER_CALL;
 
@@ -793,9 +794,10 @@ int main(int argc, char *argv[])
     else if (selected_encoder == encoder_selection_t::toolame_dab) {
         outbuf_size = 4092;
         outbuf.resize(outbuf_size);
-        zmqframebuf.resize(ZMQ_HEADER_SIZE + outbuf_size);
         fprintf(stderr, "Setting outbuf size to %zu\n", outbuf.size());
 
+        // ODR-DabMux expects frames of length 3*bitrate
+        zmqframebuf.resize(ZMQ_HEADER_SIZE + 3 * bitrate);
     }
 
     zmq_frame_header_t *zmq_frame_header = (zmq_frame_header_t*)&zmqframebuf[0];
@@ -1117,24 +1119,43 @@ int main(int argc, char *argv[])
             else {
                 // ------------ ZeroMQ transmit
                 try {
-                    zmq_frame_header->version = 1;
                     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
                         zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
+                        zmq_frame_header->version = 1;
+                        zmq_frame_header->datasize = numOutBytes;
+                        zmq_frame_header->audiolevel_left = peak_left;
+                        zmq_frame_header->audiolevel_right = peak_right;
+
+                        assert(ZMQ_FRAME_SIZE(zmq_frame_header) <= zmqframebuf.size());
+
+                        memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
+                                &outbuf[0], numOutBytes);
+
+                        zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
+                                ZMQ_DONTWAIT);
+
                     }
                     else if (selected_encoder == encoder_selection_t::toolame_dab) {
-                        zmq_frame_header->encoder = ZMQ_ENCODER_TOOLAME;
+                        toolame_output_buffer.insert(toolame_output_buffer.end(),
+                                outbuf.begin(), outbuf.begin() + numOutBytes);
+
+                        while (toolame_output_buffer.size() > 3 * bitrate) {
+                            zmq_frame_header->encoder = ZMQ_ENCODER_TOOLAME;
+                            zmq_frame_header->version = 1;
+                            zmq_frame_header->datasize = 3 * bitrate;
+                            zmq_frame_header->audiolevel_left = peak_left;
+                            zmq_frame_header->audiolevel_right = peak_right;
+
+                            memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
+                                    &toolame_output_buffer[0], 3 * bitrate);
+
+                            zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
+                                    ZMQ_DONTWAIT);
+
+                            toolame_output_buffer.erase(toolame_output_buffer.begin(),
+                                                        toolame_output_buffer.begin() + 3 * bitrate);
+                        }
                     }
-                    zmq_frame_header->datasize = numOutBytes;
-                    zmq_frame_header->audiolevel_left = peak_left;
-                    zmq_frame_header->audiolevel_right = peak_right;
-
-                    assert(ZMQ_FRAME_SIZE(zmq_frame_header) <= zmqframebuf.size());
-
-                    memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
-                            &outbuf[0], numOutBytes);
-
-                    zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
-                            ZMQ_DONTWAIT);
                 }
                 catch (zmq::error_t& e) {
                     fprintf(stderr, "ZeroMQ send error !\n");
