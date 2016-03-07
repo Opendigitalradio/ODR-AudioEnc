@@ -144,7 +144,7 @@ int toolame_init(void)
     header.copyright = 0;
     header.original = 0;
     header.error_protection = TRUE;
-    header.dab_extension = 1;
+    header.dab_extension = 4;
     header.lay = DFLT_LAY;
 
     model = DFLT_PSY;
@@ -276,13 +276,13 @@ int toolame_encode_frame(
         size_t output_buffer_size)
 {
     extern int minimum;
-    const int nch = frame.nch;
-    const int error_protection = header.error_protection;
-
     if (encode_first_call) {
         hdr_to_frps(&frame);
         encode_first_call = 0;
     }
+
+    const int nch = frame.nch;
+    const int error_protection = header.error_protection;
 
     bs.output_buffer = output_buffer;
     bs.output_buffer_size = output_buffer_size;
