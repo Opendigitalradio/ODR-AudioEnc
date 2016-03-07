@@ -17,7 +17,12 @@ LT_INIT
 AX_CXX_COMPILE_STDCXX_11(noext,mandatory)
 
 # std::thread requires pthread
-AX_PTHREAD([], AC_MSG_ERROR([requires pthread]))
+AX_PTHREAD( [
+            AC_DEFINE(HAVE_PTHREAD,1,[Define if you have POSIX threads libraries and header files.])
+            CLIBS="$PTHREAD_LIBS $LIBS"
+            CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+            LDFLAGS="$LDFLAGS $PTHREAD_CFLAGS"
+            CC="$PTHREAD_CC"], [AC_MSG_ERROR([requires pthread])] )
 
 AC_CHECK_LIB([m], [sin])
 
