@@ -35,12 +35,10 @@ void global_init (void)
     glopts.quickcount = 10;
     glopts.downmix = FALSE;
     glopts.byteswap = FALSE;
-    glopts.channelswap = FALSE;
     glopts.vbr = FALSE;
     glopts.vbrlevel = 0;
     glopts.athlevel = 0;
     glopts.verbosity = 2;
-    glopts.input_select = 0;
 }
 
 /************************************************************************
