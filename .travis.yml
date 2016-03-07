@@ -34,6 +34,7 @@ script:
     sudo make install
     popd
   - |
+    ./bootstrap
     ./configure
     make
   - |
