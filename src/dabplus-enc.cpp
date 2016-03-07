@@ -1146,8 +1146,12 @@ int main(int argc, char *argv[])
                             zmq_frame_header->audiolevel_left = peak_left;
                             zmq_frame_header->audiolevel_right = peak_right;
 
-                            memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
-                                    &toolame_output_buffer[0], 3 * bitrate);
+                            uint8_t *encoded_frame = ZMQ_FRAME_DATA(zmq_frame_header);
+
+                            // no memcpy for std::deque
+                            for (size_t i = 0; i < 3*bitrate; i++) {
+                                encoded_frame[i] = toolame_output_buffer[i];
+                            }
 
                             zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
                                     ZMQ_DONTWAIT);
