@@ -1,3 +1,9 @@
+2016-03-26: Matthias P. Braendli <matthias@mpb.li>
+	(v1.0.0):
+	* dabplus-enc:
+		Include libtoolame-dab, add a DAB encoder.
+		Fix issue with VLC input reading OGG streams.
+		Fix pthread autoconfiguration issue on some systems.
 2016-01-10: Matthias P. Braendli <matthias@mpb.li>
 	(v0.8.0):
 	* dabplus-enc:

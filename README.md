@@ -1,23 +1,26 @@
 FDK-AAC-DABplus Package
 =======================
 
-This package contains an DAB+ encoder that uses a modified library
-of the Fraunhofer FDK AAC code from Android, patched for
-960-transform to do DAB+ broadcast encoding.
+This package contains a DAB and DAB+ encoder that integrates into the
+ODR-mmbTools.
+
+The DAB encoder is based on toolame. The DAB+ encoder uses a modified library
+of the Fraunhofer FDK AAC code from Android, patched for 960-transform to do
+DAB+ broadcast encoding.
 
 The main tool is the *dabplus-enc* encoder, which can read audio from
 a file (raw or wav), from an ALSA source, from JACK or using libVLC,
 and encode to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
 
-The JACK input does not automatically connect to anything. The encoder runs
-at the rate defined by the system clock, and therefore sound
-card clock drift compensation is also used.
-
 The libVLC input allows the encoder to use all inputs supported by VLC, and
-therefore also webstreams, and other network sources.
+therefore also webstreams and other network sources.
 
 The ALSA and libVLC inputs support experimental sound card clock drift
 compensation, that can compensate for imprecise sound card clocks.
+
+The JACK input does not automatically connect to anything. The encoder runs
+at the rate defined by the system clock, and therefore sound
+card clock drift compensation is also used.
 
 *dabplus-enc* includes support for DAB MOT Slideshow and DLS, contributed by
 [CSP](http://rd.csp.it).
@@ -38,12 +41,12 @@ Requirements:
 
 * A C++11 compiler
 * ImageMagick magickwand (optional, for MOT slideshow)
-* The alsa libraries (libasound2)
 * Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
 * Install ZeroMQ 4.0.4 or more recent
   * If your distribution does not include it, take it from
     from http://download.zeromq.org/zeromq-4.0.4.tar.gz
 * JACK audio connection kit (optional)
+* The alsa libraries (libasound2, optional)
 * libvlc and vlc for the plugins (optional)
 
 This package:
@@ -73,8 +76,8 @@ input on port 9000.
     DST="tcp://yourserver:9000"
     BITRATE=64
 
-AAC encoder configuration
--------------------------
+DAB+ AAC encoder configuration
+------------------------------
 By default, when not overridden by the --aaclc, --sbr or --ps options,
 the encoder is configured according to bitrate and number of channels.
 
@@ -254,13 +257,15 @@ LICENCE
 It's complicated. The FDK-AAC-DABplus project contains
 
  - The Third-Party Modified Version of the Fraunhofer FDK AAC Codec Library for
-   Android, which is under its own licence. See NOTICE.
+   Android, which is under its own licence. See NOTICE. This is built into a
+   shared library.
  - The code for dabplus-enc in src/ licensed under the Apache Licence v2.0. See
    http://www.apache.org/licenses/LICENSE-2.0
  - libtoolame-dab, derived from TooLAME, licensed under LGPL v2.1 or later. See
-   libtoolame-dab/LGPL.txt
+   libtoolame-dab/LGPL.txt. This is built into a shared library.
 
-These source files are compiled and linked together into the dabplus-enc encoder.
+The dabplus-enc binary is linked agains the libtoolame-dab and fdk-aac-dabplus
+shared libraries.
 
 In addition to the audio encoder, there is also mot-encoder, containing code
 

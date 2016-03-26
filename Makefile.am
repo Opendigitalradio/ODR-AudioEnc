@@ -307,6 +307,7 @@ EXTRA_DIST = \
     $(top_srcdir)/README.md \
     $(top_srcdir)/Android.mk \
     $(top_srcdir)/fdk-dabplus.sym \
+    $(top_srcdir)/libtoolame-dab.sym \
     $(top_srcdir)/documentation/*.pdf \
     $(top_srcdir)/libAACdec/src/*.h \
     $(top_srcdir)/libAACdec/src/arm/*.cpp \
