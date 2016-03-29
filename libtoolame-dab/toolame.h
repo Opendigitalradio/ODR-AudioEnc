@@ -1,5 +1,6 @@
 #ifndef __TOOLAME_H_
 #define __TOOLAME_H_
+#include <stdlib.h>
 
 /* All exported functions shown here return zero
  * on success */
@@ -38,6 +39,7 @@ int toolame_set_pad(int pad_len);
 int toolame_encode_frame(
         short buffer[2][1152],
         unsigned char *xpad_data,
+        size_t xpad_len,
         unsigned char *output_buffer,
         size_t output_buffer_size);
 

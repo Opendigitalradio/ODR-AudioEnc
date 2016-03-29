@@ -88,7 +88,6 @@ void global_init (void)
 static frame_info frame;
 static frame_header header;
 static int frameNum;
-static int xpad_len;
 static int psycount;
 static int model;
 static unsigned int crc;
@@ -257,10 +256,13 @@ int toolame_set_samplerate(long sample_rate)
 
 int toolame_set_pad(int pad_len)
 {
-    header.dab_length = pad_len;
-    if (header.dab_length <= 0) {
+    if (pad_len < 0) {
         fprintf(stderr, "Invalid XPAD length specified\n");
         return 1;
+    }
+
+    if (pad_len) {
+        header.dab_length = pad_len;
     }
 
     return 0;
@@ -272,6 +274,7 @@ static int encode_first_call = 1;
 int toolame_encode_frame(
         short buffer[2][1152],
         unsigned char *xpad_data,
+        size_t xpad_len,
         unsigned char *output_buffer,
         size_t output_buffer_size)
 {

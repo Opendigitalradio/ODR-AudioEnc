@@ -673,12 +673,14 @@ int main(int argc, char *argv[])
             err = toolame_set_channel_mode(dab_channel_mode);
         }
 
+        if (err == 0) {
+            err = toolame_set_pad(padlen);
+        }
+
         if (err) {
             fprintf(stderr, "libtoolame-dab init failed: %d\n", err);
             return err;
         }
-
-        // TODO int toolame_set_pad(int pad_len);
 
         input_buf.resize(2 * 1152 * BYTES_PER_SAMPLE);
     }
@@ -1050,8 +1052,15 @@ int main(int argc, char *argv[])
             numOutBytes = out_args.numOutBytes;
         }
         else if (selected_encoder == encoder_selection_t::toolame_dab) {
-            const int calculated_padlen = ret > 0 ? pad_buf[padlen] : 0;
-            uint8_t *xpad_data = pad_buf + (padlen - calculated_padlen); // offset due to unused PAD bytes
+            int calculated_padlen = 0;
+            if (ret == padlen + 1) {
+                calculated_padlen = pad_buf[padlen];
+                if (calculated_padlen <= 2) {
+                    stringstream ss;
+                    ss << "Invalid XPAD Length " << calculated_padlen;
+                    throw runtime_error(ss.str());
+                }
+            }
 
             short input_buffers[2][1152];
 
@@ -1072,7 +1081,7 @@ int main(int argc, char *argv[])
             }
 
             if (read_bytes) {
-                numOutBytes = toolame_encode_frame(input_buffers, xpad_data, &outbuf[0], outbuf.size());
+                numOutBytes = toolame_encode_frame(input_buffers, pad_buf, calculated_padlen, &outbuf[0], outbuf.size());
             }
             else {
                 numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
