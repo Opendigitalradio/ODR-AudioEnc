@@ -982,11 +982,12 @@ int main(int argc, char *argv[])
 
         /* Silence detection */
         if (die_on_silence && MAX(peak_left, peak_right) == 0) {
-            const unsigned int dabplus_superframe_msec = 120ul;
-            const unsigned int frame_time_msec =
-                dabplus_superframe_msec / enc_calls_per_output;
+            const unsigned int frame_time_msec = 1000ul *
+                read_bytes / (BYTES_PER_SAMPLE * channels * sample_rate);
 
             measured_silence_ms += frame_time_msec;
+
+            printf("%ld bytes is %dms\n", read_bytes, frame_time_msec);
 
             if (measured_silence_ms > 1000*silence_timeout) {
                 fprintf(stderr, "Silence detected for %d seconds, aborting.\n",
