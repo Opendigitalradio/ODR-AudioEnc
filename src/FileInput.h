@@ -30,7 +30,8 @@ class FileInput
                 int sample_rate) :
             m_filename(filename),
             m_raw_input(raw_input),
-            m_sample_rate(sample_rate) { }
+            m_sample_rate(sample_rate),
+            m_wav(nullptr) { }
 
         ~FileInput();
 
