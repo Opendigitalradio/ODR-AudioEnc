@@ -987,8 +987,6 @@ int main(int argc, char *argv[])
 
             measured_silence_ms += frame_time_msec;
 
-            printf("%ld bytes is %dms\n", read_bytes, frame_time_msec);
-
             if (measured_silence_ms > 1000*silence_timeout) {
                 fprintf(stderr, "Silence detected for %d seconds, aborting.\n",
                         silence_timeout);
