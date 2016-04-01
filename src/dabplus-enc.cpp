@@ -688,12 +688,11 @@ int main(int argc, char *argv[])
     /* We assume that we need to call the encoder
      * enc_calls_per_output before it gives us one encoded audio
      * frame. This information is used when the alsa drift compensation
-     * is active
+     * is active. This is only valid for FDK-AAC.
      */
-    const int enc_calls_per_output =
-        (selected_encoder == encoder_selection_t::fdk_dabplus) ?
-        ((aot == AOT_DABPLUS_AAC_LC) ? sample_rate / 8000 : sample_rate / 16000) :
-        1;
+    const int enc_calls_per_output = (aot == AOT_DABPLUS_AAC_LC) ?
+        sample_rate / 8000 :
+        sample_rate / 16000;
 
     int max_size = 8*input_buf.size() + NUM_SAMPLES_PER_CALL;
 
@@ -819,7 +818,8 @@ int main(int argc, char *argv[])
         AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
 
         // -------------- wait the right amount of time
-        if (drift_compensation || jack_name) {
+        if (   (drift_compensation or jack_name) and
+                selected_encoder == encoder_selection_t::fdk_dabplus) {
             struct timespec tp_now;
             clock_gettime(CLOCK_MONOTONIC, &tp_now);
 
@@ -1087,6 +1087,36 @@ int main(int argc, char *argv[])
             }
             else {
                 numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
+            }
+
+            // We throttle Toolame by measuring the incoming audio size, because we
+            // know it always eats 1152 samples, regardless of configuration.
+            if (read_bytes and (drift_compensation or jack_name)) {
+                struct timespec tp_now;
+                clock_gettime(CLOCK_MONOTONIC, &tp_now);
+
+                unsigned long time_now  = (1000000000ul * tp_now.tv_sec) +
+                    tp_now.tv_nsec;
+                unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
+                    tp_next.tv_nsec;
+
+                // wait_time is in nanoseconds
+                const unsigned long wait_time = 1000000000ul *
+                    1152ul / (unsigned long)sample_rate;
+
+                unsigned long waiting = wait_time - (time_now - time_next);
+                if ((time_now - time_next) < wait_time) {
+                    //printf("Sleep %zuus\n", waiting / 1000);
+                    usleep(waiting / 1000);
+                }
+
+                // Move our time_counter into the future, for
+                // the next frame.
+                tp_next.tv_nsec += wait_time;
+                if (tp_next.tv_nsec >  1000000000L) {
+                    tp_next.tv_nsec -= 1000000000L;
+                    tp_next.tv_sec  += 1;
+                }
             }
         }
 
