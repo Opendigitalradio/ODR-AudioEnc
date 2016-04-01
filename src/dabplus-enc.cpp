@@ -34,6 +34,7 @@ extern "C" {
 
 #include <vector>
 #include <deque>
+#include <chrono>
 #include <string>
 #include <getopt.h>
 #include <cstdio>
@@ -255,6 +256,28 @@ int prepare_aac_encoder(
         return 1;
     }
     return 0;
+}
+
+chrono::steady_clock::time_point timepoint_last_compensation;
+
+void drift_compensation_delay(int sample_rate, int channels, size_t bytes)
+{
+    const size_t bytes_per_second = sample_rate * BYTES_PER_SAMPLE * channels;
+
+    size_t bytes_compensate = bytes;
+    const auto wait_time = std::chrono::milliseconds(1000ul * bytes_compensate / bytes_per_second);
+    assert(1000ul * bytes_compensate % bytes_per_second == 0);
+
+    const auto curTime = std::chrono::steady_clock::now();
+
+    const auto diff = curTime - timepoint_last_compensation;
+
+    if (diff < wait_time) {
+        auto waiting = wait_time - diff;
+        std::this_thread::sleep_for(waiting);
+    }
+
+    timepoint_last_compensation += wait_time;
 }
 
 #define no_argument 0
@@ -809,44 +832,12 @@ int main(int argc, char *argv[])
 
     int retval = 0;
     int send_error_count = 0;
-    struct timespec tp_next;
-    clock_gettime(CLOCK_MONOTONIC, &tp_next);
+    timepoint_last_compensation = chrono::steady_clock::now();
 
     int calls = 0; // for checking
     ssize_t read_bytes = 0;
     do {
         AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
-
-        // -------------- wait the right amount of time
-        if (   (drift_compensation or jack_name) and
-                selected_encoder == encoder_selection_t::fdk_dabplus) {
-            struct timespec tp_now;
-            clock_gettime(CLOCK_MONOTONIC, &tp_now);
-
-            unsigned long time_now  = (1000000000ul * tp_now.tv_sec) +
-                tp_now.tv_nsec;
-            unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
-                tp_next.tv_nsec;
-
-            const unsigned long dabplus_superframe_nsec = 120000000ul;
-
-            const unsigned long wait_time =
-                dabplus_superframe_nsec / enc_calls_per_output;
-
-            unsigned long waiting = wait_time - (time_now - time_next);
-            if ((time_now - time_next) < wait_time) {
-                //printf("Sleep %zuus\n", waiting / 1000);
-                usleep(waiting / 1000);
-            }
-
-            // Move our time_counter into the future, for
-            // the next frame.
-            tp_next.tv_nsec += wait_time;
-            if (tp_next.tv_nsec >  1000000000L) {
-                tp_next.tv_nsec -= 1000000000L;
-                tp_next.tv_sec  += 1;
-            }
-        }
 
         // --------------- Read data from the PAD fifo
         int ret;
@@ -912,6 +903,7 @@ int main(int argc, char *argv[])
                 size_t overruns;
                 size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
                 read_bytes = input_buf.size();
+                drift_compensation_delay(sample_rate, channels, read_bytes);
 
                 if (bytes_from_queue != input_buf.size()) {
                     status |= STATUS_UNDERRUN;
@@ -952,6 +944,7 @@ int main(int argc, char *argv[])
             size_t overruns;
             size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
             read_bytes = input_buf.size();
+            drift_compensation_delay(sample_rate, channels, read_bytes);
 
             if (bytes_from_queue != input_buf.size()) {
                 status |= STATUS_UNDERRUN;
@@ -1086,36 +1079,6 @@ int main(int argc, char *argv[])
             }
             else {
                 numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
-            }
-
-            // We throttle Toolame by measuring the incoming audio size, because we
-            // know it always eats 1152 samples, regardless of configuration.
-            if (read_bytes and (drift_compensation or jack_name)) {
-                struct timespec tp_now;
-                clock_gettime(CLOCK_MONOTONIC, &tp_now);
-
-                unsigned long time_now  = (1000000000ul * tp_now.tv_sec) +
-                    tp_now.tv_nsec;
-                unsigned long time_next = (1000000000ul * tp_next.tv_sec) +
-                    tp_next.tv_nsec;
-
-                // wait_time is in nanoseconds
-                const unsigned long wait_time = 1000000000ul *
-                    1152ul / (unsigned long)sample_rate;
-
-                unsigned long waiting = wait_time - (time_now - time_next);
-                if ((time_now - time_next) < wait_time) {
-                    //printf("Sleep %zuus\n", waiting / 1000);
-                    usleep(waiting / 1000);
-                }
-
-                // Move our time_counter into the future, for
-                // the next frame.
-                tp_next.tv_nsec += wait_time;
-                if (tp_next.tv_nsec >  1000000000L) {
-                    tp_next.tv_nsec -= 1000000000L;
-                    tp_next.tv_sec  += 1;
-                }
             }
         }
 
