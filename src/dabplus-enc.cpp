@@ -910,9 +910,10 @@ int main(int argc, char *argv[])
                 }
 
                 size_t overruns;
-                read_bytes = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+                size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+                read_bytes = input_buf.size();
 
-                if (read_bytes != input_buf.size()) {
+                if (bytes_from_queue != input_buf.size()) {
                     status |= STATUS_UNDERRUN;
                 }
 
@@ -949,9 +950,10 @@ int main(int argc, char *argv[])
 #endif
 
             size_t overruns;
-            read_bytes = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+            size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+            read_bytes = input_buf.size();
 
-            if (read_bytes != input_buf.size()) {
+            if (bytes_from_queue != input_buf.size()) {
                 status |= STATUS_UNDERRUN;
             }
 
