@@ -682,7 +682,7 @@ int main(int argc, char *argv[])
             return err;
         }
 
-        input_buf.resize(2 * 1152 * BYTES_PER_SAMPLE);
+        input_buf.resize(channels * 1152 * BYTES_PER_SAMPLE);
     }
 
     /* We assume that we need to call the encoder
