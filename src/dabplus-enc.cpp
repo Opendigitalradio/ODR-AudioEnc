@@ -35,6 +35,7 @@ extern "C" {
 #include <vector>
 #include <deque>
 #include <chrono>
+#include <thread>
 #include <string>
 #include <getopt.h>
 #include <cstdio>
