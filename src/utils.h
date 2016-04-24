@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
@@ -44,6 +45,8 @@ struct zmq_frame_header_t
 
 #define ZMQ_FRAME_DATA(f) ( ((uint8_t*)f)+sizeof(struct zmq_frame_header_t) )
 
+
+size_t strlen_utf8(const char *s);
 
 #endif
 

@@ -28,3 +28,13 @@ const char* level(int channel, int peak)
     return text[index][channel];
 }
 
+size_t strlen_utf8(const char *s) {
+    size_t result = 0;
+
+    // ignore continuation bytes - only count single/leading bytes
+    while (*s)
+        if ((*s++ & 0xC0) != 0x80)
+            result++;
+
+    return result;
+}

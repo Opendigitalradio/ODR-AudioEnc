@@ -126,6 +126,7 @@ void usage(const char* name) {
     "     -L OPTION                            Give an additional options to VLC (can be given\n"
     "                                          multiple times)\n"
     "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that mot-encoder can read it.\n"
+    "     -W, --write-icy-text-dl-plus         When writing the ICY Text into the file, add DL Plus information.\n"
 #else
     "     The VLC input was disabled at compile-time\n"
 #endif
@@ -306,6 +307,7 @@ int main(int argc, char *argv[])
     // For the VLC input
     std::string vlc_uri = "";
     std::string vlc_icytext_file = "";
+    bool vlc_icytext_dlplus = false;
     std::string vlc_gain = "";
     std::string vlc_cache = "";
     std::vector<std::string> vlc_additional_opts;
@@ -355,35 +357,36 @@ int main(int argc, char *argv[])
     char secretkey[CURVE_KEYLEN+1];
 
     const struct option longopts[] = {
-        {"bitrate",        required_argument,  0, 'b'},
-        {"channels",       required_argument,  0, 'c'},
-        {"dabmode",        required_argument,  0,  4 },
-        {"dabpsy",         required_argument,  0,  5 },
-        {"device",         required_argument,  0, 'd'},
-        {"format",         required_argument,  0, 'f'},
-        {"input",          required_argument,  0, 'i'},
-        {"jack",           required_argument,  0, 'j'},
-        {"output",         required_argument,  0, 'o'},
-        {"pad",            required_argument,  0, 'p'},
-        {"pad-fifo",       required_argument,  0, 'P'},
-        {"rate",           required_argument,  0, 'r'},
-        {"secret-key",     required_argument,  0, 'k'},
-        {"silence",        required_argument,  0, 's'},
-        {"vlc-cache",      required_argument,  0, 'C'},
-        {"vlc-gain",       required_argument,  0, 'g'},
-        {"vlc-uri",        required_argument,  0, 'v'},
-        {"vlc-opt",        required_argument,  0, 'L'},
-        {"write-icy-text", required_argument,  0, 'w'},
-        {"aaclc",          no_argument,        0,  0 },
-        {"dab",            no_argument,        0, 'a'},
-        {"drift-comp",     no_argument,        0, 'D'},
-        {"fifo-silence",   no_argument,        0,  3 },
-        {"help",           no_argument,        0, 'h'},
-        {"level",          no_argument,        0, 'l'},
-        {"no-afterburner", no_argument,        0, 'A'},
-        {"ps",             no_argument,        0,  2 },
-        {"sbr",            no_argument,        0,  1 },
-        {"verbosity",      no_argument,        0, 'V'},
+        {"bitrate",                required_argument,  0, 'b'},
+        {"channels",               required_argument,  0, 'c'},
+        {"dabmode",                required_argument,  0,  4 },
+        {"dabpsy",                 required_argument,  0,  5 },
+        {"device",                 required_argument,  0, 'd'},
+        {"format",                 required_argument,  0, 'f'},
+        {"input",                  required_argument,  0, 'i'},
+        {"jack",                   required_argument,  0, 'j'},
+        {"output",                 required_argument,  0, 'o'},
+        {"pad",                    required_argument,  0, 'p'},
+        {"pad-fifo",               required_argument,  0, 'P'},
+        {"rate",                   required_argument,  0, 'r'},
+        {"secret-key",             required_argument,  0, 'k'},
+        {"silence",                required_argument,  0, 's'},
+        {"vlc-cache",              required_argument,  0, 'C'},
+        {"vlc-gain",               required_argument,  0, 'g'},
+        {"vlc-uri",                required_argument,  0, 'v'},
+        {"vlc-opt",                required_argument,  0, 'L'},
+        {"write-icy-text",         required_argument,  0, 'w'},
+        {"write-icy-text-dl-plus", no_argument,        0, 'W'},
+        {"aaclc",                  no_argument,        0,  0 },
+        {"dab",                    no_argument,        0, 'a'},
+        {"drift-comp",             no_argument,        0, 'D'},
+        {"fifo-silence",           no_argument,        0,  3 },
+        {"help",                   no_argument,        0, 'h'},
+        {"level",                  no_argument,        0, 'l'},
+        {"no-afterburner",         no_argument,        0, 'A'},
+        {"ps",                     no_argument,        0,  2 },
+        {"sbr",                    no_argument,        0,  1 },
+        {"verbosity",              no_argument,        0, 'V'},
         {0, 0, 0, 0},
     };
 
@@ -407,7 +410,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:L:o:r:d:p:P:s:v:w:g:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -495,6 +498,9 @@ int main(int argc, char *argv[])
             break;
         case 'w':
             vlc_icytext_file = optarg;
+            break;
+        case 'W':
+            vlc_icytext_dlplus = true;
             break;
         case 'g':
             vlc_gain = optarg;
@@ -929,7 +935,7 @@ int main(int argc, char *argv[])
             }
 
             if (not vlc_icytext_file.empty()) {
-                vlc_in->write_icy_text(vlc_icytext_file);
+                vlc_in->write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
             }
         }
 #endif

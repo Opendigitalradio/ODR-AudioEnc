@@ -25,6 +25,7 @@
 
 #include <cstdio>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <deque>
 #include <thread>
@@ -35,6 +36,10 @@
 
 #include "SampleQueue.h"
 #include "common.h"
+
+extern "C" {
+#include "utils.h"
+}
 
 /* Common functionality for the direct libvlc input and the
  * threaded libvlc input
@@ -67,7 +72,7 @@ class VLCInput
         /* Write the last received ICY-Text to the
          * file.
          */
-        void write_icy_text(const std::string& filename);
+        void write_icy_text(const std::string& filename, bool dl_plus);
 
         // Callbacks for VLC
 

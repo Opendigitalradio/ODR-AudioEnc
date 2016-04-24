@@ -337,20 +337,36 @@ ssize_t VLCInputDirect::read(uint8_t* buf, size_t length)
     return read;
 }
 
-bool write_icy_to_file(const std::string& text, const std::string& filename)
+bool write_icy_to_file(const std::string& text, const std::string& filename, bool dl_plus)
 {
     FILE* fd = fopen(filename.c_str(), "wb");
     if (fd) {
-        int ret = fputs(text.c_str(), fd);
+        bool ret = true;
+
+        // if desired, prepend DL Plus information
+        if (dl_plus) {
+            std::stringstream ss;
+            ss << "##### parameters { #####\n";
+            ss << "DL_PLUS=1\n";
+
+            // if non-empty text, add PROGRAMME.NOW tag
+            if (!text.empty())
+                ss << "DL_PLUS_TAG=33 0 " << (strlen_utf8(text.c_str()) - 1) << "\n";   // -1 !
+
+            ss << "##### parameters } #####\n";
+            ret &= fputs(ss.str().c_str(), fd) >= 0;
+        }
+
+        ret &= fputs(text.c_str(), fd) >= 0;
         fclose(fd);
 
-        return ret >= 0;
+        return ret;
     }
 
     return false;
 }
 
-void VLCInput::write_icy_text(const std::string& filename)
+void VLCInput::write_icy_text(const std::string& filename, bool dl_plus)
 {
     if (icy_text_written.valid()) {
         auto status = icy_text_written.wait_for(std::chrono::microseconds(1));
@@ -364,7 +380,7 @@ void VLCInput::write_icy_text(const std::string& filename)
     else {
         if (m_nowplaying_previous != m_nowplaying) {
             icy_text_written = std::async(std::launch::async,
-                    std::bind(write_icy_to_file, m_nowplaying, filename));
+                    std::bind(write_icy_to_file, m_nowplaying, filename, dl_plus));
 
         }
 

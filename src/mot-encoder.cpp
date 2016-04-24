@@ -3,7 +3,7 @@
 
     Copyright (C) 2014, 2015 Matthias P. Braendli (http://opendigitalradio.org)
 
-    Copyright (C) 2015 Stefan Pöschel (http://opendigitalradio.org)
+    Copyright (C) 2015, 2016 Stefan Pöschel (http://opendigitalradio.org)
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -224,7 +224,8 @@ void createMscDG(MSCDG* msc, unsigned short int dgtype, int *cindex, unsigned sh
 struct DATA_GROUP;
 DATA_GROUP* packMscDG(MSCDG* msc);
 
-void prepend_dls_dgs(const std::string& text, uint8_t charset);
+struct DL_STATE;
+void prepend_dl_dgs(const DL_STATE& dl_state, uint8_t charset);
 void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls, bool remove_dls);
 
 // PAD related
@@ -389,15 +390,84 @@ void MOTHeader::AddExtensionVarSize(int param_id, const uint8_t* data_field, siz
 #define FPAD_LEN 2
 #define DLS_SEG_LEN_PREFIX       2
 #define DLS_SEG_LEN_CHAR_MAX    16
-#define DLS_CMD_REMOVE_LABEL    0x01
+#define DLS_CMD_REMOVE_LABEL    0b0001
+#define DLS_CMD_DL_PLUS         0b0010
+#define DL_PLUS_CMD_TAGS        0b0000
+
+#define DL_PARAMS_OPEN          "##### parameters { #####"
+#define DL_PARAMS_CLOSE         "##### parameters } #####"
 
 CharsetConverter charset_converter;
 
+struct DL_PLUS_TAG {
+    int content_type;
+    int start_marker;
+    int length_marker;
+
+    DL_PLUS_TAG() :
+        content_type(0),    // = DUMMY
+        start_marker(0),
+        length_marker(0)
+    {}
+
+    DL_PLUS_TAG(int content_type, int start_marker, int length_marker) :
+        content_type(content_type),
+        start_marker(start_marker),
+        length_marker(length_marker)
+    {}
+
+    bool operator==(const DL_PLUS_TAG& other) const {
+        return
+            content_type == other.content_type &&
+            start_marker == other.start_marker &&
+            length_marker == other.length_marker;
+    }
+    bool operator!=(const DL_PLUS_TAG& other) const {
+        return !(*this == other);
+    }
+};
+
+typedef std::vector<DL_PLUS_TAG> dl_plus_tags_t;
+
+struct DL_STATE {
+    std::string dl_text;
+
+    bool dl_plus_enabled;
+    bool dl_plus_item_toggle;
+    bool dl_plus_item_running;
+    dl_plus_tags_t dl_plus_tags;
+
+    DL_STATE() :
+        dl_plus_enabled(false),
+        dl_plus_item_toggle(false),
+        dl_plus_item_running(false)
+    {}
+
+    bool operator==(const DL_STATE& other) const {
+        if (dl_text != other.dl_text)
+            return false;
+        if (dl_plus_enabled != other.dl_plus_enabled)
+            return false;
+        if (dl_plus_enabled) {
+            if (dl_plus_item_toggle != other.dl_plus_item_toggle)
+                return false;
+            if (dl_plus_item_running != other.dl_plus_item_running)
+                return false;
+            if (dl_plus_tags != other.dl_plus_tags)
+                return false;
+        }
+        return true;
+    }
+    bool operator!=(const DL_STATE& other) const {
+        return !(*this == other);
+    }
+};
+
+
 typedef uint8_vector_t pad_t;
 static bool dls_toggle = false;
-static std::string dlstext_prev = "";
-static bool dlstext_prev_set = false;
-
+static bool dl_plus_toggle = false;
+static DL_STATE dl_state_prev;
 
 
 class PADPacketizer {
@@ -1375,13 +1445,151 @@ DATA_GROUP* createDynamicLabelCommand(uint8_t command) {
     return dg;
 }
 
+DATA_GROUP* createDynamicLabelPlus(const DL_STATE& dl_state) {
+    size_t tags_size = dl_state.dl_plus_tags.size();
+    size_t len_dl_plus_cmd_field = 1 + 3 * tags_size;
+    DATA_GROUP* dg = new DATA_GROUP(2 + len_dl_plus_cmd_field, 2, 3);
+    uint8_vector_t &seg_data = dg->data;
+
+    // prefix: toggle? + first seg + last seg + command flag + command
+    seg_data[0] =
+            (dl_plus_toggle ? (1 << 7) : 0) +
+            (1 << 6) +
+            (1 << 5) +
+            (1 << 4) +
+            DLS_CMD_DL_PLUS;
+
+    // prefix: link bit + length
+    seg_data[1] =
+            (dls_toggle ? (1 << 7) : 0) +
+            (len_dl_plus_cmd_field - 1);    // -1 !
+
+    // DL Plus tags command: CId + IT + IR + NT
+    seg_data[2] =
+            (DL_PLUS_CMD_TAGS << 4) +
+            (dl_state.dl_plus_item_toggle ? (1 << 3) : 0) +
+            (dl_state.dl_plus_item_running ? (1 << 2) : 0) +
+            (tags_size - 1);                // -1 !
+
+    for (size_t i = 0; i < tags_size; i++) {
+        // DL Plus tags command: Content Type + Start Marker + Length Marker
+        seg_data[3 + 3 * i] = dl_state.dl_plus_tags[i].content_type & 0x7F;
+        seg_data[4 + 3 * i] = dl_state.dl_plus_tags[i].start_marker & 0x7F;
+        seg_data[5 + 3 * i] = dl_state.dl_plus_tags[i].length_marker & 0x7F;
+    }
+
+    // CRC
+    dg->AppendCRC();
+
+    return dg;
+}
+
+
+std::vector<std::string> split_string(const std::string &s, const char delimiter) {
+    std::vector<std::string> result;
+    std::stringstream ss(s);
+    std::string part;
+
+    while (std::getline(ss, part, delimiter))
+        result.push_back(part);
+    return result;
+}
+
+bool parse_dl_param_bool(const std::string &key, const std::string &value, bool &target) {
+    if (value == "0") {
+        target = 0;
+        return true;
+    }
+    if (value == "1") {
+        target = 1;
+        return true;
+    }
+    fprintf(stderr, "mot-encoder Warning: DL parameter '%s' has unsupported value '%s' - ignored\n", key.c_str(), value.c_str());
+    return false;
+}
+
+bool parse_dl_param_int_dl_plus_tag(const std::string &key, const std::string &value, int &target) {
+    int value_int = atoi(value.c_str());
+    if (value_int >= 0x00 && value_int <= 0x7F) {
+        target = value_int;
+        return true;
+    }
+    fprintf(stderr, "mot-encoder Warning: DL Plus tag parameter '%s' %d out of range - ignored\n", key.c_str(), value_int);
+    return false;
+}
+
+void parse_dl_params(std::ifstream &dls_fstream, DL_STATE &dl_state) {
+    std::string line;
+    while (std::getline(dls_fstream, line)) {
+        // return on params close
+        if (line == DL_PARAMS_CLOSE)
+            return;
+
+        // ignore empty lines and comments
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        // parse key/value pair
+        size_t separator_pos = line.find('=');
+        if (separator_pos == std::string::npos) {
+            fprintf(stderr, "mot-encoder Warning: DL parameter line '%s' without separator - ignored\n", line.c_str());
+            continue;
+        }
+        std::string key = line.substr(0, separator_pos);
+        std::string value = line.substr(separator_pos + 1);
+#if DEBUG
+        fprintf(stderr, "parse_dl_params: key: '%s', value: '%s'\n", key.c_str(), value.c_str());
+#endif
+
+        if (key == "DL_PLUS") {
+            parse_dl_param_bool(key, value, dl_state.dl_plus_enabled);
+            continue;
+        }
+        if (key == "DL_PLUS_ITEM_TOGGLE") {
+            parse_dl_param_bool(key, value, dl_state.dl_plus_item_toggle);
+            continue;
+        }
+        if (key == "DL_PLUS_ITEM_RUNNING") {
+            parse_dl_param_bool(key, value, dl_state.dl_plus_item_running);
+            continue;
+        }
+        if (key == "DL_PLUS_TAG") {
+            if (dl_state.dl_plus_tags.size() == 4) {
+                fprintf(stderr, "mot-encoder Warning: DL Plus tag ignored, as already four tags present\n");
+                continue;
+            }
+
+            // split value
+            std::vector<std::string> params = split_string(value, ' ');
+            if (params.size() != 3) {
+                fprintf(stderr, "mot-encoder Warning: DL Plus tag value '%s' does not have three parts - ignored\n", value.c_str());
+                continue;
+            }
+
+            int content_type, start_marker, length_marker;
+            if (parse_dl_param_int_dl_plus_tag("content_type", params[0], content_type) &
+                parse_dl_param_int_dl_plus_tag("start_marker", params[1], start_marker) &
+                parse_dl_param_int_dl_plus_tag("length_marker", params[2], length_marker))
+                dl_state.dl_plus_tags.push_back(DL_PLUS_TAG(content_type, start_marker, length_marker));
+            continue;
+        }
+
+        fprintf(stderr, "mot-encoder Warning: DL parameter '%s' unknown - ignored\n", key.c_str());
+    }
+
+    fprintf(stderr, "mot-encoder Warning: no param closing tag, so the DLS text will be empty\n");
+}
+
+
 void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool raw_dls, bool remove_dls)
 {
-    std::ifstream dls_fstream(dls_file.c_str());
+    std::ifstream dls_fstream(dls_file);
     if (!dls_fstream.is_open()) {
         std::cerr << "Could not open " << dls_file << std::endl;
         return;
     }
+
+    DL_STATE dl_state;
 
     std::vector<std::string> dls_lines;
 
@@ -1389,7 +1597,11 @@ void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool 
     // Read and convert lines one by one because the converter doesn't understand
     // line endings
     while (std::getline(dls_fstream, line)) {
-        if (not line.empty()) {
+        if (line.empty())
+            continue;
+        if (line == DL_PARAMS_OPEN) {
+            parse_dl_params(dls_fstream, dl_state);
+        } else {
             if (not raw_dls && charset == CHARSET_UTF8) {
                 dls_lines.push_back(charset_converter.convert(line));
             }
@@ -1416,32 +1628,52 @@ void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool 
 
         ss << dls_lines[i];
     }
-    std::string dlstext = ss.str();
-    if (dlstext.size() > MAXDLS)
-        dlstext.resize(MAXDLS);
+
+    dl_state.dl_text = ss.str();
+    if (dl_state.dl_text.size() > MAXDLS)
+        dl_state.dl_text.resize(MAXDLS);
+
+
+    // if DL Plus enabled, but no DL Plus tags were added, add the required DUMMY tag
+    if (dl_state.dl_plus_enabled && dl_state.dl_plus_tags.empty())
+        dl_state.dl_plus_tags.push_back(DL_PLUS_TAG());
 
     if (not raw_dls)
         charset = CHARSET_COMPLETE_EBU_LATIN;
 
 
-    // Toggle the toggle bit only on (first call or) new text
-    bool dlstext_is_new = !dlstext_prev_set || (dlstext != dlstext_prev);
+    // toggle the toggle bit only on new DL state
+    bool dl_state_is_new = dl_state != dl_state_prev;
     if (verbose) {
-        fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dlstext_is_new ? "new" : "old", dlstext.c_str());
+        fprintf(stderr, "mot-encoder writing %s DLS text \"%s\"\n", dl_state_is_new ? "new" : "old", dl_state.dl_text.c_str());
+        if (dl_state.dl_plus_enabled) {
+            fprintf(
+                    stderr, "mot-encoder writing %s DL Plus tags (IT/IR: %d/%d): ",
+                    dl_state_is_new ? "new" : "old",
+                    dl_state.dl_plus_item_toggle ? 1 : 0,
+                    dl_state.dl_plus_item_running ? 1 : 0);
+            for (dl_plus_tags_t::const_iterator it = dl_state.dl_plus_tags.begin(); it != dl_state.dl_plus_tags.end(); it++) {
+                if (it != dl_state.dl_plus_tags.begin())
+                    fprintf(stderr, ", ");
+                fprintf(stderr, "%d (S/L: %d/%d)", it->content_type, it->start_marker, it->length_marker);
+            }
+            fprintf(stderr, "\n");
+        }
     }
 
     DATA_GROUP *remove_label_dg = NULL;
-    if (dlstext_is_new) {
+    if (dl_state_is_new) {
         if (remove_dls)
             remove_label_dg = createDynamicLabelCommand(DLS_CMD_REMOVE_LABEL);
 
         dls_toggle = !dls_toggle;   // indicate changed text
+        if (dl_state.dl_plus_enabled)
+            dl_plus_toggle = !dl_plus_toggle;
 
-        dlstext_prev = dlstext;
-        dlstext_prev_set = true;
+        dl_state_prev = dl_state;
     }
 
-    prepend_dls_dgs(dlstext, charset);
+    prepend_dl_dgs(dl_state, charset);
     if (remove_label_dg)
         pad_packetizer->queue.push_front(remove_label_dg);
     pad_packetizer->WriteAllPADs(output_fd);
@@ -1491,16 +1723,20 @@ DATA_GROUP* dls_get(const std::string& text, uint8_t charset, unsigned int seg_i
 }
 
 
-void prepend_dls_dgs(const std::string& text, uint8_t charset) {
+void prepend_dl_dgs(const DL_STATE& dl_state, uint8_t charset) {
     // process all DL segments
-    int seg_count = dls_count(text);
+    int seg_count = dls_count(dl_state.dl_text);
     std::vector<DATA_GROUP*> segs;
     for (int seg_index = 0; seg_index < seg_count; seg_index++) {
 #if DEBUG
         fprintf(stderr, "Segment number %d\n", seg_index + 1);
 #endif
-        segs.push_back(dls_get(text, charset, seg_index));
+        segs.push_back(dls_get(dl_state.dl_text, charset, seg_index));
     }
+
+    // if enabled, add DL Plus data group
+    if (dl_state.dl_plus_enabled)
+        segs.push_back(createDynamicLabelPlus(dl_state));
 
     // prepend to packetizer
     pad_packetizer->queue.insert(pad_packetizer->queue.begin(), segs.begin(), segs.end());
