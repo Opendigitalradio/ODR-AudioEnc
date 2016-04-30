@@ -278,11 +278,12 @@ int toolame_encode_frame(
         unsigned char *output_buffer,
         size_t output_buffer_size)
 {
-    extern int minimum;
     if (encode_first_call) {
         hdr_to_frps(&frame);
         encode_first_call = 0;
     }
+
+    frameNum++;
 
     const int nch = frame.nch;
     const int error_protection = header.error_protection;
@@ -301,8 +302,9 @@ int toolame_encode_frame(
         /* You must have one frame in memory if you are in DAB mode                 */
         /* in conformity of the norme ETS 300 401 http://www.etsi.org               */
         /* see bitstream.c            */
-        if (frameNum == 1)
-            minimum = lg_frame + MINIMUM;
+        if (frameNum == 1) {
+            bs_set_minimum(lg_frame + MINIMUM);
+        }
         adb -= header.dab_extension * 8 + (xpad_len ? xpad_len : FPAD_LENGTH) * 8;
     }
 
@@ -532,8 +534,16 @@ int toolame_encode_frame(
     for (int i = header.dab_extension - 1; i >= 0; i--) {
         CRC_calcDAB (&frame, bit_alloc, scfsi, scalar, &crc, i);
         /* this crc is for the previous frame in DAB mode  */
-        if (bs.buf_byte_idx + lg_frame < bs.buf_size)
+        if (bs.buf_byte_idx + lg_frame < bs.buf_size) {
             bs.buf[bs.buf_byte_idx + lg_frame] = crc;
+        }
+        else {
+            if (frameNum > 1) {
+                // frameNum 1 will always fail, because there is no previous frame
+                fprintf(stderr, "Error: Failed to insert SCF-CRC in frame %d, %d < %d\n",
+                        frameNum, bs.buf_byte_idx + lg_frame, bs.buf_size);
+            }
+        }
         /* reserved 2 bytes for F-PAD in DAB mode  */
         putbits (&bs, crc, 8);
     }

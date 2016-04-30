@@ -37,6 +37,11 @@
 /* see toollame.c                                                           */
 int minimum = MINIMUM;
 
+void bs_set_minimum(int min)
+{
+    minimum = min;
+}
+
 /* empty the buffer to the output device when the buffer becomes full */
 void empty_buffer (Bit_stream_struc * bs, int minimum)
 {

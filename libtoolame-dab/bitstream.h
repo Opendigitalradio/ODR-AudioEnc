@@ -19,3 +19,4 @@ unsigned int hget1bit (void);	/* MI */
 unsigned long hgetbits (int);
 unsigned long hsstell (void);
 void hputbuf (unsigned int, int);
+void bs_set_minimum(int minimum);
