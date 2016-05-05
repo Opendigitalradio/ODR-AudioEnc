@@ -466,7 +466,6 @@ struct DL_STATE {
 
 typedef uint8_vector_t pad_t;
 static bool dls_toggle = false;
-static bool dl_plus_toggle = false;
 static DL_STATE dl_state_prev;
 
 
@@ -1453,7 +1452,7 @@ DATA_GROUP* createDynamicLabelPlus(const DL_STATE& dl_state) {
 
     // prefix: toggle? + first seg + last seg + command flag + command
     seg_data[0] =
-            (dl_plus_toggle ? (1 << 7) : 0) +
+            (dls_toggle ? (1 << 7) : 0) +
             (1 << 6) +
             (1 << 5) +
             (1 << 4) +
@@ -1667,8 +1666,6 @@ void writeDLS(int output_fd, const std::string& dls_file, uint8_t charset, bool 
             remove_label_dg = createDynamicLabelCommand(DLS_CMD_REMOVE_LABEL);
 
         dls_toggle = !dls_toggle;   // indicate changed text
-        if (dl_state.dl_plus_enabled)
-            dl_plus_toggle = !dl_plus_toggle;
 
         dl_state_prev = dl_state;
     }
