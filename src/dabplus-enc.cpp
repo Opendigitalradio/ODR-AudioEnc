@@ -750,8 +750,7 @@ int main(int argc, char *argv[])
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
 #endif
 #if HAVE_VLC
-    VLCInputDirect    vlc_in_direct(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts);
-    VLCInputThreaded  vlc_in_threaded(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
+    VLCInput          vlc_input(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
 #endif
 
     if (infile) {
@@ -770,21 +769,13 @@ int main(int argc, char *argv[])
 #endif
 #if HAVE_VLC
     else if (vlc_uri != "") {
-        if (drift_compensation) {
-            if (vlc_in_threaded.prepare() != 0) {
-                fprintf(stderr, "VLC with drift compensation: preparation failed\n");
-                return 1;
-            }
+        if (vlc_input.prepare() != 0) {
+            fprintf(stderr, "VLC with drift compensation: preparation failed\n");
+            return 1;
+        }
 
-            fprintf(stderr, "Start VLC thread\n");
-            vlc_in_threaded.start();
-        }
-        else {
-            if (vlc_in_direct.prepare() != 0) {
-                fprintf(stderr, "VLC preparation failed\n");
-                return 1;
-            }
-        }
+        fprintf(stderr, "Start VLC thread\n");
+        vlc_input.start();
     }
 #endif
 #if HAVE_ALSA
@@ -896,17 +887,14 @@ int main(int argc, char *argv[])
         }
 #if HAVE_VLC
         else if (not vlc_uri.empty()) {
-            VLCInput* vlc_in = nullptr;
+
+            if (drift_compensation && vlc_input.fault_detected()) {
+                fprintf(stderr, "Detected fault in VLC input!\n");
+                retval = 5;
+                break;
+            }
 
             if (drift_compensation) {
-                vlc_in = &vlc_in_threaded;
-
-                if (drift_compensation && vlc_in_threaded.fault_detected()) {
-                    fprintf(stderr, "Detected fault in VLC input!\n");
-                    retval = 5;
-                    break;
-                }
-
                 size_t overruns;
                 size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
                 read_bytes = input_buf.size();
@@ -921,21 +909,20 @@ int main(int argc, char *argv[])
                 }
             }
             else {
-                vlc_in = &vlc_in_direct;
+                const int timeout_ms = 1000;
+                read_bytes = input_buf.size();
+                size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms); // returns bytes
 
-                read_bytes = vlc_in_direct.read(&input_buf[0], input_buf.size());
-                if (read_bytes < 0) {
-                    fprintf(stderr, "Detected fault in VLC input!\n");
-                    break;
-                }
-                else if (read_bytes != input_buf.size()) {
-                    fprintf(stderr, "Short VLC read !\n");
+                if (bytes_from_queue < read_bytes) {
+                    // queue timeout occurred
+                    fprintf(stderr, "Detected fault in VLC input! No data in time.\n");
+                    retval = 5;
                     break;
                 }
             }
 
             if (not vlc_icytext_file.empty()) {
-                vlc_in->write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
+                vlc_input.write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
             }
         }
 #endif

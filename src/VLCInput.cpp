@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2015 Matthias P. Braendli
+ * Copyright (C) 2016 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -327,16 +327,6 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
     return err;
 }
 
-ssize_t VLCInputDirect::read(uint8_t* buf, size_t length)
-{
-    int bytes_per_frame = m_channels * BYTES_PER_SAMPLE;
-    assert(length % bytes_per_frame == 0);
-
-    ssize_t read = m_read(buf, length);
-
-    return read;
-}
-
 bool write_icy_to_file(const std::string& text, const std::string& filename, bool dl_plus)
 {
     FILE* fd = fopen(filename.c_str(), "wb");
@@ -389,16 +379,14 @@ void VLCInput::write_icy_text(const std::string& filename, bool dl_plus)
 }
 
 
-// ==================== VLCInputThreaded ====================
-
-void VLCInputThreaded::start()
+void VLCInput::start()
 {
     if (m_fault) {
         fprintf(stderr, "Cannot start VLC input. Fault detected previsouly!\n");
     }
     else {
         m_running = true;
-        m_thread = std::thread(&VLCInputThreaded::process, this);
+        m_thread = std::thread(&VLCInput::process, this);
     }
 }
 
@@ -406,7 +394,7 @@ void VLCInputThreaded::start()
 // 10 samples @ 32kHz = 3.125ms
 #define NUM_BYTES_PER_CALL (10 * BYTES_PER_SAMPLE)
 
-void VLCInputThreaded::process()
+void VLCInput::process()
 {
     uint8_t samplebuf[NUM_BYTES_PER_CALL];
     while (m_running) {
@@ -418,7 +406,7 @@ void VLCInputThreaded::process()
             break;
         }
 
-        m_queue.push(samplebuf, n);
+        m_samplequeue.push(samplebuf, n);
     }
 }
 

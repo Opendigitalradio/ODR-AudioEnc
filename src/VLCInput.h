@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2015 Matthias P. Braendli
+ * Copyright (C) 2016 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,8 @@ class VLCInput
                  unsigned verbosity,
                  std::string& gain,
                  std::string& cache,
-                 std::vector<std::string>& additional_opts) :
+                 std::vector<std::string>& additional_opts,
+                 SampleQueue<uint8_t>& queue) :
             m_uri(uri),
             m_verbosity(verbosity),
             m_channels(channels),
@@ -62,12 +63,28 @@ class VLCInput
             m_additional_opts(additional_opts),
             m_gain(gain),
             m_vlc(nullptr),
-            m_mp(nullptr) { }
+            m_mp(nullptr),
+            m_fault(false),
+            m_running(false),
+            m_samplequeue(queue) {}
 
-        ~VLCInput() { cleanup(); }
+        VLCInput(const VLCInput& other) = delete;
+        VLCInput& operator=(const VLCInput& other) = delete;
+        ~VLCInput()
+        {
+            if (m_running) {
+                m_running = false;
+                m_thread.join();
+            }
+
+            cleanup();
+        }
 
         /* Prepare the audio input */
         int prepare();
+
+        /* Start the libVLC thread that fills the samplequeue */
+        void start();
 
         /* Write the last received ICY-Text to the
          * file.
@@ -92,7 +109,9 @@ class VLCInput
 
         int getChannels() { return m_channels; }
 
-    protected:
+        bool fault_detected() { return m_fault; };
+
+    private:
         void cleanup(void);
 
         // Fill exactly length bytes into buf. Blocking.
@@ -126,73 +145,15 @@ class VLCInput
         libvlc_instance_t     *m_vlc;
         libvlc_media_player_t *m_mp;
 
-    private:
-        VLCInput(const VLCInput& other) {}
-};
+        // For the thread
 
-class VLCInputDirect : public VLCInput
-{
-    public:
-        VLCInputDirect(const std::string& uri,
-                       int rate,
-                       unsigned channels,
-                       unsigned verbosity,
-                       std::string& gain,
-                       std::string& cache,
-                       std::vector<std::string>& additional_opts) :
-            VLCInput(uri, rate, channels, verbosity, gain, cache, additional_opts) {}
-
-        /* Read exactly length bytes into buf.
-         * Blocks if not enough data is available,
-         * or returns zero if EOF reached.
-         *
-         * Returns the number of bytes written into
-         * the buffer.
-         */
-        ssize_t read(uint8_t* buf, size_t length);
-
-};
-
-class VLCInputThreaded : public VLCInput
-{
-    public:
-        VLCInputThreaded(const std::string& uri,
-                         int rate,
-                         unsigned channels,
-                         unsigned verbosity,
-                         std::string& gain,
-                         std::string& cache,
-                         std::vector<std::string>& additional_opts,
-                         SampleQueue<uint8_t>& queue) :
-            VLCInput(uri, rate, channels, verbosity, gain, cache, additional_opts),
-            m_fault(false),
-            m_running(false),
-            m_queue(queue) {}
-
-        ~VLCInputThreaded()
-        {
-            if (m_running) {
-                m_running = false;
-                m_thread.join();
-            }
-        }
-
-        /* Start the libVLC thread that fills the queue */
-        virtual void start();
-
-        bool fault_detected() { return m_fault; };
-
-    private:
-        VLCInputThreaded(const VLCInputThreaded& other) = delete;
-        VLCInputThreaded& operator=(const VLCInputThreaded& other) = delete;
-
+        /* The function runnin in the thread */
         void process();
 
         std::atomic<bool> m_fault;
         std::atomic<bool> m_running;
         std::thread m_thread;
-        SampleQueue<uint8_t>& m_queue;
-
+        SampleQueue<uint8_t>& m_samplequeue;
 };
 
 #endif // HAVE_VLC
