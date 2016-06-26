@@ -124,7 +124,7 @@ dabplus_enc_SOURCES     = src/dabplus-enc.cpp \
 						  src/utf8/core.h \
 						  src/common.h
 
-mot_encoder_CXXFLAGS = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib
+mot_encoder_CXXFLAGS = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib -Wall -Wextra
 mot_encoder_LDADD    = @MAGICKWAND_LDADD@
 mot_encoder_SOURCES  = src/mot-encoder.cpp \
 					   contrib/lib_crc.h \

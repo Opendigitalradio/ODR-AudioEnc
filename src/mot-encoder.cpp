@@ -565,7 +565,9 @@ void PADPacketizer::WriteAllPADs(int output_fd) {
             break;
         }
 
-        ssize_t dummy = write(output_fd, &(*pad)[0], pad->size());
+        if (write(output_fd, &(*pad)[0], pad->size()) != (signed) pad->size())
+            fprintf(stderr, "mot-encoder Error: Could not write PAD\n");
+
         delete pad;
     }
 }
@@ -688,7 +690,7 @@ pad_t* PADPacketizer::FlushPAD() {
     if (subfields_size > 0) {
         if (used_cis > 0) {
             // X-PAD: CIs
-            for (int i = 0; i < used_cis; i++)
+            for (size_t i = 0; i < used_cis; i++)
                 pad[--pad_offset] = (short_xpad ? 0 : ci_len_index[i]) << 5 | ci_type[i];
 
             // X-PAD: end marker (if needed)
@@ -774,7 +776,7 @@ void usage(char* name)
 #define optional_argument 2
 int main(int argc, char *argv[])
 {
-    int len, ret;
+    int ret;
     struct dirent *pDirent;
     DIR *pDir = NULL;
     int  padlen = 58;
@@ -1062,8 +1064,6 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
     size_t height = MagickGetImageHeight(m_wand);
     size_t width  = MagickGetImageWidth(m_wand);
 
-    PixelWand  *p_wand = NULL;
-
     while (height > 240 || width > 320) {
         if (height/240.0 > width/320.0) {
             width = width * 240.0 / height;
@@ -1112,7 +1112,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
 int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 {
     int ret = 0;
-    int fd=0, nseg, lastseglen, i, last, curseglen;
+    int nseg, lastseglen, i, last, curseglen;
 #if HAVE_MAGICKWAND
     MagickWand *m_wand = NULL;
     MagickBooleanType err;
@@ -1263,12 +1263,15 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         // allocate memory to contain the whole file:
         blob = (unsigned char*)malloc(sizeof(char) * blobsize);
         if (blob == NULL) {
-            fprintf(stderr, "mot-encoder Error: Memory allocation error \n");
+            fprintf(stderr, "mot-encoder Error: Memory allocation error\n");
             goto encodefile_out;
         }
 
         // copy the file into the buffer:
-        size_t dummy = fread(blob, 1, blobsize, pFile);
+        if (fread(blob, blobsize, 1, pFile) != blobsize) {
+            fprintf(stderr, "mot-encoder Error: Could not read file\n");
+            goto encodefile_out;
+        }
 
         size_t last_dot = fname.rfind(".");
 
@@ -1683,7 +1686,7 @@ int dls_count(const std::string& text) {
 }
 
 
-DATA_GROUP* dls_get(const std::string& text, uint8_t charset, unsigned int seg_index) {
+DATA_GROUP* dls_get(const std::string& text, uint8_t charset, int seg_index) {
     bool first_seg = seg_index == 0;
     bool last_seg  = seg_index == dls_count(text) - 1;
 
