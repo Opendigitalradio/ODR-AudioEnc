@@ -1268,7 +1268,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         }
 
         // copy the file into the buffer:
-        if (fread(blob, blobsize, 1, pFile) != blobsize) {
+        if (fread(blob, blobsize, 1, pFile) != 1) {
             fprintf(stderr, "mot-encoder Error: Could not read file\n");
             goto encodefile_out;
         }
