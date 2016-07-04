@@ -294,7 +294,7 @@ void VLCInput::postRender_cb()
 ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 {
     ssize_t err = 0;
-    for (;;) {
+    while (m_running) {
         {
             std::lock_guard<std::mutex> lock(m_queue_mutex);
 
