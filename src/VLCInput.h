@@ -15,7 +15,7 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
-/*! \section VLC Input
+/*! \file VLCInput.h
  *
  * This input uses libvlc to get audio data. It is extremely useful, and allows
  * the encoder to use all inputs VLC supports.

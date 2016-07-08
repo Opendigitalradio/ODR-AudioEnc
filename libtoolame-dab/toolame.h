@@ -1,4 +1,6 @@
 /*! \section libtoolame API
+ *  \file toolame.h
+ *  \brief The libtoolame API
  */
 #ifndef __TOOLAME_H_
 #define __TOOLAME_H_

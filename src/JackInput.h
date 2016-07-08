@@ -16,7 +16,7 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
-/*! \section JACK Input
+/*! \file JackInput.h
  *
  * This input uses JACK to get audio data. This always uses drift
  * compensation, because there is no blocking way to read from JACK.

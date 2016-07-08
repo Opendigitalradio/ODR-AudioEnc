@@ -32,16 +32,23 @@
  *  The readme for the whole package is \ref md_README
  *
  *  Interesting starting points for the encoder
- *  - \ref dabplus-enc.cpp
- *  - \ref VLC Input
- *  - \ref Alsa Input
- *  - \ref JACK Input
- *  - \ref SampleQueue
- *  - \ref charset.h
- *  - \ref libtoolame API
+ *  - \ref dabplus-enc.cpp Main encoder file
+ *  - \ref VLCInput.h VLC Input
+ *  - \ref AlsaInput.h Alsa Input
+ *  - \ref JackInput.h JACK Input
+ *  - \ref SampleQueue.h
+ *  - \ref charset.h Charset conversion
+ *  - \ref toolame.h libtolame API
+ *  - \ref AudioLevel
+ *  - \ref DataInput
+ *  - \ref SilenceDetection
  *
  *  For the mot-encoder:
  *  - \ref mot-encoder.cpp
+ *
+ *
+ *  \file dabplus-enc.cpp
+ *  \brief The main file for the audio encoder
  */
 
 #include "config.h"
@@ -904,7 +911,7 @@ int main(int argc, char *argv[])
         memset(&outbuf[0], 0x00, outbuf_size);
         memset(&input_buf[0], 0x00, input_buf.size());
 
-        /*! \section Data input
+        /*! \section DataInput
          * We read data input either in a blocking way (file input, VLC or ALSA
          * without drift compensation) or in a non-blocking way (VLC or ALSA
          * with drift compensation, JACK).
@@ -1013,7 +1020,8 @@ int main(int argc, char *argv[])
 #endif
         }
 
-        /*! Audio level measurement is always done assuming we have two
+        /*! \section AudioLevel
+         * Audio level measurement is always done assuming we have two
          * channels, and is formally wrong in mono, but still gives
          * numbers one can use.
          *
@@ -1026,7 +1034,8 @@ int main(int argc, char *argv[])
             peak_right = MAX(peak_right, r);
         }
 
-        /*! Silence detection, looks at the audio level and is
+        /*! \section SilenceDetection
+         * Silence detection looks at the audio level and is
          * only useful if the connection dropped, or if no data is available. It is not
          * useful if the source is nearly silent (some noise present), because the
          * threshold is 0, and not configurable. The rationale is that we want to
@@ -1114,7 +1123,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            /*! toolame expects the audio to be in another shape as
+            /*! \note toolame expects the audio to be in another shape as
              * we have in input_buf, and we need to convert first
              */
             short input_buffers[2][1152];
@@ -1143,9 +1152,9 @@ int main(int argc, char *argv[])
             }
         }
 
-        /*! Check if the encoder has generated output data.
-         *  DAB+ requires RS encoding, which is not done in ODR-DabMux and not necessary
-         *  for DAB.
+        /* Check if the encoder has generated output data.
+         * DAB+ requires RS encoding, which is not done in ODR-DabMux and not necessary
+         * for DAB.
          */
         if (numOutBytes != 0 and
             selected_encoder == encoder_selection_t::fdk_dabplus) {

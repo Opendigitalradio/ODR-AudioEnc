@@ -34,7 +34,7 @@ int check_vlc_uses_size_t();
 
 using namespace std;
 
-/*! VLC callback functions have to be C functions.
+/*! \note VLC callback functions have to be C functions.
  * These wrappers call the VLCInput functions
  */
 
@@ -335,7 +335,7 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
     return err;
 }
 
-/* Write the corresponding text to a file readable by mot-encoder, with optional
+/*! Write the corresponding text to a file readable by mot-encoder, with optional
  * DL+ information. The text is passed as a copy because we actually use the
  * m_nowplaying variable which is also accessed in another thread, so better
  * make a copy.

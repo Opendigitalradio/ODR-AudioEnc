@@ -16,7 +16,7 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
-/*! \section ALSA Input
+/*! \file AlsaInput.h
  *
  * This input uses libasound to get audio data.
  */

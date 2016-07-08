@@ -19,7 +19,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 /*!
-    \file mot-encoder.c
+    \file mot-encoder.cpp
     \brief Generete PAD data for MOT Slideshow and DLS
 
     \author Sergio Sagliocco <sergio.sagliocco@csp.it>

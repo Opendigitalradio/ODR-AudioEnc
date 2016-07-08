@@ -18,9 +18,8 @@
  */
 
 /*!
- * \section SampleQueue
- *
- * An implementation for a threadsafe queue using the C++11 thread library
+ * \file SampleQueue.h
+ * \brief An implementation for a threadsafe queue using the C++11 thread library
  * for audio samples.
  */
 
