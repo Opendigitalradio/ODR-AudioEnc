@@ -320,14 +320,22 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 
         char* nowplaying_sz = libvlc_media_get_meta(media, libvlc_meta_NowPlaying);
         if (nowplaying_sz) {
+            std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
             m_nowplaying = nowplaying_sz;
+
             free(nowplaying_sz);
         }
     }
     return err;
 }
 
-bool write_icy_to_file(const std::string& text, const std::string& filename, bool dl_plus)
+/* Write the corresponding text to a file readable by mot-encoder, with optional
+ * DL+ information. The text is passed as a copy because we actually use the m_nowplaying
+ * variable which is also accessed in another thread, so better make a copy.
+ *
+ * Returns false on failure
+ */
+bool write_icy_to_file(const std::string text, const std::string& filename, bool dl_plus)
 {
     FILE* fd = fopen(filename.c_str(), "wb");
     if (fd) {
@@ -368,6 +376,8 @@ void VLCInput::write_icy_text(const std::string& filename, bool dl_plus)
     }
 
     else {
+        std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
+
         if (m_nowplaying_previous != m_nowplaying) {
             icy_text_written = std::async(std::launch::async,
                     std::bind(write_icy_to_file, m_nowplaying, filename, dl_plus));

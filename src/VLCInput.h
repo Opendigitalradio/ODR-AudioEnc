@@ -119,7 +119,7 @@ class VLCInput
 
         std::vector<uint8_t> m_current_buf;
 
-        mutable std::mutex m_queue_mutex;
+        std::mutex m_queue_mutex;
         std::deque<uint8_t> m_queue;
 
         std::string m_uri;
@@ -138,6 +138,7 @@ class VLCInput
 
 
         std::future<bool> icy_text_written;
+        std::mutex m_nowplaying_mutex;
         std::string m_nowplaying;
         std::string m_nowplaying_previous;
 
