@@ -17,14 +17,14 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/*!
+    \file mot-encoder.c
+    \brief Generete PAD data for MOT Slideshow and DLS
 
-    mot-encoder.c
-          Generete PAD data for MOT Slideshow and DLS
-
-    Authors:
-         Sergio Sagliocco <sergio.sagliocco@csp.it>
-         Matthias P. Braendli <matthias@mpb.li>
-         Stefan Pöschel <odr@basicmaster.de>
+    \author Sergio Sagliocco <sergio.sagliocco@csp.it>
+    \author Matthias P. Braendli <matthias@mpb.li>
+    \author Stefan Pöschel <odr@basicmaster.de>
 */
 
 #include <cstdio>
@@ -82,12 +82,12 @@ extern "C" {
 #define MINQUALITY 40
 
 // Charsets from TS 101 756
-#define CHARSET_COMPLETE_EBU_LATIN 0 // Complete EBU Latin based repertoire
-#define CHARSET_EBU_LATIN_CY_GR 1 // EBU Latin based common core, Cyrillic, Greek
-#define CHARSET_EBU_LATIN_AR_HE_CY_GR 2 // EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek
-#define CHARSET_ISO_LATIN_ALPHABET_2 3 // ISO Latin Alphabet No 2
-#define CHARSET_UCS2_BE 6 // ISO/IEC 10646 using UCS-2 transformation format, big endian byte order
-#define CHARSET_UTF8 15 // ISO Latin Alphabet No 2
+#define CHARSET_COMPLETE_EBU_LATIN 0 //!< Complete EBU Latin based repertoire
+#define CHARSET_EBU_LATIN_CY_GR 1 //!< EBU Latin based common core, Cyrillic, Greek
+#define CHARSET_EBU_LATIN_AR_HE_CY_GR 2 //!< EBU Latin based core, Arabic, Hebrew, Cyrillic and Greek
+#define CHARSET_ISO_LATIN_ALPHABET_2 3 //!< ISO Latin Alphabet No 2
+#define CHARSET_UCS2_BE 6 //!< ISO/IEC 10646 using UCS-2 transformation format, big endian byte order
+#define CHARSET_UTF8 15 //!< ISO Latin Alphabet No 2
 
 
 typedef std::vector<uint8_t> uint8_vector_t;
@@ -121,7 +121,7 @@ struct MSCDG {
     unsigned short int crc;     // 16 bits
 };
 
-/* Between collection of slides and transmission, the slide data is saved
+/*! Between collection of slides and transmission, the slide data is saved
  * in this structure.
  */
 struct slide_metadata_t {
@@ -138,7 +138,7 @@ struct slide_metadata_t {
     }
 };
 
-/* A simple fingerprint for each slide transmitted.
+/*! A simple fingerprint for each slide transmitted.
  * Allows us to reuse the same fidx if the same slide
  * is transmitted more than once.
  */
@@ -153,8 +153,9 @@ struct fingerprint_t {
     // assigned fidx, -1 means invalid
     int fidx;
 
-    // The comparison is not done on fidx, only
-    // on the file-specific data
+    /*! The comparison is not done on fidx, only
+     * on the file-specific data
+     */
     bool operator==(const fingerprint_t& other) const {
         return (((s_name == other.s_name &&
                  s_size == other.s_size) &&
@@ -183,6 +184,13 @@ struct fingerprint_t {
     }
 };
 
+/*! We keep track of transmitted files so that we can retransmit
+ * identical slides with the same index, in case the receivers cache
+ * them.
+ *
+ * \c MAXHISTORYLEN defines for how how many slides we want to keep this
+ * history.
+ */
 class History {
     public:
         History(size_t hist_size) :
@@ -594,7 +602,7 @@ void PADPacketizer::AddCI(int apptype, int len_index) {
 
 
 int PADPacketizer::OptimalSubFieldSizeIndex(size_t available_bytes) {
-    /* Return the index of the optimal sub-field size by stepwise search (regards only Variable Size X-PAD):
+    /*! Return the index of the optimal sub-field size by stepwise search (regards only Variable Size X-PAD):
      * - find the smallest sub-field able to hold (at least) all available bytes
      * - find the biggest regarding sub-field we have space for (which definitely exists - otherwise previously the PAD would have been flushed)
      * - if the wasted space is at least as big as the smallest possible sub-field, use a sub-field one size smaller
@@ -620,7 +628,7 @@ int PADPacketizer::WriteDGToSubField(DATA_GROUP* dg, size_t len) {
 
 
 bool PADPacketizer::AppendDG(DATA_GROUP* dg) {
-    /* use X-PAD w/o CIs instead of X-PAD w/ CIs, if we can save some bytes or at least do not waste additional bytes
+    /*! use X-PAD w/o CIs instead of X-PAD w/ CIs, if we can save some bytes or at least do not waste additional bytes
      *
      * Omit CI list in case:
      * 1.   no pending data sub-fields
@@ -1051,12 +1059,13 @@ void warnOnSmallerImage(size_t height, size_t width, std::string& fname) {
 }
 
 
-// Scales the image down if needed,
-// so that it is 320x240 pixels.
-// Automatically reduces the quality to make sure the
-// blobsize is not too large.
-//
-// Returns: the blobsize
+/*! Scales the image down if needed,
+ * so that it is 320x240 pixels.
+ * Automatically reduces the quality to make sure the
+ * blobsize is not too large.
+ *
+ * \return the blobsize
+ */
 #if HAVE_MAGICKWAND
 size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
 {
@@ -1127,17 +1136,17 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 
     size_t orig_quality;
     char*  orig_format = NULL;
-    /* We handle JPEG differently, because we want to avoid recompressing the
+    /*! We handle JPEG differently, because we want to avoid recompressing the
      * image if it is suitable as is
      */
     bool orig_is_jpeg = false;
 
-    /* If the original is a PNG, we transmit it as is, if the resolution is correct
+    /*! If the original is a PNG, we transmit it as is, if the resolution is correct
      * and the file is not too large. Otherwise it gets resized and sent as JPEG.
      */
     bool orig_is_png = false;
 
-    /* By default, we do resize the image to 320x240, with a quality such that
+    /*! By default, we do resize the image to 320x240, with a quality such that
      * the blobsize is at most MAXSLIDESIZE.
      *
      * For JPEG input files that are already at the right resolution and at the

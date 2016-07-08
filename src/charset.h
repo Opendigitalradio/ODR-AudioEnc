@@ -13,13 +13,13 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/*!
+    \file charset.h
+    \brief Define the EBU charset according to ETSI TS 101 756v1.8.1 for DLS encoding
 
-    charset.h
-         Define the EBU charset according to ETSI TS 101 756v1.8.1 for DLS encoding
-
-    Authors:
-         Matthias P. Braendli <matthias@mpb.li>
-         Lindsay Cornell
+    \author Matthias P. Braendli <matthias@mpb.li>
+    \author Lindsay Cornell
 */
 
 #ifndef __CHARSET_H_
@@ -65,7 +65,7 @@ class CharsetConverter
 {
     public:
         CharsetConverter() {
-            /* Build the converstion table that contains the known code points,
+            /*! Build the converstion table that contains the known code points,
              * at the indices corresponding to the EBU Latin table
              */
             using namespace std;
@@ -77,7 +77,7 @@ class CharsetConverter
             }
         }
 
-        /* Convert a UTF-8 encoded text line into an EBU Latin encoded byte stream
+        /*! Convert a UTF-8 encoded text line into an EBU Latin encoded byte stream
          */
         std::string convert(std::string line_utf8) {
             using namespace std;

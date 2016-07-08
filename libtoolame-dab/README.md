@@ -25,18 +25,16 @@ License along with tooLAME; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
-*********************
 INTRODUCTION
-*********************
+============
 
 tooLAME is an optimized Mpeg Audio 1/2 Layer 2 encoder.  It is based heavily on
     - the ISO dist10 code
     - improvement to algorithms as part of the LAME project (www.sulaco.org/mp3)
     - work by Mike Cheng and other contributors (see CONTRIBUTORS)
 
-*********************
 CONTRIBUTORS
-*********************
+============
 
 Dist10 code writers
 LAME specific contributions
@@ -82,9 +80,8 @@ Matthias P. Braendli <matthias@mpb.li>
     PAD insertion for DLS and slides
     Integration into FDK-AAC-DABplus
 
-*********************
 REFERENCE PAPERS
-*********************
+================
 (Specifically LayerII Papers)
 
 Kumar, M & Zubair, M., A high performance software implementation of mpeg audio 

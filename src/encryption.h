@@ -15,6 +15,7 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
+/* \brief Helper functions for the ZMQ encryption */
 
 #ifndef _ENCRYPTION_H_
 #define _ENCRYPTION_H_

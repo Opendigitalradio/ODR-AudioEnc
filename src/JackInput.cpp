@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013,2014 Matthias P. Braendli
+ * Copyright (C) 2016 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,7 +104,10 @@ int JackInput::prepare()
 
 void JackInput::jack_process(jack_nframes_t nframes)
 {
-    // Convert samples to shorts
+    /*! JACK works with float samples, we need to convert
+     * them to shorts first. This is done using a saturated
+     * conversion to avoid glitches.
+     */
     std::vector<int16_t> buffer(m_channels * nframes);
 
     for (int chan = 0; chan < m_channels; chan++) {

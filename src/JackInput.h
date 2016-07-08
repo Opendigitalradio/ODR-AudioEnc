@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013,2014 Matthias P. Braendli
+ * Copyright (C) 2016 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@
  * See the License for the specific language governing permissions
  * and limitations under the License.
  * -------------------------------------------------------------------
+ */
+/*! \section JACK Input
+ *
+ * This input uses JACK to get audio data. This always uses drift
+ * compensation, because there is no blocking way to read from JACK.
  */
 
 #ifndef __JACK_INPUT_H
@@ -53,13 +58,16 @@ class JackInput
             }
         }
 
-        /* Prepare the audio input */
+        /*! Prepare the audio input
+         *
+         * \return 0 on success
+         */
         int prepare();
 
     private:
         JackInput(const JackInput& other);
 
-        jack_client_t* m_client;
+        jack_client_t *m_client;
 
         std::vector<jack_port_t*> m_input_ports;
 
@@ -82,13 +90,13 @@ class JackInput
         SampleQueue<uint8_t>& m_queue;
 
         // Static functions for JACK callbacks
-        static int process_cb(jack_nframes_t nframes, void* arg)
+        static int process_cb(jack_nframes_t nframes, void *arg)
         {
             ((JackInput*)arg)->jack_process(nframes);
             return 0;
         }
 
-        static void shutdown_cb(void* arg)
+        static void shutdown_cb(void *arg)
         {
             ((JackInput*)arg)->jack_shutdown();
         }

@@ -16,6 +16,10 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
+/*! \section ALSA Input
+ *
+ * This input uses libasound to get audio data.
+ */
 
 #ifndef __ALSA_H_
 #define __ALSA_H_
@@ -34,8 +38,9 @@
 #include "SampleQueue.h"
 #include "common.h"
 
-/* Common functionality for the direct alsa input and the
- * threaded alsa input
+/*! Common functionality for the direct alsa input and the
+ * threaded alsa input. The threaded one is used for
+ * drift compensation.
  */
 class AlsaInput
 {
@@ -80,10 +85,10 @@ class AlsaInputDirect : public AlsaInput
                 unsigned int rate) :
             AlsaInput(alsa_dev, channels, rate) { }
 
-        /* Read length Bytes from from the alsa device.
+        /*! Read length Bytes from from the alsa device.
          * length must be a multiple of channels * bytes_per_sample.
          *
-         * Returns the number of bytes read.
+         * \return the number of bytes read.
          */
         ssize_t read(uint8_t* buf, size_t length);
 
@@ -112,7 +117,7 @@ class AlsaInputThreaded : public AlsaInput
             }
         }
 
-        /* Start the ALSA thread that fills the queue */
+        /*! Start the ALSA thread that fills the queue */
         virtual void start();
 
         bool fault_detected() { return m_fault; };

@@ -1,10 +1,28 @@
 /*
-   Copyright (C) 2013, 2014, 2015
-   Matthias P. Braendli, matthias.braendli@mpb.li
+ * Copyright (C) 2016 Matthias P. Braendli
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
+ *
+ * Matthias P. Braendli, matthias.braendli@mpb.li
+ */
 
-   An implementation for a threadsafe queue using the C++11 thread library
-   for audio samples.
-*/
+/*!
+ * \section SampleQueue
+ *
+ * An implementation for a threadsafe queue using the C++11 thread library
+ * for audio samples.
+ */
 
 #ifndef _SAMPLE_QUEUE_H_
 #define _SAMPLE_QUEUE_H_
@@ -21,7 +39,7 @@
 #include <cstdio>
 #include <cmath>
 
-/* This queue is meant to be used by two threads. One producer
+/*! This queue is meant to be used by two threads. One producer
  * that pushes elements into the queue, and one consumer that
  * retrieves the elements.
  *
@@ -55,7 +73,10 @@ public:
         m_overruns(0) {}
 
 
-    /* Push a bunch of samples into the buffer */
+    /*! Push a bunch of samples into the buffer
+     *
+     * \return size of the queue after the push
+     */
     size_t push(const T *val, size_t len)
     {
         size_t new_size = 0;
@@ -97,11 +118,11 @@ public:
         return m_queue.size();
     }
 
-    /* Wait until len elements in the queue are available,
+    /*! Wait until len elements in the queue are available,
      * and then fill the buf. If the timeout_ms (expressed in milliseconds
      * expires), fill the available number of elements.
-     * Returns the number
-     * of elemets written into buf
+     *
+     * \return the number of elemets written into buf
      */
     size_t pop_wait(T* buf, size_t len, int timeout_ms)
     {
@@ -158,8 +179,9 @@ public:
         return num_to_copy;
     }
 
-    /* Get up to len elements, place them into the buf array
-     * Returns the number of elements it was able to take
+    /*! Get up to len elements, place them into the buf array
+     *
+     * \return the number of elements it was able to take
      * from the queue
      */
     size_t pop(T* buf, size_t len)
@@ -168,10 +190,11 @@ public:
         return pop(buf, len, ovr);
     }
 
-    /* Get up to len elements, place them into the buf array.
+    /*! Get up to len elements, place them into the buf array.
      * Also update the overrun variable with the information
      * of how many overruns we saw since the last pop.
-     * Returns the number of elements it was able to take
+     *
+     * \return the number of elements it was able to take
      * from the queue
      */
     size_t pop(T* buf, size_t len, size_t* overruns)
@@ -243,7 +266,7 @@ private:
     unsigned int m_bytes_per_sample;
     size_t m_max_size;
 
-    /* Counter to keep track of number of overruns between calls
+    /*! Counter to keep track of number of overruns between calls
      * to pop()
      */
     size_t m_overruns;

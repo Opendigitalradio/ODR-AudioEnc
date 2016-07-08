@@ -12,12 +12,13 @@
 
 #define linear_to_dB(x) (log10(x) * 20)
 
-/* Calculate the little string containing a bargraph
+/*! Calculate the little string containing a bargraph
  * 'VU-meter' from the peak value measured
  */
 const char* level(int channel, int peak);
 
-/* This defines the on-wire representation of a ZMQ message header.
+/*! This defines the on-wire representation of a ZMQ message header.
+ * It must be compatible with the definition in ODR-DabMux.
  *
  * The data follows right after this header */
 struct zmq_frame_header_t

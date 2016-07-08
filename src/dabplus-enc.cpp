@@ -17,6 +17,33 @@
  * -------------------------------------------------------------------
  */
 
+/*! \mainpage Introduction
+ *  The ODR-mmbTools FDK-AAC-DABplus Audio encoder can encode audio for
+ *  ODR-DabMux, both DAB and DAB+. The DAB encoder is based on toolame. The
+ *  DAB+ encoder uses a modified library of the Fraunhofer FDK AAC code from
+ *  Android, patched for 960-transform to do DAB+ broadcast encoding.
+ *
+ *  This document describes some internals of the encoder, and is intended
+ *  to help developers understand and improve the software package.
+ *
+ *  User documentation is available in the README and in the ODR-mmbTools
+ *  Guide, available on the www.opendigitalradio.org website.
+ *
+ *  The readme for the whole package is \ref md_README
+ *
+ *  Interesting starting points for the encoder
+ *  - \ref dabplus-enc.cpp
+ *  - \ref VLC Input
+ *  - \ref Alsa Input
+ *  - \ref JACK Input
+ *  - \ref SampleQueue
+ *  - \ref charset.h
+ *  - \ref libtoolame API
+ *
+ *  For the mot-encoder:
+ *  - \ref mot-encoder.cpp
+ */
+
 #include "config.h"
 #include "AlsaInput.h"
 #include "FileInput.h"
@@ -56,7 +83,7 @@ extern "C" {
 
 
 
-// Enumerate which encoder we can use
+//! Enumeration of encoders we can use
 enum class encoder_selection_t {
     fdk_dabplus,
     toolame_dab
@@ -166,6 +193,10 @@ void usage(const char* name) {
 
 }
 
+/*! Setup the FDK AAC encoder
+ *
+ * \return 0 on success
+ */
 int prepare_aac_encoder(
         HANDLE_AACENCODER *encoder,
         int subchannel_index,
@@ -262,6 +293,9 @@ int prepare_aac_encoder(
 
 chrono::steady_clock::time_point timepoint_last_compensation;
 
+/*! Wait the proper amount of time to throttle down to nominal encoding
+ * rate, if drift compensation is enabled.
+ */
 void drift_compensation_delay(int sample_rate, int channels, size_t bytes)
 {
     const size_t bytes_per_second = sample_rate * BYTES_PER_SAMPLE * channels;
@@ -726,6 +760,9 @@ int main(int argc, char *argv[])
 
     int max_size = 8*input_buf.size() + NUM_SAMPLES_PER_CALL;
 
+    /*! The SampleQueue \c queue is given to the inputs, so that they
+     * can fill it.
+     */
     SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, channels, max_size);
 
     /* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
@@ -867,6 +904,18 @@ int main(int argc, char *argv[])
         memset(&outbuf[0], 0x00, outbuf_size);
         memset(&input_buf[0], 0x00, input_buf.size());
 
+        /*! \section Data input
+         * We read data input either in a blocking way (file input, VLC or ALSA
+         * without drift compensation) or in a non-blocking way (VLC or ALSA
+         * with drift compensation, JACK).
+         *
+         * The file input doesn't need the queue at all. But the other inputs
+         * do, and either use \c pop() or \c pop_wait() depending on if it's blocking or not
+         *
+         * In non-blocking, the \c queue makes the data available without delay, and the
+         * \c drift_compensation_delay() function handles rate throttling.
+         */
+
         if (infile) {
             read_bytes = file_in.read(&input_buf[0], input_buf.size());
             if (read_bytes < 0) {
@@ -911,6 +960,10 @@ int main(int argc, char *argv[])
             else {
                 const int timeout_ms = 1000;
                 read_bytes = input_buf.size();
+
+                /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
+                 * its job.
+                 */
                 size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms); // returns bytes
 
                 if (bytes_from_queue < read_bytes) {
@@ -960,6 +1013,12 @@ int main(int argc, char *argv[])
 #endif
         }
 
+        /*! Audio level measurement is always done assuming we have two
+         * channels, and is formally wrong in mono, but still gives
+         * numbers one can use.
+         *
+         * \todo fix level measurement in mono
+         */
         for (int i = 0; i < read_bytes; i+=4) {
             int16_t l = input_buf[i] | (input_buf[i+1] << 8);
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
@@ -967,7 +1026,12 @@ int main(int argc, char *argv[])
             peak_right = MAX(peak_right, r);
         }
 
-        /* Silence detection */
+        /*! Silence detection, looks at the audio level and is
+         * only useful if the connection dropped, or if no data is available. It is not
+         * useful if the source is nearly silent (some noise present), because the
+         * threshold is 0, and not configurable. The rationale is that we want to
+         * guard against connection issues, not source level issues
+         */
         if (die_on_silence && MAX(peak_left, peak_right) == 0) {
             const unsigned int frame_time_msec = 1000ul *
                 read_bytes / (BYTES_PER_SAMPLE * channels * sample_rate);
@@ -1050,6 +1114,9 @@ int main(int argc, char *argv[])
                 }
             }
 
+            /*! toolame expects the audio to be in another shape as
+             * we have in input_buf, and we need to convert first
+             */
             short input_buffers[2][1152];
 
             if (channels == 1) {
@@ -1076,7 +1143,10 @@ int main(int argc, char *argv[])
             }
         }
 
-        /* Check if the encoder has generated output data */
+        /*! Check if the encoder has generated output data.
+         *  DAB+ requires RS encoding, which is not done in ODR-DabMux and not necessary
+         *  for DAB.
+         */
         if (numOutBytes != 0 and
             selected_encoder == encoder_selection_t::fdk_dabplus) {
 
@@ -1088,7 +1158,6 @@ int main(int argc, char *argv[])
             }
             calls = 0;
 
-            // ----------- RS encoding
             int row, col;
             unsigned char buf_to_rs_enc[110];
             unsigned char rs_enc[10];

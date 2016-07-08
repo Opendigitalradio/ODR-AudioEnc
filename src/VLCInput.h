@@ -15,6 +15,11 @@
  * and limitations under the License.
  * -------------------------------------------------------------------
  */
+/*! \section VLC Input
+ *
+ * This input uses libvlc to get audio data. It is extremely useful, and allows
+ * the encoder to use all inputs VLC supports.
+ */
 
 #ifndef __VLC_INPUT_H_
 #define __VLC_INPUT_H_
@@ -41,8 +46,8 @@ extern "C" {
 #include "utils.h"
 }
 
-/* Common functionality for the direct libvlc input and the
- * threaded libvlc input
+/*! Common functionality for the direct libvlc input and the
+ *  threaded libvlc input
  */
 class VLCInput
 {
@@ -80,28 +85,31 @@ class VLCInput
             cleanup();
         }
 
-        /* Prepare the audio input */
+        /*! Prepare the audio input
+         *
+         * \return 0 on success
+         */
         int prepare();
 
-        /* Start the libVLC thread that fills the samplequeue */
+        /*! Start the libVLC thread that fills m_samplequeue */
         void start();
 
-        /* Write the last received ICY-Text to the
+        /*! Write the last received ICY-Text to the
          * file.
          */
         void write_icy_text(const std::string& filename, bool dl_plus);
 
-        // Callbacks for VLC
+        //! Callbacks for VLC
 
-        /* Notification of VLC exit */
+        /*! Notification of VLC exit */
         void exit_cb(void);
 
-        /* Prepare a buffer for VLC */
+        /*! Prepare a buffer for VLC */
         void preRender_cb(
                 uint8_t** pp_pcm_buffer,
                 size_t size);
 
-        /* Notification from VLC that the buffer is now filled
+        /*! Notification from VLC that the buffer is now filled
          */
         void postRender_cb();
 
@@ -112,14 +120,23 @@ class VLCInput
         bool fault_detected() { return m_fault; };
 
     private:
+        /*! Stop the player and release resources
+         */
         void cleanup(void);
 
-        // Fill exactly length bytes into buf. Blocking.
+        /*! Fill exactly length bytes into buf. Blocking.
+         *
+         * \return number of bytes written into buf, or
+         * -1 in case of error
+         */
         ssize_t m_read(uint8_t* buf, size_t length);
 
+        /*! Buffer used in the callback functions for VLC */
         std::vector<uint8_t> m_current_buf;
 
         std::mutex m_queue_mutex;
+
+        /*! Buffer containing all available samples from VLC */
         std::deque<uint8_t> m_queue;
 
         std::string m_uri;
@@ -127,16 +144,20 @@ class VLCInput
         unsigned m_channels;
         int m_rate;
 
-        // Whether to enable network caching in VLC or not
+        //! Whether to enable network caching in VLC or not
         std::string m_cache;
 
-        // Given as-is to libvlc
+        //! Given as-is to libvlc, useful for additional arguments
         std::vector<std::string> m_additional_opts;
 
-        // value for the VLC compressor filter
+        /*! value for the VLC compressor filter --compressor-makeup
+         * setting. Many more compressor settings could be set.
+         */
         std::string m_gain;
 
-
+        /*! VLC can give us the ICY-Text from an Icecast stream,
+         * which we optionnally write into a text file for mot-encoder
+         */
         std::future<bool> icy_text_written;
         std::mutex m_nowplaying_mutex;
         std::string m_nowplaying;
@@ -148,12 +169,16 @@ class VLCInput
 
         // For the thread
 
-        /* The function runnin in the thread */
+        /* The thread running process takes samples from m_queue and writes
+         * them into m_samplequeue. This decouples m_queue from m_samplequeue
+         * which is directly used by dabplus-enc.cpp
+         */
         void process();
 
         std::atomic<bool> m_fault;
         std::atomic<bool> m_running;
         std::thread m_thread;
+
         SampleQueue<uint8_t>& m_samplequeue;
 };
 

@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2014 Matthias P. Braendli
+ * Copyright (C) 2016 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,16 @@
  * See the License for the specific language governing permissions
  * and limitations under the License.
  * -------------------------------------------------------------------
+ */
+/*! \section File Input
+ *
+ * This input reads a wav or raw file.
+ *
+ * The raw input needs to be signed 16-bit per sample data, with
+ * the number of channels corresponding to the command line.
+ *
+ * The wav input must also correspond to the parameters on the command
+ * line (number of channels, rate)
  */
 
 #ifndef _FILE_INPUT_H_
@@ -35,15 +45,15 @@ class FileInput
 
         ~FileInput();
 
-        /* Open the file and prepare the wav decoder.
+        /*! Open the file and prepare the wav decoder.
          *
-         * Returns nonzero on error
+         * \return nonzero on error
          */
         int prepare(void);
 
-        /* Read length bytes into buf.
+        /*! Read length bytes into buf.
          *
-         * Returns the number of bytes read.
+         * \return the number of bytes read.
          */
         ssize_t read(uint8_t* buf, size_t length);
         int eof();

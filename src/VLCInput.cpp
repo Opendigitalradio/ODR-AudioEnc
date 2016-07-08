@@ -34,7 +34,11 @@ int check_vlc_uses_size_t();
 
 using namespace std;
 
-// VLC Audio prerender callback
+/*! VLC callback functions have to be C functions.
+ * These wrappers call the VLCInput functions
+ */
+
+//! VLC Audio prerender callback
 void prepareRender_size_t(
         void* p_audio_data,
         uint8_t** pp_pcm_buffer,
@@ -45,6 +49,7 @@ void prepareRender_size_t(
     in->preRender_cb(pp_pcm_buffer, size);
 }
 
+//! VLC Audio prepare render callback
 void prepareRender(
         void* p_audio_data,
         uint8_t** pp_pcm_buffer,
@@ -56,7 +61,7 @@ void prepareRender(
 }
 
 
-// Audio postrender callback
+//! Audio postrender callback for VLC versions that use size_t
 void handleStream_size_t(
         void* p_audio_data,
         uint8_t* p_pcm_buffer,
@@ -79,7 +84,9 @@ void handleStream_size_t(
     in->postRender_cb();
 }
 
-// convert from unsigned int size to size_t size
+/*! Audio postrender callback for VLC versions that use unsigned int.
+ * Convert from unsigned int size to size_t size
+ */
 void handleStream(
         void* p_audio_data,
         uint8_t* p_pcm_buffer,
@@ -101,7 +108,7 @@ void handleStream(
         pts);
 }
 
-// VLC Exit callback
+/*! VLC Exit callback */
 void handleVLCExit(void* opaque)
 {
     ((VLCInput*)opaque)->exit_cb();
@@ -109,7 +116,6 @@ void handleVLCExit(void* opaque)
 
 int VLCInput::prepare()
 {
-    int err;
     fprintf(stderr, "Initialising VLC...\n");
 
     long long int handleStream_address;
@@ -330,10 +336,11 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 }
 
 /* Write the corresponding text to a file readable by mot-encoder, with optional
- * DL+ information. The text is passed as a copy because we actually use the m_nowplaying
- * variable which is also accessed in another thread, so better make a copy.
+ * DL+ information. The text is passed as a copy because we actually use the
+ * m_nowplaying variable which is also accessed in another thread, so better
+ * make a copy.
  *
- * Returns false on failure
+ * \return false on failure
  */
 bool write_icy_to_file(const std::string text, const std::string& filename, bool dl_plus)
 {
@@ -379,6 +386,9 @@ void VLCInput::write_icy_text(const std::string& filename, bool dl_plus)
         std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
 
         if (m_nowplaying_previous != m_nowplaying) {
+            /*! We write the ICY text in a separate task because
+             * we do not want to have a delay due to IO
+             */
             icy_text_written = std::async(std::launch::async,
                     std::bind(write_icy_to_file, m_nowplaying, filename, dl_plus));
 
@@ -400,8 +410,9 @@ void VLCInput::start()
     }
 }
 
-// How many samples we insert into the queue each call
-// 10 samples @ 32kHz = 3.125ms
+/*! How many samples we insert into the queue each call
+ * 10 samples @ 32kHz = 3.125ms
+ */
 #define NUM_BYTES_PER_CALL (10 * BYTES_PER_SAMPLE)
 
 void VLCInput::process()
@@ -424,7 +435,7 @@ void VLCInput::process()
 
 
 
-/* VLC up to version 2.1.0 used a different callback function signature.
+/*! VLC up to version 2.1.0 used a different callback function signature.
  * VLC 2.2.0 uses size_t
  *
  * \return 1 if the callback with size_t size should be used.

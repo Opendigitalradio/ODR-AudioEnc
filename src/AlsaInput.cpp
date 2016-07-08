@@ -35,7 +35,7 @@ int AlsaInput::prepare()
 
     fprintf(stderr, "Initialising ALSA...\n");
 
-    const int open_mode = 0; //|= SND_PCM_NONBLOCK;
+    const int open_mode = 0;
 
     if ((err = snd_pcm_open(&m_alsa_handle, m_alsa_dev.c_str(),
                     SND_PCM_STREAM_CAPTURE, open_mode)) < 0) {

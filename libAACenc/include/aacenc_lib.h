@@ -90,7 +90,7 @@ amm-info@iis.fraunhofer.de
  * \file   aacenc_lib.h
  * \brief  FDK AAC Encoder library interface header file.
  *
-\mainpage  Introduction
+\page  FDK AAC Encoder Library Introduction
 
 \section Scope
 
