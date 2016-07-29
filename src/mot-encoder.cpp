@@ -1067,9 +1067,13 @@ void warnOnSmallerImage(size_t height, size_t width, std::string& fname) {
  * \return the blobsize
  */
 #if HAVE_MAGICKWAND
-size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
+size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname, bool* jfif_not_png)
 {
-    size_t blobsize;
+    unsigned char* blob_png;
+    unsigned char* blob_jpg;
+    size_t blobsize_png;
+    size_t blobsize_jpg;
+
     size_t height = MagickGetImageHeight(m_wand);
     size_t width  = MagickGetImageWidth(m_wand);
 
@@ -1088,33 +1092,52 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname)
     height = MagickGetImageHeight(m_wand);
     width  = MagickGetImageWidth(m_wand);
 
+    // try PNG (zlib level 9 / possibly adaptive filtering)
+    MagickSetImageFormat(m_wand, "png");
+    MagickSetImageCompressionQuality(m_wand, 95);
+    blob_png = MagickGetImageBlob(m_wand, &blobsize_png);
+
+    // try JPG
     MagickSetImageFormat(m_wand, "jpg");
 
-    int quality = 100;
-
+    blob_jpg = NULL;
+    int quality_jpg = 100;
     do {
-        quality -= 5;
+        free(blob_jpg);
+        quality_jpg -= 5;
 
-        MagickSetImageCompressionQuality(m_wand, quality);
-        *blob = MagickGetImagesBlob(m_wand, &blobsize);
-    } while (blobsize > MAXSLIDESIZE && quality > MINQUALITY);
+        MagickSetImageCompressionQuality(m_wand, quality_jpg);
+        blob_jpg = MagickGetImageBlob(m_wand, &blobsize_jpg);
+    } while (blobsize_jpg > MAXSLIDESIZE && quality_jpg > MINQUALITY);
 
-    if (blobsize > MAXSLIDESIZE) {
-        fprintf(stderr, "mot-encoder: Image Size too large after compression: %zu bytes\n",
-                blobsize);
 
+    // check for max size
+    if (blobsize_png > MAXSLIDESIZE && blobsize_jpg > MAXSLIDESIZE) {
+        fprintf(stderr, "mot-encoder: Image Size too large after compression: %zu bytes (PNG), %zu bytes (JPEG)\n",
+                blobsize_png, blobsize_jpg);
+        free(blob_png);
+        free(blob_jpg);
         return 0;
     }
 
+    // choose the smaller one (at least one does not exceed the max size)
+    *jfif_not_png = blobsize_jpg < blobsize_png;
+
     if (verbose) {
-        fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes (q=%d)\n",
-                width, height, blobsize, quality);
+        if (*jfif_not_png)
+            fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes (JPEG, q=%d; PNG was %zu bytes)\n",
+                    width, height, blobsize_jpg, quality_jpg, blobsize_png);
+        else
+            fprintf(stderr, "mot-encoder resized image to %zu x %zu. Size after compression %zu bytes (PNG; JPEG was %zu bytes)\n",
+                    width, height, blobsize_png, blobsize_jpg);
     }
 
     // warn if resized image smaller than default dimension
     warnOnSmallerImage(height, width, fname);
 
-    return blobsize;
+    free(*jfif_not_png ? blob_png : blob_jpg);
+    *blob = *jfif_not_png ? blob_jpg : blob_png;
+    return *jfif_not_png ? blobsize_jpg : blobsize_png;
 }
 #endif
 
@@ -1222,7 +1245,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
 
         if ((orig_is_jpeg || orig_is_png) && height <= 240 && width <= 320 && not jpeg_progr) {
             // Don't recompress the image and check if the blobsize is suitable
-            blob = MagickGetImagesBlob(m_wand, &blobsize);
+            blob = MagickGetImageBlob(m_wand, &blobsize);
 
             if (blobsize <= MAXSLIDESIZE) {
                 if (verbose) {
@@ -1234,10 +1257,7 @@ int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
         }
 
         if (resize_required) {
-            blobsize = resizeImage(m_wand, &blob, fname);
-
-            // resizeImage always creates a jpg output
-            jfif_not_png = true;
+            blobsize = resizeImage(m_wand, &blob, fname, &jfif_not_png);
         }
         else {
             // warn if unresized image smaller than default dimension
