@@ -49,6 +49,34 @@ extern "C" {
 /*! Common functionality for the direct libvlc input and the
  *  threaded libvlc input
  */
+
+struct ICY_TEXT_T {
+    std::string artist;
+    std::string title;
+    std::string now_playing;
+
+    bool operator==(const ICY_TEXT_T& other) const {
+        return
+            artist == other.artist &&
+            title == other.title &&
+            now_playing == other.now_playing;
+    }
+    bool operator!=(const ICY_TEXT_T& other) const {
+        return !(*this == other);
+    }
+    void useArtistTitle(std::string artist, std::string title) {
+        this->artist = artist;
+        this->title = title;
+        now_playing = "";
+    }
+    void useNowPlaying(std::string now_playing) {
+        artist = "";
+        title = "";
+        this->now_playing = now_playing;
+    }
+};
+
+
 class VLCInput
 {
     public:
@@ -119,6 +147,9 @@ class VLCInput
 
         bool fault_detected() { return m_fault; };
 
+        /*! Separator string used when artist/title are written
+         */
+        static const std::string ICY_TEXT_SEPARATOR;
     private:
         /*! Stop the player and release resources
          */
@@ -160,8 +191,8 @@ class VLCInput
          */
         std::future<bool> icy_text_written;
         std::mutex m_nowplaying_mutex;
-        std::string m_nowplaying;
-        std::string m_nowplaying_previous;
+        ICY_TEXT_T m_nowplaying;
+        ICY_TEXT_T m_nowplaying_previous;
 
         // VLC pointers
         libvlc_instance_t     *m_vlc;

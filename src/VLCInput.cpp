@@ -324,16 +324,33 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
             break;
         }
 
-        char* nowplaying_sz = libvlc_media_get_meta(media, libvlc_meta_NowPlaying);
-        if (nowplaying_sz) {
-            std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
-            m_nowplaying = nowplaying_sz;
+        // handle meta data
+        char* artist_sz = libvlc_media_get_meta(media, libvlc_meta_Artist);
+        char* title_sz = libvlc_media_get_meta(media, libvlc_meta_Title);
 
-            free(nowplaying_sz);
+        if (artist_sz && title_sz) {
+            // use Artist and Title
+            std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
+            m_nowplaying.useArtistTitle(artist_sz, title_sz);
+        } else {
+            // try fallback to NowPlaying
+            char* nowplaying_sz = libvlc_media_get_meta(media, libvlc_meta_NowPlaying);
+            if (nowplaying_sz) {
+                std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
+                m_nowplaying.useNowPlaying(nowplaying_sz);
+                free(nowplaying_sz);
+            }
         }
+
+        if (artist_sz)
+            free(artist_sz);
+        if (title_sz)
+            free(title_sz);
     }
     return err;
 }
+
+const std::string VLCInput::ICY_TEXT_SEPARATOR = " - ";
 
 /*! Write the corresponding text to a file readable by mot-encoder, with optional
  * DL+ information. The text is passed as a copy because we actually use the
@@ -342,11 +359,12 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
  *
  * \return false on failure
  */
-bool write_icy_to_file(const std::string text, const std::string& filename, bool dl_plus)
+bool write_icy_to_file(const ICY_TEXT_T text, const std::string& filename, bool dl_plus)
 {
     FILE* fd = fopen(filename.c_str(), "wb");
     if (fd) {
         bool ret = true;
+        bool artist_title_used = !text.artist.empty() && !text.title.empty();
 
         // if desired, prepend DL Plus information
         if (dl_plus) {
@@ -354,15 +372,32 @@ bool write_icy_to_file(const std::string text, const std::string& filename, bool
             ss << "##### parameters { #####\n";
             ss << "DL_PLUS=1\n";
 
-            // if non-empty text, add PROGRAMME.NOW tag
-            if (!text.empty())
-                ss << "DL_PLUS_TAG=33 0 " << (strlen_utf8(text.c_str()) - 1) << "\n";   // -1 !
+            // if non-empty text, add tag
+            if (artist_title_used) {
+                size_t artist_len = strlen_utf8(text.artist.c_str());
+                size_t title_start = artist_len + strlen_utf8(VLCInput::ICY_TEXT_SEPARATOR.c_str());
+
+                // ITEM.ARTIST
+                ss << "DL_PLUS_TAG=4 0 " << (artist_len - 1) << "\n";   // -1 !
+
+                // ITEM.TITLE
+                ss << "DL_PLUS_TAG=1 " << title_start << " " << (strlen_utf8(text.title.c_str()) - 1) << "\n";   // -1 !
+            } else if (!text.now_playing.empty()) {
+                // PROGRAMME.NOW
+                ss << "DL_PLUS_TAG=33 0 " << (strlen_utf8(text.now_playing.c_str()) - 1) << "\n";   // -1 !
+            }
 
             ss << "##### parameters } #####\n";
             ret &= fputs(ss.str().c_str(), fd) >= 0;
         }
 
-        ret &= fputs(text.c_str(), fd) >= 0;
+        if (artist_title_used) {
+            ret &= fputs(text.artist.c_str(), fd) >= 0;
+            ret &= fputs(VLCInput::ICY_TEXT_SEPARATOR.c_str(), fd) >= 0;
+            ret &= fputs(text.title.c_str(), fd) >= 0;
+        } else {
+            ret &= fputs(text.now_playing.c_str(), fd) >= 0;
+        }
         fclose(fd);
 
         return ret;
