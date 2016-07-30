@@ -1,3 +1,14 @@
+2016-07-30: Matthias P. Braendli <matthias@mpb.li>
+	(v.1.1.0):
+	* dabplus-enc:
+		Fix inputs using drift compensation in DAB mode. This includes
+		JACK, ALSA and VLC.
+		Fix mono in DAB mode.
+		Fix SCF-CRC insertion in DAB mode.
+	* mot-encoder:
+		Add DL+ support
+	* developer documentation:
+		Add a Doxygen target for the whole project.
 2016-03-29: Matthias P. Braendli <matthias@mpb.li>
 	(v1.0.1):
 	* dabplus-enc:
