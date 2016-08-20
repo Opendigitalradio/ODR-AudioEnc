@@ -218,7 +218,7 @@ class History {
 };
 
 
-int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides);
+int encodeFile(int output_fd, const std::string& fname, int fidx, bool raw_slides);
 
 uint8_vector_t createMotHeader(
         size_t blobsize,
@@ -786,7 +786,6 @@ int main(int argc, char *argv[])
 {
     int ret;
     struct dirent *pDirent;
-    DIR *pDir = NULL;
     int  padlen = 58;
     bool erase_after_tx = false;
     int  sleepdelay = SLEEPDELAY_DEFAULT;
@@ -795,7 +794,7 @@ int main(int argc, char *argv[])
     bool raw_dls = false;
     bool remove_dls = false;
 
-    const char* dir = NULL;
+    const char* sls_dir = NULL;
     const char* output = "/tmp/pad.fifo";
     std::string dls_file;
 
@@ -830,7 +829,7 @@ int main(int argc, char *argv[])
                 remove_dls = true;
                 break;
             case 'd':
-                dir = optarg;
+                sls_dir = optarg;
                 break;
             case 'e':
                 erase_after_tx = true;
@@ -867,13 +866,13 @@ int main(int argc, char *argv[])
         return 2;
     }
 
-    if (dir && not dls_file.empty()) {
+    if (sls_dir && not dls_file.empty()) {
         fprintf(stderr, "mot-encoder encoding Slideshow from '%s' and DLS from '%s' to '%s'\n",
-                dir, dls_file.c_str(), output);
+                sls_dir, dls_file.c_str(), output);
     }
-    else if (dir) {
+    else if (sls_dir) {
         fprintf(stderr, "mot-encoder encoding Slideshow from '%s' to '%s'. No DLS.\n",
-                dir, output);
+                sls_dir, output);
     }
     else if (not dls_file.empty()) {
         fprintf(stderr, "mot-encoder encoding DLS from '%s' to '%s'. No Slideshow.\n",
@@ -951,10 +950,10 @@ int main(int argc, char *argv[])
     History slides_history(MAXHISTORYLEN);
 
     while(1) {
-        if (dir) {
-            pDir = opendir(dir);
+        if (sls_dir) { // slide + possibly DLS
+            DIR *pDir = opendir(sls_dir);
             if (pDir == NULL) {
-                fprintf(stderr, "mot-encoder Error: cannot open directory '%s'\n", dir);
+                fprintf(stderr, "mot-encoder Error: cannot open directory '%s'\n", sls_dir);
                 return 1;
             }
 
@@ -962,7 +961,7 @@ int main(int argc, char *argv[])
             while ((pDirent = readdir(pDir)) != NULL) {
                 if (pDirent->d_name[0] != '.') {
                     char imagepath[256];
-                    sprintf(imagepath, "%s/%s", dir, pDirent->d_name);
+                    sprintf(imagepath, "%s/%s", sls_dir, pDirent->d_name);
 
                     slide_metadata_t md;
                     md.filepath = imagepath;
@@ -975,60 +974,52 @@ int main(int argc, char *argv[])
                 }
             }
 
+            closedir(pDir);
+
 #if DEBUG
             slides_history.disp_database();
 #endif
 
-            // Sort the list in fidx order
-            slides_to_transmit.sort();
-
-            if (not dls_file.empty()) {
-                // Maybe we have no slides, always update DLS
-                writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
-                sleep(sleepdelay);
-            }
-
-            // Encode the slides
-            std::list<slide_metadata_t>::iterator it;
-            for (it = slides_to_transmit.begin();
-                    it != slides_to_transmit.end();
-                    ++it) {
-
-                ret = encodeFile(output_fd, it->filepath, it->fidx, raw_slides);
-                if (ret != 1) {
-                    fprintf(stderr, "mot-encoder Error: cannot encode file '%s'\n", it->filepath.c_str());
-                }
-
-                if (erase_after_tx) {
-                    if (unlink(it->filepath.c_str()) == -1) {
-                        fprintf(stderr, "mot-encoder Error: erasing file '%s' failed: ", it->filepath.c_str());
-                        perror("");
-                    }
-                }
-
-                // Always retransmit DLS after each slide, we want it to be updated frequently
-                if (not dls_file.empty()) {
-                    writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
-                }
-
-                sleep(sleepdelay);
-            }
-
+            // if ATM no slides, transmit at least DLS
             if (slides_to_transmit.empty()) {
-                sleep(sleepdelay);
-            }
+                if (not dls_file.empty())
+                    writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
 
-            slides_to_transmit.resize(0);
-        }
-        else if (not dls_file.empty()) { // only DLS
+                sleep(sleepdelay);
+            } else {
+                // Sort the list in fidx order
+                slides_to_transmit.sort();
+
+                // Encode the slides
+                for (std::list<slide_metadata_t>::const_iterator it = slides_to_transmit.cbegin();
+                        it != slides_to_transmit.cend();
+                        ++it) {
+
+                    ret = encodeFile(output_fd, it->filepath, it->fidx, raw_slides);
+                    if (ret != 1)
+                        fprintf(stderr, "mot-encoder Error: cannot encode file '%s'\n", it->filepath.c_str());
+
+                    if (erase_after_tx) {
+                        if (unlink(it->filepath.c_str()) == -1) {
+                            fprintf(stderr, "mot-encoder Error: erasing file '%s' failed: ", it->filepath.c_str());
+                            perror("");
+                        }
+                    }
+
+                    // Always retransmit DLS after each slide, we want it to be updated frequently
+                    if (not dls_file.empty())
+                        writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
+
+                    sleep(sleepdelay);
+                }
+
+                slides_to_transmit.resize(0);
+            }
+        } else { // only DLS
             // Always retransmit DLS, we want it to be updated frequently
             writeDLS(output_fd, dls_file, charset, raw_dls, remove_dls);
 
             sleep(sleepdelay);
-        }
-
-        if (pDir) {
-            closedir(pDir);
         }
     }
 
@@ -1053,7 +1044,7 @@ DATA_GROUP* createDataGroupLengthIndicator(size_t len) {
 }
 
 
-void warnOnSmallerImage(size_t height, size_t width, std::string& fname) {
+void warnOnSmallerImage(size_t height, size_t width, const std::string& fname) {
     if (height < 240 || width < 320)
         fprintf(stderr, "mot-encoder Warning: Image '%s' smaller than recommended size (%zu x %zu < 320 x 240 px)\n", fname.c_str(), width, height);
 }
@@ -1067,7 +1058,7 @@ void warnOnSmallerImage(size_t height, size_t width, std::string& fname) {
  * \return the blobsize
  */
 #if HAVE_MAGICKWAND
-size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname, bool* jfif_not_png)
+size_t resizeImage(MagickWand* m_wand, unsigned char** blob, const std::string& fname, bool* jfif_not_png)
 {
     unsigned char* blob_png;
     unsigned char* blob_jpg;
@@ -1141,7 +1132,7 @@ size_t resizeImage(MagickWand* m_wand, unsigned char** blob, std::string& fname,
 }
 #endif
 
-int encodeFile(int output_fd, std::string& fname, int fidx, bool raw_slides)
+int encodeFile(int output_fd, const std::string& fname, int fidx, bool raw_slides)
 {
     int ret = 0;
     int nseg, lastseglen, i, last, curseglen;
