@@ -1,5 +1,13 @@
+2016-09-02: Matthias P. Braendli <matthias@mpb.li>
+	(v1.2.0):
+	* dabplus-enc:
+		VLC input can extract Artist and Title from stream if available, for
+		DL+
+	* mot-encoder:
+		Try compressing slides to PNG if size is smaller than JPG.
+		Fix memory leak in JPG compressor.
 2016-07-30: Matthias P. Braendli <matthias@mpb.li>
-	(v.1.1.0):
+	(v1.1.0):
 	* dabplus-enc:
 		Fix inputs using drift compensation in DAB mode. This includes
 		JACK, ALSA and VLC.
