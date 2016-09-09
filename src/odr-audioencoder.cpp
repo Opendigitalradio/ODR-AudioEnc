@@ -32,7 +32,7 @@
  *  The readme for the whole package is \ref md_README
  *
  *  Interesting starting points for the encoder
- *  - \ref dabplus-enc.cpp Main encoder file
+ *  - \ref odr-audioencoder.cpp Main encoder file
  *  - \ref VLCInput.h VLC Input
  *  - \ref AlsaInput.h Alsa Input
  *  - \ref JackInput.h JACK Input
@@ -47,7 +47,7 @@
  *  - \ref mot-encoder.cpp
  *
  *
- *  \file dabplus-enc.cpp
+ *  \file odr-audioencoder.cpp
  *  \brief The main file for the audio encoder
  */
 
@@ -81,7 +81,7 @@ extern "C" {
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include "libAACenc/include/aacenc_lib.h"
+#include "fdk-aac/aacenc_lib.h"
 
 extern "C" {
 #include <fec.h>
@@ -100,7 +100,7 @@ using namespace std;
 
 void usage(const char* name) {
     fprintf(stderr,
-    "dabplus-enc %s is an audio encoder for both DAB and DAB+.\n"
+    "ODR-AudioEncoder %s is an audio encoder for both DAB and DAB+.\n"
     "The DAB+ HE-AACv2 encoder is based on a Thirt-Party Modified\n"
     "Version of the Fraunhofer FDK AAC Codec Library for Android,\n"
     "and the DAB encoder is using the tooLAME MPEG\n"

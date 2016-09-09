@@ -1,7 +1,7 @@
 dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([fdk-aac-dabplus], [1.2.0], [http://opendigitalradio.org/])
+AC_INIT([odr-audioencoder], [0.1.0], [http://opendigitalradio.org/])
 AC_CONFIG_AUX_DIR(.)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([tar-ustar foreign])
@@ -69,8 +69,8 @@ AS_IF([test "x$enable_vlc" = "xyes"],
 AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
 AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
 
-# fdk-aac-dabplus-zmq needs ZeroMQ
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
+AC_CHECK_LIB(fdk-aac, aacEncOpen, , AC_MSG_ERROR(The FDK-AAC library is required))
 
 if pkg-config MagickWand; then
     MAGICKWAND_CFLAGS=`pkg-config MagickWand --cflags`
@@ -88,19 +88,16 @@ AS_IF([ pkg-config MagickWand ],
 dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as
 dnl current.age.revision
-FDK_AAC_VERSION=0:4:0
 LIBTOOLAME_DAB_VERSION=0:1:0
 
 AS_IF([test x$enable_shared = xyes], [LIBS_PRIVATE=$LIBS], [LIBS_PUBLIC=$LIBS])
-AC_SUBST(FDK_AAC_VERSION)
 AC_SUBST(LIBTOOLAME_DAB_VERSION)
 AC_SUBST(LIBS_PUBLIC)
 AC_SUBST(LIBS_PRIVATE)
 
 AM_CONDITIONAL([IS_GIT_REPO], [test -d '.git'])
 
-AC_CONFIG_FILES([Makefile
-                 fdk-dabplus.pc])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
 echo
