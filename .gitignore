@@ -14,6 +14,8 @@ config.guess
 config.log
 config.status
 config.sub
+config.h
+config.h.in
 compile
 depcomp
 install-sh
@@ -27,7 +29,4 @@ m4/lt~obsolete.m4
 missing
 stamp-h1
 mot-encoder
-dabplus-enc-file
-dabplus-enc-file-zmq
-dabplus-enc-alsa-zmq
-dabplus-enc-zmq
+odr-audioencoder
