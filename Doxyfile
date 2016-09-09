@@ -1,7 +1,7 @@
 # Doxyfile 1.8.11
 
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME           = "FDK-AAC-DABplus"
+PROJECT_NAME           = "ODR-AudioEncoder"
 PROJECT_NUMBER         = $(PROJECT_NUMBER)
 PROJECT_BRIEF          = "ODR-mmbTools DAB and DAB+ Audio Encoder"
 

@@ -18,10 +18,10 @@
  */
 
 /*! \mainpage Introduction
- *  The ODR-mmbTools FDK-AAC-DABplus Audio encoder can encode audio for
+ *  The ODR-mmbTools ODR-AudioEncoder Audio encoder can encode audio for
  *  ODR-DabMux, both DAB and DAB+. The DAB encoder is based on toolame. The
- *  DAB+ encoder uses a modified library of the Fraunhofer FDK AAC code from
- *  Android, patched for 960-transform to do DAB+ broadcast encoding.
+ *  DAB+ encoder requires a the Fraunhofer FDK AAC library, with the
+ *  necessary patches for 960-transform to do DAB+ broadcast encoding.
  *
  *  This document describes some internals of the encoder, and is intended
  *  to help developers understand and improve the software package.
@@ -101,10 +101,7 @@ using namespace std;
 void usage(const char* name) {
     fprintf(stderr,
     "ODR-AudioEncoder %s is an audio encoder for both DAB and DAB+.\n"
-    "The DAB+ HE-AACv2 encoder is based on a Thirt-Party Modified\n"
-    "Version of the Fraunhofer FDK AAC Codec Library for Android,\n"
-    "and the DAB encoder is using the tooLAME MPEG\n"
-    "encoder sources. The encoder can read from JACK, ALSA or\n"
+    "The encoder can read from JACK, ALSA or\n"
     "a file source and encode to a ZeroMQ output for ODR-DabMux.\n"
     "(Experimental!)It can also use libvlc as an input.\n"
     "\n"

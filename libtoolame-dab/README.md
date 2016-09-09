@@ -78,7 +78,7 @@ Mike Cheng <mikecheng at NOT planckenergy.com> (remove the NOT)
 
 Matthias P. Braendli <matthias@mpb.li>
     PAD insertion for DLS and slides
-    Integration into FDK-AAC-DABplus
+    Integration into ODR-AudioEncoder
 
 REFERENCE PAPERS
 ================
