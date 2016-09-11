@@ -72,18 +72,6 @@ AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
 AC_CHECK_LIB(fdk-aac, aacEncOpen, , AC_MSG_ERROR(The FDK-AAC library is required))
 
-if pkg-config MagickWand; then
-    MAGICKWAND_CFLAGS=`pkg-config MagickWand --cflags`
-    MAGICKWAND_LDADD=`pkg-config MagickWand --libs`
-    AC_SUBST(MAGICKWAND_CFLAGS)
-    AC_SUBST(MAGICKWAND_LDADD)
-else
-    AC_MSG_WARN(MagickWand not found)
-fi
-
-AS_IF([ pkg-config MagickWand ],
-       AC_DEFINE(HAVE_MAGICKWAND, [1], [Define if MagickWand is available]))
-
 
 dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as
@@ -113,10 +101,6 @@ do
           [enabled="$enabled $feature"],
           [disabled="$disabled $feature"])
 done
-
-AS_IF([ pkg-config MagickWand ],
-      [enabled="$enabled magickwand"],
-      [disabled="$disabled magickwand"])
 
 echo "  Enabled: $enabled"
 echo "  Disabled: $disabled"

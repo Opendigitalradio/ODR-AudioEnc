@@ -94,14 +94,7 @@ odr_audioencoder_SOURCES     = src/odr-audioencoder.cpp \
 							   src/utf8/core.h \
 							   src/common.h
 
-mot_encoder_CXXFLAGS = $(GITVERSION_FLAGS) @MAGICKWAND_CFLAGS@ -Icontrib -Wall -Wextra
-mot_encoder_LDADD    = @MAGICKWAND_LDADD@
-mot_encoder_SOURCES  = src/mot-encoder.cpp \
-					   contrib/lib_crc.h \
-					   contrib/lib_crc.c
-
-bin_PROGRAMS =  odr-audioencoder$(EXEEXT) \
-				mot-encoder$(EXEEXT)
+bin_PROGRAMS =  odr-audioencoder$(EXEEXT)
 
 noinst_HEADERS = src/wavreader.h
 
