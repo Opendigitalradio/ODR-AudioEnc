@@ -18,7 +18,7 @@
  */
 
 /*! \mainpage Introduction
- *  The ODR-mmbTools ODR-AudioEncoder Audio encoder can encode audio for
+ *  The ODR-mmbTools ODR-AudioEnc Audio encoder can encode audio for
  *  ODR-DabMux, both DAB and DAB+. The DAB encoder is based on toolame. The
  *  DAB+ encoder requires a the Fraunhofer FDK AAC library, with the
  *  necessary patches for 960-transform to do DAB+ broadcast encoding.
@@ -32,7 +32,7 @@
  *  The readme for the whole package is \ref md_README
  *
  *  Interesting starting points for the encoder
- *  - \ref odr-audioencoder.cpp Main encoder file
+ *  - \ref odr-audioenc.cpp Main encoder file
  *  - \ref VLCInput.h VLC Input
  *  - \ref AlsaInput.h Alsa Input
  *  - \ref JackInput.h JACK Input
@@ -47,7 +47,7 @@
  *  - \ref mot-encoder.cpp
  *
  *
- *  \file odr-audioencoder.cpp
+ *  \file odr-audioenc.cpp
  *  \brief The main file for the audio encoder
  */
 
@@ -100,7 +100,7 @@ using namespace std;
 
 void usage(const char* name) {
     fprintf(stderr,
-    "ODR-AudioEncoder %s is an audio encoder for both DAB and DAB+.\n"
+    "ODR-AudioEnc %s is an audio encoder for both DAB and DAB+.\n"
     "The encoder can read from JACK, ALSA or\n"
     "a file source and encode to a ZeroMQ output for ODR-DabMux.\n"
     "(Experimental!)It can also use libvlc as an input.\n"

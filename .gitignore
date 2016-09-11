@@ -9,7 +9,6 @@ Makefile.in
 aclocal.m4
 autom4te.cache
 configure
-fdk-aac-dabplus.pc
 config.guess
 config.log
 config.status
@@ -28,5 +27,4 @@ m4/ltversion.m4
 m4/lt~obsolete.m4
 missing
 stamp-h1
-mot-encoder
-odr-audioencoder
+odr-audioenc

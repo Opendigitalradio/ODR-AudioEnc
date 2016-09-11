@@ -78,7 +78,7 @@ Mike Cheng <mikecheng at NOT planckenergy.com> (remove the NOT)
 
 Matthias P. Braendli <matthias@mpb.li>
     PAD insertion for DLS and slides
-    Integration into ODR-AudioEncoder
+    Integration into ODR-AudioEnc
 
 REFERENCE PAPERS
 ================

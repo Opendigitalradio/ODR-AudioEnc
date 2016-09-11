@@ -202,7 +202,7 @@ class VLCInput
 
         /* The thread running process takes samples from m_queue and writes
          * them into m_samplequeue. This decouples m_queue from m_samplequeue
-         * which is directly used by odr-audioencoder.cpp
+         * which is directly used by odr-audioenc.cpp
          */
         void process();
 

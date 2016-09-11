@@ -1,4 +1,4 @@
-ODR-AudioEncoder Package
+ODR-AudioEnc Package
 ========================
 
 This package contains a DAB and DAB+ encoder that integrates into the
@@ -8,7 +8,7 @@ The DAB encoder is based on toolame. The DAB+ encoder uses a modified library
 of the Fraunhofer FDK AAC code from Android, patched for 960-transform to do
 DAB+ broadcast encoding. FDK-AAC has to be supplied separately.
 
-The main tool is the *odr-audioencoder* encoder, which can read audio from
+The main tool is the *odr-audioenc* encoder, which can read audio from
 a file (raw or wav), from an ALSA source, from JACK or using libVLC,
 and encode to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
 
@@ -22,7 +22,7 @@ The JACK input does not automatically connect to anything. The encoder runs
 at the rate defined by the system clock, and therefore sound
 card clock drift compensation is also used.
 
-*odr-audioencoder* includes support for DAB MOT Slideshow and DLS, contributed by
+*odr-audioenc* includes support for DAB MOT Slideshow and DLS, contributed by
 [CSP](http://rd.csp.it).
 
 To encode DLS and Slideshow data, the *mot-encoder* tool reads images
@@ -90,7 +90,7 @@ and higher are using AAC-LC.
 ZeroMQ output
 -------------
 
-The ZeroMQ output included in ODR-AudioEncoder is able to connect to
+The ZeroMQ output included in ODR-AudioEnc is able to connect to
 one or several instances of ODR-DabMux. The -o option can be used
 more than once to achieve this.
 
@@ -98,17 +98,17 @@ Scenario *wav file for offline processing*
 ------------------------------------------
 Wave file encoding, for non-realtime processing
 
-    odr-audioencoder -b $BITRATE -i wave_file.wav -o station1.dabp
+    odr-audioenc -b $BITRATE -i wave_file.wav -o station1.dabp
 
 Scenario *ALSA*
 ---------------
 Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:
 
-    odr-audioencoder -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -l
+    odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -l
 
 To enable sound card drift compensation, add the option **-D**:
 
-    odr-audioencoder -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -D -l
+    odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -D -l
 
 You might see **U** and **O** appearing on the terminal. They correspond
 to audio underruns and overruns that happen due to the different speeds at which
@@ -120,7 +120,7 @@ Scenario *libVLC input for a webstream*
 ---------------------------------------
 Read a webstream and send it to ODR-DabMux over ZMQ:
 
-    odr-audioencoder -v $URL -r 32000 -c 2 -o $DST -l -b $BITRATE
+    odr-audioenc -v $URL -r 32000 -c 2 -o $DST -l -b $BITRATE
 
 If you need to extract the ICY-Text information, e.g. for DLS, you can use the
 **-w <filename>** option to write the ICY-Text into a file that can be read by
@@ -134,14 +134,14 @@ Scenario *JACK input*
 JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
 name for the encoder:
 
-    odr-audioencoder -j myenc -l -b $BITRATE -f raw -o $DST
+    odr-audioenc -j myenc -l -b $BITRATE -f raw -o $DST
 
 The samplerate of the JACK server should be 32kHz or 48kHz.
 
 Scenario *local file through snd-aloop*
 ---------------------------------------
 Play some local audio source from a file, with ZMQ output for ODR-DabMux. The problem with
-playing a file is that *odr-audioencoder* cannot directly be used, because ODR-DabMux
+playing a file is that *odr-audioenc* cannot directly be used, because ODR-DabMux
 does not back-pressure the encoder, which will therefore encode much faster than realtime.
 
 While this issue is sorted out, the following trick is a very flexible solution: use the
@@ -152,7 +152,7 @@ alsa virtual loop soundcard *snd-aloop* in the following way:
 This creates a new audio card (usually 'hw:1' but have a look at /proc/asound/card to be sure) that
 can then be used for the alsa encoder.
 
-    ./odr-audioencoder -d hw:1 -c 2 -r 32000 -b 64 -o $DST -l
+    ./odr-audioenc -d hw:1 -c 2 -r 32000 -b 64 -o $DST -l
 
 Then, you can use any media player that has an alsa output to play whatever source it supports:
 
@@ -170,14 +170,14 @@ Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB m
 using mplayer. If there are no data in FIFO, encoder generates silence.
 
     mplayer -quiet -loop 0 -af resample=32000:nowaveheader,format=s16le,channels=2 -ao pcm:file=/tmp/aac.fifo:fast <FILE/URL> &
-    odr-audioencoder -l -f raw --fifo-silence -i /tmp/aac.fifo -r 32000 -c 2 -b 72 -o /dev/stdout \
+    odr-audioenc -l -f raw --fifo-silence -i /tmp/aac.fifo -r 32000 -c 2 -b 72 -o /dev/stdout \
     mbuffer -q -m 10k -P 100 -s 1080 > station1.fifo
 
 *Note*: Do not use /dev/stdout for pcm output in mplayer. Mplayer log messages on stdout.
 
 Return values
 -------------
-odr-audioencoder returns:
+odr-audioenc returns:
 
  * 0 if it encoded the whole input file
  * 1 if some options were not understood, or encoder initialisation failed
@@ -209,7 +209,7 @@ the generated files are smaller than 50kB and not larger than 320x240 pixels.
 
 Supported Encoders
 ------------------
-*odr-audioencoder* can insert the PAD data from *mot-encoder* into the bitstream.
+*odr-audioenc* can insert the PAD data from *mot-encoder* into the bitstream.
 The mp2 encoder [Toolame-DAB](https://github.com/Opendigitalradio/toolame-dab)
 can also read *mot-encoder* data.
 
@@ -253,20 +253,15 @@ ODR-DabMux v0.7.0 and later.
 LICENCE
 =======
 
-It's complicated. The ODR-AudioEncoder project contains
+The ODR-AudioEnc project contains
 
- - The code for odr-audioencoder in src/ licensed under the Apache Licence v2.0. See
+ - The code for odr-audioenc in src/ licensed under the Apache Licence v2.0. See
    http://www.apache.org/licenses/LICENSE-2.0
  - libtoolame-dab, derived from TooLAME, licensed under LGPL v2.1 or later. See
    libtoolame-dab/LGPL.txt. This is built into a shared library.
 
-The odr-audioencoder binary is linked agains the libtoolame-dab and fdk-aac
+The odr-audioenc binary is linked against the libtoolame-dab and fdk-aac
 shared libraries.
-
-In addition to the audio encoder, there is also mot-encoder, containing code
-
- - in src/ that is GPL v3+ licensed
- - and a crc library with unclear licence situation in contrib/
 
 Whether it is legal or not to distribute compiled binaries from these sources
 is unclear to me. Please seek legal advice to answer this question.

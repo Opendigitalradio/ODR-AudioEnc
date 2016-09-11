@@ -53,48 +53,48 @@ libtoolame_dab_la_LDFLAGS = -version-info @LIBTOOLAME_DAB_VERSION@ \
 							-export-symbols $(top_srcdir)/libtoolame-dab.sym
 
 if HAVE_JACK
-odr_audioencoder_LDADD_JACK  = -ljack
+odr_audioenc_LDADD_JACK  = -ljack
 else
-odr_audioencoder_LDADD_JACK  =
+odr_audioenc_LDADD_JACK  =
 endif
 
 if HAVE_ALSA
-odr_audioencoder_LDADD_ALSA  = -lasound
+odr_audioenc_LDADD_ALSA  = -lasound
 else
-odr_audioencoder_LDADD_ALSA  =
+odr_audioenc_LDADD_ALSA  =
 endif
 
-odr_audioencoder_LDFLAGS     = -no-install
-odr_audioencoder_LDADD       = libtoolame-dab.la \
-							   -lfec -lzmq \
-							   -lrt $(odr_audioencoder_LDADD_JACK) \
-							   $(odr_audioencoder_LDADD_ALSA) \
-							   $(LIBVLC_LIBS)
-odr_audioencoder_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
-odr_audioencoder_SOURCES     = src/odr-audioencoder.cpp \
-							   src/FileInput.cpp \
-							   src/FileInput.h \
-							   src/AlsaInput.cpp \
-							   src/AlsaInput.h \
-							   src/JackInput.cpp \
-							   src/JackInput.h \
-							   src/VLCInput.cpp \
-							   src/VLCInput.h \
-							   src/SampleQueue.h \
-							   src/encryption.c \
-							   src/encryption.h \
-							   src/zmq.hpp \
-							   src/utils.c \
-							   src/utils.h \
-							   src/wavreader.c \
-							   src/charset.h \
-							   src/utf8.h \
-							   src/utf8/checked.h \
-							   src/utf8/unchecked.h \
-							   src/utf8/core.h \
-							   src/common.h
+odr_audioenc_LDFLAGS     = -no-install
+odr_audioenc_LDADD       = libtoolame-dab.la \
+						   -lfec -lzmq \
+						   -lrt $(odr_audioenc_LDADD_JACK) \
+						   $(odr_audioenc_LDADD_ALSA) \
+						   $(LIBVLC_LIBS)
+odr_audioenc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
+odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
+						   src/FileInput.cpp \
+						   src/FileInput.h \
+						   src/AlsaInput.cpp \
+						   src/AlsaInput.h \
+						   src/JackInput.cpp \
+						   src/JackInput.h \
+						   src/VLCInput.cpp \
+						   src/VLCInput.h \
+						   src/SampleQueue.h \
+						   src/encryption.c \
+						   src/encryption.h \
+						   src/zmq.hpp \
+						   src/utils.c \
+						   src/utils.h \
+						   src/wavreader.c \
+						   src/charset.h \
+						   src/utf8.h \
+						   src/utf8/checked.h \
+						   src/utf8/unchecked.h \
+						   src/utf8/core.h \
+						   src/common.h
 
-bin_PROGRAMS =  odr-audioencoder$(EXEEXT)
+bin_PROGRAMS =  odr-audioenc$(EXEEXT)
 
 noinst_HEADERS = src/wavreader.h
 
