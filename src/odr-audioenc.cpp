@@ -84,7 +84,7 @@ extern "C" {
 #include "fdk-aac/aacenc_lib.h"
 
 extern "C" {
-#include <fec.h>
+#include "contrib/fec/fec.h"
 #include "libtoolame-dab/toolame.h"
 }
 
