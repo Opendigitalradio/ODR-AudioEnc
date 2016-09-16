@@ -1,3 +1,10 @@
+2016-09-16: Matthias P. Braendli <matthias@mpb.li>
+	(v2.0.0):
+	The FDK-AAC-DABplus project was split in three repositories:
+	ODR-AudioEnc, ODR-PadEnc and fdk-aac.
+	This is ODR-AudioEnc, containing libtoolame-dab and odr-audioenc.
+	* odr-audioenc:
+		Remove libfec dependency
 2016-09-02: Matthias P. Braendli <matthias@mpb.li>
 	(v1.2.0):
 	* dabplus-enc:
