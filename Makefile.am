@@ -64,9 +64,17 @@ else
 odr_audioenc_LDADD_ALSA  =
 endif
 
+FEC_SOURCES = contrib/fec/char.h \
+			  contrib/fec/decode_rs_char.c contrib/fec/decode_rs.h \
+			  contrib/fec/encode_rs_char.c contrib/fec/encode_rs.h \
+			  contrib/fec/fec.h \
+			  contrib/fec/init_rs_char.c contrib/fec/init_rs.h \
+			  contrib/fec/rs-common.h
+
+
 odr_audioenc_LDFLAGS     = -no-install
 odr_audioenc_LDADD       = libtoolame-dab.la \
-						   -lfec -lzmq \
+						   -lzmq \
 						   -lrt $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
 						   $(LIBVLC_LIBS)
@@ -92,7 +100,8 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/utf8/checked.h \
 						   src/utf8/unchecked.h \
 						   src/utf8/core.h \
-						   src/common.h
+						   src/common.h \
+						   $(FEC_SOURCES)
 
 bin_PROGRAMS =  odr-audioenc$(EXEEXT)
 
@@ -122,13 +131,14 @@ libtoolame_dab_la_SOURCES = \
 							libtoolame-dab/utils.c
 
 
-EXTRA_DIST = \
-    $(top_srcdir)/bootstrap \
-    $(top_srcdir)/NOTICE \
-    $(top_srcdir)/README.md \
-    $(top_srcdir)/Android.mk \
-    $(top_srcdir)/libtoolame-dab.sym \
-    $(top_srcdir)/Doxyfile
+EXTRA_DIST = $(top_srcdir)/bootstrap \
+			 $(top_srcdir)/NOTICE \
+			 $(top_srcdir)/README.md \
+			 $(top_srcdir)/Android.mk \
+			 $(top_srcdir)/libtoolame-dab.sym \
+			 $(top_srcdir)/Doxyfile \
+			 $(top_srcdir)/contrib/fec/LICENSE \
+			 $(top_srcdir)/contrib/fec/README.md
 
 doc: export PROJECT_NUMBER:=$(shell git describe --dirty)
 

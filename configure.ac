@@ -1,7 +1,7 @@
 dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([ODR-AudioEnc], [0.1.0], [http://opendigitalradio.org/])
+AC_INIT([ODR-AudioEnc], [2.0.0], [http://opendigitalradio.org/])
 AC_CONFIG_AUX_DIR(.)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([tar-ustar foreign])
@@ -25,10 +25,6 @@ AX_PTHREAD( [
             CC="$PTHREAD_CC"], [AC_MSG_ERROR([requires pthread])] )
 
 AC_CHECK_LIB([m], [sin])
-
-AC_SEARCH_LIBS([init_rs_char], [fec], [], [
-  AC_MSG_ERROR([unable to find libfec])
-])
 
 AC_CHECK_LIB([rt], [clock_gettime], [], [AC_MSG_ERROR([library rt is missing])])
 

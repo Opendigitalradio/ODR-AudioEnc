@@ -42,7 +42,6 @@ Requirements:
 * A C++11 compiler
 * FDK-AAC with the DAB+ patches
 * ImageMagick magickwand (optional, for MOT slideshow)
-* Download and install libfec from https://github.com/Opendigitalradio/ka9q-fec
 * Install ZeroMQ 4.0.4 or more recent
   * If your distribution does not include it, take it from
     from http://download.zeromq.org/zeromq-4.0.4.tar.gz
