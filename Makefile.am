@@ -95,11 +95,6 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/utils.c \
 						   src/utils.h \
 						   src/wavreader.c \
-						   src/charset.h \
-						   src/utf8.h \
-						   src/utf8/checked.h \
-						   src/utf8/unchecked.h \
-						   src/utf8/core.h \
 						   src/common.h \
 						   $(FEC_SOURCES)
 
