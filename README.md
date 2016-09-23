@@ -22,14 +22,10 @@ The JACK input does not automatically connect to anything. The encoder runs
 at the rate defined by the system clock, and therefore sound
 card clock drift compensation is also used.
 
-*odr-audioenc* includes support for DAB MOT Slideshow and DLS, contributed by
-[CSP](http://rd.csp.it).
+*odr-audioenc* can insert Programme-Associated Data, that can be generated with
+ODR-PadEnc.
 
-To encode DLS and Slideshow data, the *mot-encoder* tool reads images
-from a folder and DLS text from a file, and generates the PAD data
-for the encoder.
-
-For detailed usage, see the usage screen of the different tools.
+For detailed usage, see the usage screen of the tool with the *-h* option.
 
 More information is available on the
 [Opendigitalradio wiki](http://opendigitalradio.org)
@@ -41,7 +37,6 @@ Requirements:
 
 * A C++11 compiler
 * FDK-AAC with the DAB+ patches
-* ImageMagick magickwand (optional, for MOT slideshow)
 * Install ZeroMQ 4.0.4 or more recent
   * If your distribution does not include it, take it from
     from http://download.zeromq.org/zeromq-4.0.4.tar.gz
@@ -61,7 +56,6 @@ If you want to use ALSA, JACK and libVLC inputs, please use
     ./configure --enable-alsa --enable-jack --enable-vlc
 
 * See the possible scenarios below on how to use the tools
-* use *mot-encoder* to encode images into MOT Slideshow
 
 
 How to use
@@ -123,7 +117,7 @@ Read a webstream and send it to ODR-DabMux over ZMQ:
 
 If you need to extract the ICY-Text information, e.g. for DLS, you can use the
 **-w <filename>** option to write the ICY-Text into a file that can be read by
-*mot-encoder*.
+*ODR-PadEnc*.
 
 If the webstream bitrate is slightly wrong (bad clock at the source), you can
 enable drift compensation with **-D**.
@@ -185,61 +179,11 @@ odr-audioenc returns:
  * 4 it the ZeroMQ send failed
  * 5 if the input had a fault
 
-Usage of MOT Slideshow and DLS
-==============================
-
-*mot-encoder* reads images from the specified folder, and generates the PAD
-data for the encoder. This is communicated through a fifo to the encoder. It
-also reads DLS from a file, and includes this information in the PAD.
-
-If ImageMagick is available
----------------------------
-It can read all file formats supported by ImageMagick, and by default resizes
-them to 320x240 pixels, and compresses them as JPEG. If the input file is already
-a JPEG file of the correct size, and smaller than 50kB, it is sent without further
-compression. If the input file is a PNG that satisfies the same criteria, it is
-transmitted as PNG without any recompression.
-
-RAW Format
-----------
-If ImageMagick is not compiled in, or when enabled with the -R option, the images
-are not modified, and are transmitted as-is. Use this if you can guarantee that
-the generated files are smaller than 50kB and not larger than 320x240 pixels.
-
-Supported Encoders
-------------------
-*odr-audioenc* can insert the PAD data from *mot-encoder* into the bitstream.
-The mp2 encoder [Toolame-DAB](https://github.com/Opendigitalradio/toolame-dab)
-can also read *mot-encoder* data.
-
-This is an ongoing development. Make sure you use the same pad length option
-for *mot-encoder* and the audio encoder. Only some pad lengths are supported,
-please see *mot-encoder*'s help.
-
-Character Sets
---------------
-When *mot-encoder* is launched with the default character set options, it assumes
-that the DLS text in the file is encoded in UTF-8, and will convert it according to
-the DAB standard to the *Complete EBU Latin based repertoire* character set encoding.
-
-If you set the character set encoding to any other setting (except
-*Complete EBU Latin based repertoire* which needs no conversion),
-*mot-encoder* will abort, as it does not support any other conversion than from
-UTF-8 to *Complete EBU Latin based repertoire*.
-
-You can however use the -C option to transmit the untouched DLS text. In this
-case, it is your responsibility to ensure the encoding is valid.  For instance,
-if your data is already encoded in *Complete EBU Latin based repertoire*, you
-must specify both --charset=0 and --raw-dls.
 
 Known Limitations
 -----------------
 The gain option for libVLC enables the VLC audio compressor with default
 settings. This has more impact than just changing the volume of the audio.
-
-*mot-encoder* encodes slides in a 10 second interval, which is not linked
-to the rate at which the encoder reads the PAD data. It also doesn't prioritise
-DLS transmission over Slides.
 
 Some receivers did not decode audio anymore between v0.3.0 and v0.5.0, because of
 a change implemented to get PAD to work. The change was subsequently reverted in
