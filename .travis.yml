@@ -23,6 +23,16 @@ compiler:
   - clang
 
 script:
+- |
+    pushd /tmp
+    git clone https://github.com/Opendigitalradio/ka9q-fec.git
+    cd ka9q-fec
+    mkdir build
+    cd build
+    cmake ..
+    make
+    sudo make install
+    popd
   - |
     pushd /tmp
     git clone https://github.com/Opendigitalradio/fdk-aac.git
