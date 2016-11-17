@@ -46,6 +46,8 @@ script:
     ./configure --enable-jack
     make
   - |
-    ./configure --enable-alsa --enable-jack --enable-vlc
+    ./configure --enable-avt
     make
-
+  - |
+    ./configure --enable-alsa --enable-jack --enable-vlc --enable-avt
+    make

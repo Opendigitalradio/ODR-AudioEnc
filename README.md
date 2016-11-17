@@ -174,6 +174,41 @@ using mplayer. If there are no data in FIFO, encoder generates silence.
 
 *Note*: Do not use /dev/stdout for pcm output in mplayer. Mplayer log messages on stdout.
 
+
+Scenario *AVT Hardware encoder*
+-------------------------------
+Offer a remote control of AVT encoders, PAD insertion (using ODR-PadEnc) and
+an error correction of incoming audio stream.
+
+odr-audioenc must be configured with the option --enable-avt to use this feature.
+
+All additional parameters needed to configure `odr-audioenc` are listed below:
+
+* ODR-AudioEnc can work as before, no changes have been made on the already supported features.
+* To add the AVT support feature, the option --enable-avt has to be passed on ./configure command. A *make* is then necessary.
+* The new command line parameters are:
+    * -I, --input-uri=URI       Input URI. (Supported: 'udp://...')
+    * --control-uri=URI         Output control URI (Supported: 'udp://...')
+    * --timeout=ms              Maximum frame waiting time, in milliseconds (def=2000)
+    * --pad-port=port           Port opened for PAD Frame requests (def=0 not opened)
+    * --jitter-size=nbFrames    Jitter buffer size, in 24ms frames (def=40)
+* Together with ODR-PadEnc, the PAD frames are sent to the encoder.
+* A detailed user guide can be provided for the encoder configuration.
+* The supported AVT encoders are:
+	* [MAGIC DAB+Go](http://avt-nbg.de/index.php/en/products/dab/encoders/magic-ae1-dab-go)
+	* [MAGIC AE1 DAB+ Encoder](http://avt-nbg.de/index.php/en/products/dab/encoders/magic-ae1-dabplus)
+	* MAGIC AE4 DAB/DAB+ Encoder (under development)
+* The accepted audio streams from AVT encoder are UDP, and EDI.
+	* UDP: a packet reordering algorithm is applied.
+	* EDI: an error correction (if provided in the EDI stream) and packet reordering is applied.
+
+Limitations:
+* Only DAB+ streams are currently supported.
+* EDI resend not implemented.
+
+Further Information:
+* AVT's MAGIC DAB encoder products can be found at http://avt-nbg.de/index.php/en/products/dab/encoders
+
 Return values
 -------------
 odr-audioenc returns:
