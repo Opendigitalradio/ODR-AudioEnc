@@ -962,7 +962,7 @@ int main(int argc, char *argv[])
                 }
             }
             else {
-                const int timeout_ms = 1000;
+                const int timeout_ms = 10000;
                 read_bytes = input_buf.size();
 
                 /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
