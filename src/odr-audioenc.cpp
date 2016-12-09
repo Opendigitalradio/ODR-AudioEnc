@@ -762,7 +762,7 @@ int main(int argc, char *argv[])
         sample_rate / 8000 :
         sample_rate / 16000;
 
-    int max_size = 8*input_buf.size() + NUM_SAMPLES_PER_CALL;
+    int max_size = 32*input_buf.size() + NUM_SAMPLES_PER_CALL;
 
     /*! The SampleQueue \c queue is given to the inputs, so that they
      * can fill it.
