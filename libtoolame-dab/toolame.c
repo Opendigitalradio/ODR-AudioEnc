@@ -23,6 +23,8 @@
 
 Bit_stream_struc bs;
 
+options glopts;
+
 const int FPAD_LENGTH=2;
 
 void smr_dump(double smr[2][SBLIMIT], int nch);
