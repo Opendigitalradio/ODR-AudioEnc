@@ -319,19 +319,20 @@ static void expand_missing_samples(vec_u8& buf, int channels, size_t valid_bytes
             buf[i] = 0;
         }
     }
+    else {
+        const vec_u8 source_buf(buf);
+        size_t source_ix = 0;
 
-    const vec_u8 source_buf(buf);
-    size_t source_ix = 0;
+        for (size_t i = 0; i < buf.size() / bytes_per_sample; i++) {
+            for (size_t j = 0; j < bytes_per_sample; j++) {
+                buf.at(bytes_per_sample*i + j) = source_buf.at(source_ix + j);
+            }
 
-    for (size_t i = 0; i < buf.size() / bytes_per_sample; i++) {
-        for (size_t j = 0; j < bytes_per_sample; j++) {
-            buf.at(bytes_per_sample*i + j) = source_buf.at(source_ix + j);
-        }
-
-        // Do not advance the source index if the sample index is
-        // at the spots where we want to duplicate the source sample
-        if (not (i > 0 and (i % (valid_samples / missing_samples) == 0))) {
-            source_ix += bytes_per_sample;
+            // Do not advance the source index if the sample index is
+            // at the spots where we want to duplicate the source sample
+            if (not (i > 0 and (i % (valid_samples / missing_samples) == 0))) {
+                source_ix += bytes_per_sample;
+            }
         }
     }
 }
@@ -989,7 +990,9 @@ int main(int argc, char *argv[])
             if (drift_compensation) {
                 size_t overruns;
                 size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
-                expand_missing_samples(input_buf, channels, bytes_from_queue);
+                if (bytes_from_queue != input_buf.size()) {
+                    expand_missing_samples(input_buf, channels, bytes_from_queue);
+                }
                 read_bytes = input_buf.size();
                 drift_compensation_delay(sample_rate, channels, read_bytes);
 
@@ -1034,7 +1037,9 @@ int main(int argc, char *argv[])
 
             size_t overruns;
             size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
-            expand_missing_samples(input_buf, channels, bytes_from_queue);
+            if (bytes_from_queue != input_buf.size()) {
+                expand_missing_samples(input_buf, channels, bytes_from_queue);
+            }
             read_bytes = input_buf.size();
             drift_compensation_delay(sample_rate, channels, read_bytes);
 
