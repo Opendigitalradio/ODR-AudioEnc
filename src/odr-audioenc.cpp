@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ extern "C" {
 #include "libtoolame-dab/toolame.h"
 }
 
-
+using vec_u8 = std::vector<uint8_t>;
 
 //! Enumeration of encoders we can use
 enum class encoder_selection_t {
@@ -297,10 +297,49 @@ int prepare_aac_encoder(
 
 chrono::steady_clock::time_point timepoint_last_compensation;
 
+/*! Do drift compensation by distributing the missing samples over
+ *  the whole input buffer instead of having a bunch of missing samples
+ *  at the end only.
+ *
+ *  This expands (in time) the received samples over the whole duration
+ *  of the buffer.
+ */
+static void expand_missing_samples(vec_u8& buf, int channels, size_t valid_bytes)
+{
+    const size_t bytes_per_sample = BYTES_PER_SAMPLE * channels;
+    assert(buf.size() % bytes_per_sample == 0);
+    assert(buf.size() > valid_bytes);
+    const size_t valid_samples = valid_bytes / bytes_per_sample;
+    const size_t missing_samples =
+        (buf.size() / bytes_per_sample) - valid_samples;
+
+    // We only fix up to 10% missing samples
+    if (missing_samples * bytes_per_sample > buf.size() / 10) {
+        for (size_t i = valid_samples * bytes_per_sample; i < buf.size(); i++) {
+            buf[i] = 0;
+        }
+    }
+
+    const vec_u8 source_buf(buf);
+    size_t source_ix = 0;
+
+    for (size_t i = 0; i < buf.size() / bytes_per_sample; i++) {
+        for (size_t j = 0; j < bytes_per_sample; j++) {
+            buf.at(bytes_per_sample*i + j) = source_buf.at(source_ix + j);
+        }
+
+        // Do not advance the source index if the sample index is
+        // at the spots where we want to duplicate the source sample
+        if (not (i > 0 and (i % (valid_samples / missing_samples) == 0))) {
+            source_ix += bytes_per_sample;
+        }
+    }
+}
+
 /*! Wait the proper amount of time to throttle down to nominal encoding
  * rate, if drift compensation is enabled.
  */
-void drift_compensation_delay(int sample_rate, int channels, size_t bytes)
+static void drift_compensation_delay(int sample_rate, int channels, size_t bytes)
 {
     const size_t bytes_per_second = sample_rate * BYTES_PER_SAMPLE * channels;
 
@@ -684,7 +723,7 @@ int main(int argc, char *argv[])
     }
 
 
-    std::vector<uint8_t> input_buf;
+    vec_u8 input_buf;
 
     HANDLE_AACENCODER encoder;
 
@@ -843,8 +882,8 @@ int main(int argc, char *argv[])
 #endif
 
     int outbuf_size;
-    std::vector<uint8_t> zmqframebuf;
-    std::vector<uint8_t> outbuf;
+    vec_u8 zmqframebuf;
+    vec_u8 outbuf;
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         outbuf_size = bitrate/8*120;
         outbuf.resize(24*120);
@@ -950,6 +989,7 @@ int main(int argc, char *argv[])
             if (drift_compensation) {
                 size_t overruns;
                 size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+                expand_missing_samples(input_buf, channels, bytes_from_queue);
                 read_bytes = input_buf.size();
                 drift_compensation_delay(sample_rate, channels, read_bytes);
 
@@ -994,6 +1034,7 @@ int main(int argc, char *argv[])
 
             size_t overruns;
             size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+            expand_missing_samples(input_buf, channels, bytes_from_queue);
             read_bytes = input_buf.size();
             drift_compensation_delay(sample_rate, channels, read_bytes);
 
