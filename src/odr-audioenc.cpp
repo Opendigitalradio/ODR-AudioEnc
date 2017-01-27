@@ -60,6 +60,13 @@
 #include "zmq.hpp"
 #include "common.h"
 
+#if HAVE_AVT
+#include "AVTInput.h"
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+
 extern "C" {
 #include "encryption.h"
 #include "utils.h"
@@ -160,6 +167,21 @@ void usage(const char* name) {
     "     -W, --write-icy-text-dl-plus         When writing the ICY Text into the file, add DL Plus information.\n"
 #else
     "     The VLC input was disabled at compile-time\n"
+#endif
+    "   For the AVT input:\n"
+#if HAVE_AVT
+    "   Using the option -I will switch to AVT encoder reception mode:\n"
+    "        * The internal encoder is not used any more, all input related options are ignored\n"
+    "        * The audio mode and bitrate will be sent to the encoder if option --control-uri\n"
+    "          and DAB+ specific options are set (-b -c -r --aaclc --sbr --ps)\n"
+    "        * PAD Data can be send to the encoder with the options --pad-port --pad --pad-fifo\n"             
+    "     -I, --input-uri=URI                      Input URI. (Supported: 'udp://...')\n"
+    "         --control-uri=URI                    Output control URI (Supported: 'udp://...')\n"
+    "         --timeout=ms                         Maximum frame waiting time, in milliseconds (def=2000)\n"  
+    "         --pad-port=port                      Port opened for PAD Frame requests (def=0 not opened)\n"
+    "         --jitter-size=nbFrames               Jitter buffer size, in 24ms frames (def=40)\n"
+#else
+    "     The AVT input was disabled at compile-time\n"
 #endif
     "   Drift compensation\n"
     "     -D, --drift-comp                     Enable ALSA/VLC sound card drift compensation.\n"
@@ -350,6 +372,14 @@ int main(int argc, char *argv[])
     std::string vlc_cache = "";
     std::vector<std::string> vlc_additional_opts;
     unsigned verbosity = 0;
+    
+    // For AVT input
+    std::string avt_input_uri = "";
+    std::string avt_output_uri = "";
+    int32_t avt_timeout = 2000;
+    uint32_t avt_pad_port = 0;
+    size_t avt_jitterBufferSize = 40;
+    bool avt_mode = false;
 
     // For the file output
     FILE *out_fh = NULL;
@@ -415,6 +445,11 @@ int main(int argc, char *argv[])
         {"vlc-opt",                required_argument,  0, 'L'},
         {"write-icy-text",         required_argument,  0, 'w'},
         {"write-icy-text-dl-plus", no_argument,        0, 'W'},
+        {"input-uri",              required_argument,  0, 'I'},
+        {"control-uri",            required_argument,  0,  6 },
+        {"timeout",                required_argument,  0,  7 },
+        {"pad-port",               required_argument,  0,  8 },
+        {"jitter-size",            required_argument,  0,  9 },
         {"aaclc",                  no_argument,        0,  0 },
         {"dab",                    no_argument,        0, 'a'},
         {"drift-comp",             no_argument,        0, 'D'},
@@ -448,7 +483,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:L:o:r:d:p:P:s:v:w:I:C:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -553,6 +588,33 @@ int main(int argc, char *argv[])
         case 'v':
         case 'w':
             fprintf(stderr, "VLC input not enabled at compile time!\n");
+            return 1;
+#endif
+#ifdef HAVE_AVT
+        case 'I':
+            avt_input_uri = optarg;
+            avt_mode = true;
+            fprintf(stderr, "AVT Encoder Mode\n");   
+            break;
+        case 6:
+            avt_output_uri = optarg;
+            break;
+        case 7:
+            avt_timeout = atoi(optarg);
+            if (avt_timeout < 0) {
+                avt_timeout = 2000;
+            }
+            break;
+        case 8:
+            avt_pad_port = atoi(optarg);
+            break;
+        case 9:
+            avt_jitterBufferSize = atoi(optarg);
+            break;
+#else
+        case 'I':
+        case 'O':
+            fprintf(stderr, "AVT input not enabled at compile time!\n");
             return 1;
 #endif
         case 'V':
@@ -683,7 +745,7 @@ int main(int argc, char *argv[])
         }
     }
 
-
+    
     std::vector<uint8_t> input_buf;
 
     HANDLE_AACENCODER encoder;
@@ -793,6 +855,9 @@ int main(int argc, char *argv[])
 #if HAVE_VLC
     VLCInput          vlc_input(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
 #endif
+#if HAVE_AVT
+    AVTInput          avtinput(avt_input_uri, avt_output_uri, avt_pad_port, avt_jitterBufferSize);
+#endif // HAVE_AVT
 
     if (infile) {
         if (file_in.prepare() != 0) {
@@ -800,7 +865,7 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
-#if HAVE_JACK
+#if HAVE_JACK    
     else if (jack_name) {
         if (jack_in.prepare() != 0) {
             fprintf(stderr, "JACK preparation failed\n");
@@ -819,6 +884,26 @@ int main(int argc, char *argv[])
         vlc_input.start();
     }
 #endif
+#if HAVE_AVT
+    else if (avt_input_uri != "") {
+        if (selected_encoder != encoder_selection_t::fdk_dabplus) {
+            fprintf(stderr, "AVT encoder only avaialble for DAB+\n");
+            return 1;    
+        }
+
+        if (avtinput.prepare() != 0) {
+            fprintf(stderr, "Fail to connect to AVT encoder in:'%s' out:'%s'\n", avt_input_uri.c_str(), avt_output_uri.c_str());
+            return 1;
+        }
+
+
+        // Audio parameters
+        if (avtinput.setDabPlusParameters(bitrate, channels, sample_rate, aot == AOT_DABPLUS_SBR, aot == AOT_DABPLUS_PS) != 0) {
+            fprintf(stderr, "Wrong audio parameters for AVT encoder\n");
+            return 1;        
+        }
+    }
+#endif // HAVE_AVT
 #if HAVE_ALSA
     else if (drift_compensation) {
         if (alsa_in_threaded.prepare() != 0) {
@@ -874,13 +959,15 @@ int main(int argc, char *argv[])
     timepoint_last_compensation = chrono::steady_clock::now();
 
     int calls = 0; // for checking
-    ssize_t read_bytes = 0;
+    ssize_t read_bytes;
     do {
         AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
 
+        read_bytes = 0;
+        
         // --------------- Read data from the PAD fifo
         int ret;
-        if (padlen != 0) {
+        if (padlen != 0 && !avt_mode) {
             ret = read(pad_fd, pad_buf, padlen + 1);
         }
         else {
@@ -1148,12 +1235,62 @@ int main(int argc, char *argv[])
                 numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
             }
         }
+#if HAVE_AVT
+        else if (avt_mode) {
+            const auto timeout_start = std::chrono::steady_clock::now();
+            const auto timeout_duration = std::chrono::milliseconds(avt_timeout);
+            int wait_ms = 1;
+
+            bool timedout = false;
+
+            while( !timedout && numOutBytes == 0 )        
+            {
+                // Fill the PAD Frame queue because multiple PAD frame requests
+                // can come for each DAB+ Frames (up to 6),
+                if (padlen != 0) {
+                    do {
+                        ret = 0;
+                        if (!avtinput.padQueueFull()) {
+                            
+                            // Non blocking read of the pipe
+                            fd_set read_fd_set;
+                            FD_ZERO(&read_fd_set);
+                            FD_SET(pad_fd, &read_fd_set);
+                            struct timeval to = { 0, 0 };
+                            if( select(pad_fd+1, &read_fd_set, NULL, NULL, &to) > 0 ) {
+                                ret = read(pad_fd, pad_buf, padlen + 1);
+                                if (ret>0) {
+                                    const int calculated_padlen = pad_buf[padlen];
+                                    if (calculated_padlen > 0) {
+                                        avtinput.pushPADFrame(pad_buf + (padlen - calculated_padlen), calculated_padlen);
+                                    }
+                                }
+                            }
+                        }                        
+                    } while (ret!=0);
+                }
+
+                numOutBytes = avtinput.getNextFrame(outbuf);
+                if (numOutBytes == 0) {
+                    const auto curTime = std::chrono::steady_clock::now();
+                    const auto diff = curTime - timeout_start;
+                    if (diff > timeout_duration) {
+                        fprintf(stderr, "timeout reached\n");
+                        timedout = true;
+                    } else {
+                        usleep(wait_ms * 1000);
+                    }
+                }
+            }
+            read_bytes = numOutBytes;
+        }
+#endif // HAVE_AVT        
 
         /* Check if the encoder has generated output data.
          * DAB+ requires RS encoding, which is not done in ODR-DabMux and not necessary
          * for DAB.
          */
-        if (numOutBytes != 0 and
+        if (!avt_mode && numOutBytes != 0 and
             selected_encoder == encoder_selection_t::fdk_dabplus) {
 
             // Our timing code depends on this
@@ -1183,7 +1320,7 @@ int main(int argc, char *argv[])
 
             numOutBytes = outbuf_size;
         }
-
+        
         if (numOutBytes != 0) {
             if (out_fh) {
                 fwrite(&outbuf[0], 1, numOutBytes, out_fh);
@@ -1202,7 +1339,6 @@ int main(int argc, char *argv[])
 
                         memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
                                 &outbuf[0], numOutBytes);
-
                         zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
                                 ZMQ_DONTWAIT);
 
@@ -1293,9 +1429,9 @@ int main(int argc, char *argv[])
     }
 
     zmq_sock.close();
-    free_rs_char(rs_handler);
+    if (rs_handler) free_rs_char(rs_handler);
 
-    if (selected_encoder == encoder_selection_t::fdk_dabplus) {
+    if (!avt_mode && selected_encoder == encoder_selection_t::fdk_dabplus) {
         aacEncClose(&encoder);
     }
 

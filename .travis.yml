@@ -25,6 +25,16 @@ compiler:
 script:
   - |
     pushd /tmp
+    git clone https://github.com/Opendigitalradio/ka9q-fec.git
+    cd ka9q-fec
+    mkdir build
+    cd build
+    cmake ..
+    make
+    sudo make install
+    popd
+  - |
+    pushd /tmp
     git clone https://github.com/Opendigitalradio/fdk-aac.git
     cd fdk-aac
     ./bootstrap
@@ -46,6 +56,8 @@ script:
     ./configure --enable-jack
     make
   - |
-    ./configure --enable-alsa --enable-jack --enable-vlc
+    ./configure --enable-avt
     make
-
+  - |
+    ./configure --enable-alsa --enable-jack --enable-vlc --enable-avt
+    make

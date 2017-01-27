@@ -64,6 +64,23 @@ else
 odr_audioenc_LDADD_ALSA  =
 endif
 
+if HAVE_AVT
+AVT_SOURCES =	src/UdpSocket.h \
+		src/UdpSocket.cpp \
+		src/InetAddress.h \
+		src/InetAddress.cpp \
+		src/crc.h \	
+		src/crc.c \
+		src/OrderedQueue.h \
+		src/OrderedQueue.cpp \
+		src/AVTEDIInput.h \
+		src/AVTEDIInput.cpp \
+		src/AVTInput.h \
+		src/AVTInput.cpp
+else
+AVT_SOURCES =
+endif
+
 FEC_SOURCES = contrib/fec/char.h \
 			  contrib/fec/decode_rs_char.c contrib/fec/decode_rs.h \
 			  contrib/fec/encode_rs_char.c contrib/fec/encode_rs.h \
@@ -96,6 +113,7 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/utils.h \
 						   src/wavreader.c \
 						   src/common.h \
+						   $(AVT_SOURCES) \
 						   $(FEC_SOURCES)
 
 bin_PROGRAMS =  odr-audioenc$(EXEEXT)
