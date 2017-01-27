@@ -1,3 +1,9 @@
+2017-01-27: Matthias P. Braendli <matthias@mpb.li>
+	(v2.0.1):
+		Increase internal VLC input buffers to fix interruptions
+		occurring with some AAC streams.
+		Fix compilation on some systems.
+		Check for the correct version of FDK-AAC in the configure phase.
 2016-09-16: Matthias P. Braendli <matthias@mpb.li>
 	(v2.0.0):
 	The FDK-AAC-DABplus project was split in three repositories:
