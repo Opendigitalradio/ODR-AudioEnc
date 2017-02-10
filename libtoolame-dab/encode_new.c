@@ -122,7 +122,7 @@ int encode_init(frame_info *frame) {
   } else {                      /* MPEG-2 LSF */
     tablenum = 4;
   }
-  fprintf(stdout,"encode_init: using tablenum %i with sblimit %i\n",tablenum, table_sblimit[tablenum]);
+  fprintf(stderr,"toolame-dab encode_init(): using tablenum %i with sblimit %i\n",tablenum, table_sblimit[tablenum]);
 
 #define DUMPTABLESx
 #ifdef DUMPTABLES 
@@ -783,7 +783,7 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
       upper = vbrlimits[nch-1][sfreq][1];
     }
     if (glopts->verbosity > 2)
-      fprintf (stdout, "VBR bitrate index limits [%i -> %i]\n", lower, upper);
+      fprintf (stderr, "VBR bitrate index limits [%i -> %i]\n", lower, upper);
 
     {                           
       /* set up a conversion table for bitrateindex->bits for this version/sampl freq 
@@ -866,13 +866,13 @@ void main_bit_allocation_new (double SMR[2][SBLIMIT],
       int i;
       if ((count++ % 1000) == 0) {
         for (i = 1; i < 15; i++)
-          fprintf (stdout, "%4i ", vbrstats_new[i]);
-        fprintf (stdout, "\n");
+          fprintf (stderr, "%4i ", vbrstats_new[i]);
+        fprintf (stderr, "\n");
       }
 
       /* Print out *every* frames bitrateindex, bits required, and bits available at this bitrate */
       if (glopts->verbosity > 5)
-        fprintf (stdout,
+        fprintf (stderr,
                  "> bitrate index %2i has %i bits available to encode the %i bits\n",
                  frame->header->bitrate_index, *adb,
                  bits_for_nonoise_new (SMR, scfsi, frame,
