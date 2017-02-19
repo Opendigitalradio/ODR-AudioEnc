@@ -128,6 +128,8 @@ libtoolame_dab_la_SOURCES = \
 
 EXTRA_DIST = $(top_srcdir)/bootstrap \
 			 $(top_srcdir)/README.md \
+			 $(top_srcdir)/ChangeLog \
+			 $(top_srcdir)/LICENCE \
 			 $(top_srcdir)/libtoolame-dab.sym \
 			 $(top_srcdir)/Doxyfile \
 			 $(top_srcdir)/contrib/fec/LICENSE \
