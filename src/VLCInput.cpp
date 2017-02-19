@@ -143,11 +143,11 @@ int VLCInput::prepare()
 
     // VLC options
     std::stringstream transcode_options_ss;
-    transcode_options_ss << "acodec=s16l";
-    transcode_options_ss << ",samplerate=" << m_rate;
+    transcode_options_ss << "samplerate=" << m_rate;
     if (not m_gain.empty()) {
         transcode_options_ss << ",afilter=compressor";
     }
+    transcode_options_ss << ",acodec=s16l";
     string transcode_options = transcode_options_ss.str();
 
     char smem_options[512];
