@@ -20,13 +20,15 @@
 #include <string>
 #include <cstring>
 #include <chrono>
-#include <functional>
+#include <algorithm>
 
 #include "VLCInput.h"
 
 #include "config.h"
 
 #if HAVE_VLC
+
+const size_t bytes_per_float_sample = sizeof(float);
 
 #include <sys/time.h>
 
@@ -76,7 +78,7 @@ void handleStream_size_t(
 
     assert(channels == in->getChannels());
     assert(rate == in->getRate());
-    assert(bits_per_sample == 8*BYTES_PER_SAMPLE);
+    assert(bits_per_sample == 8*bytes_per_float_sample);
 
     // This assumes VLC always gives back the full
     // buffer it asked for. According to VLC code
@@ -143,11 +145,11 @@ int VLCInput::prepare()
 
     // VLC options
     std::stringstream transcode_options_ss;
-    transcode_options_ss << "samplerate=" << m_rate;
+    transcode_options_ss << "acodec=fl32";
+    transcode_options_ss << ",samplerate=" << m_rate;
     if (not m_gain.empty()) {
         transcode_options_ss << ",afilter=compressor";
     }
-    transcode_options_ss << ",acodec=s16l";
     string transcode_options = transcode_options_ss.str();
 
     char smem_options[512];
@@ -250,8 +252,8 @@ void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
             std::lock_guard<std::mutex> lock(m_queue_mutex);
 
             if (m_queue.size() < max_length) {
-                m_current_buf.resize(size);
-                *pp_pcm_buffer = &m_current_buf[0];
+                m_current_buf.resize(size / sizeof(float));
+                *pp_pcm_buffer = reinterpret_cast<uint8_t*>(&m_current_buf[0]);
                 return;
             }
         }
@@ -304,12 +306,32 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
         {
             std::lock_guard<std::mutex> lock(m_queue_mutex);
 
-            if (m_queue.size() >= length) {
-                std::copy(m_queue.begin(), m_queue.begin() + length, buf);
+            assert((length % sizeof(int16_t)) == 0);
+            const size_t num_samples_requested = length / sizeof(int16_t);
 
-                m_queue.erase(m_queue.begin(), m_queue.begin() + length);
+            // The queue contains float samples.
+            // buf has to contain signed 16-bit samples.
+            if (m_queue.size() >= num_samples_requested) {
+                int16_t* buffer = reinterpret_cast<int16_t*>(buf);
 
-                return length;
+                for (size_t i = 0; i < num_samples_requested; i++) {
+                    const auto in = m_queue[i];
+                    if (in <= -1.0f) {
+                        buffer[i] = INT16_MAX;
+                    }
+                    else if (in >= 1.0f) {
+                        buffer[i] = INT16_MIN;
+                    }
+                    else {
+                        buffer[i] = (int16_t)lrintf(in * 32768.0f);
+                    }
+                }
+
+                m_queue.erase(
+                        m_queue.begin(),
+                        m_queue.begin() + num_samples_requested);
+
+                return num_samples_requested * sizeof(int16_t);
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));

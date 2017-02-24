@@ -163,12 +163,12 @@ class VLCInput
         ssize_t m_read(uint8_t* buf, size_t length);
 
         /*! Buffer used in the callback functions for VLC */
-        std::vector<uint8_t> m_current_buf;
+        std::vector<float> m_current_buf;
 
         std::mutex m_queue_mutex;
 
         /*! Buffer containing all available samples from VLC */
-        std::deque<uint8_t> m_queue;
+        std::deque<float> m_queue;
 
         std::string m_uri;
         unsigned m_verbosity;
