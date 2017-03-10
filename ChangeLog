@@ -1,3 +1,8 @@
+2017-03-10: Matthias P. Braendli <matthias@mpb.li>
+	(v2.1.0):
+		Improve drift compensation quality, reduce occurrence of microglitches.
+		VLC: Ask float samples to avoid that VLC chooses the ugly_resampler.
+		Print libtoolame debug output to stderr instead of stdout.
 2017-01-27: Matthias P. Braendli <matthias@mpb.li>
 	(v2.0.1):
 		Increase internal VLC input buffers to fix interruptions
