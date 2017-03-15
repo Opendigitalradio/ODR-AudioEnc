@@ -520,7 +520,7 @@ int main(int argc, char *argv[])
             dab_channel_mode = optarg[0];
             break;
         case 5: // DAB psy model
-            dab_psy_model = atoi(optarg);
+            dab_psy_model = std::stoi(optarg);
             break;
         case 'a':
             selected_encoder = encoder_selection_t::toolame_dab;
@@ -529,13 +529,13 @@ int main(int argc, char *argv[])
             afterburner = false;
             break;
         case 'b':
-            bitrate = atoi(optarg);
+            bitrate = std::stoi(optarg);
             break;
         case 'B':
             bandwidth = std::stoi(optarg);
             break;
         case 'c':
-            channels = atoi(optarg);
+            channels = std::stoi(optarg);
             break;
         case 'd':
             alsa_device = optarg;
@@ -570,16 +570,16 @@ int main(int argc, char *argv[])
             output_uris.push_back(optarg);
             break;
         case 'p':
-            padlen = atoi(optarg);
+            padlen = std::stoi(optarg);
             break;
         case 'P':
             pad_fifo = optarg;
             break;
         case 'r':
-            sample_rate = atoi(optarg);
+            sample_rate = std::stoi(optarg);
             break;
         case 's':
-            silence_timeout = atoi(optarg);
+            silence_timeout = std::stoi(optarg);
             if (silence_timeout > 0 && silence_timeout < 3600*24*30) {
                 die_on_silence = true;
             }
