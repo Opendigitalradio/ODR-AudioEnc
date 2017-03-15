@@ -178,6 +178,7 @@ void usage(const char* name) {
     "         --aaclc                          Force the usage of AAC-LC (no SBR, no PS)\n"
     "         --sbr                            Force the usage of SBR (HE-AAC)\n"
     "         --ps                             Force the usage of SBR and PS (HE-AACv2)\n"
+    "     -B, --bandwidth=VALUE                Set the AAC encoder bandwidth to VALUE [Hz].\n"
     "   Output and pad parameters:\n"
     "     -o, --output=URI                     Output ZMQ uri. (e.g. 'tcp://localhost:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dabp')\n"
@@ -201,12 +202,13 @@ void usage(const char* name) {
  *
  * \return 0 on success
  */
-int prepare_aac_encoder(
+static int prepare_aac_encoder(
         HANDLE_AACENCODER *encoder,
         int subchannel_index,
         int channels,
         int sample_rate,
         int afterburner,
+        uint32_t bandwidth,
         int *aot)
 {
     CHANNEL_MODE mode;
@@ -288,10 +290,22 @@ int prepare_aac_encoder(
     if (!afterburner) {
         fprintf(stderr, "Warning: Afterburned disabled!\n");
     }
+
+    if (bandwidth > 0) {
+        fprintf(stderr, "Setting bandwidth is %d\n", bandwidth);
+        if (aacEncoder_SetParam(*encoder, AACENC_BANDWIDTH, bandwidth) != AACENC_OK) {
+            fprintf(stderr, "Unable to set bandwidth mode\n");
+            return 1;
+        }
+    }
     if (aacEncEncode(*encoder, NULL, NULL, NULL, NULL) != AACENC_OK) {
         fprintf(stderr, "Unable to initialize the encoder\n");
         return 1;
     }
+
+    uint32_t bw = aacEncoder_GetParam(*encoder, AACENC_BANDWIDTH);
+    fprintf(stderr, "Bandwidth is %d\n", bw);
+
     return 0;
 }
 
@@ -401,6 +415,7 @@ int main(int argc, char *argv[])
     int sample_rate=48000, channels=2;
     void *rs_handler = NULL;
     bool afterburner = true;
+    uint32_t bandwidth = 0;
     bool inFifoSilence = false;
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
@@ -436,6 +451,7 @@ int main(int argc, char *argv[])
 
     const struct option longopts[] = {
         {"bitrate",                required_argument,  0, 'b'},
+        {"bandwidth",              required_argument,  0, 'B'},
         {"channels",               required_argument,  0, 'c'},
         {"dabmode",                required_argument,  0,  4 },
         {"dabpsy",                 required_argument,  0,  5 },
@@ -488,7 +504,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlVb:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlVb:B:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -514,6 +530,9 @@ int main(int argc, char *argv[])
             break;
         case 'b':
             bitrate = atoi(optarg);
+            break;
+        case 'B':
+            bandwidth = std::stoi(optarg);
             break;
         case 'c':
             channels = atoi(optarg);
@@ -731,7 +750,7 @@ int main(int argc, char *argv[])
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         int subchannel_index = bitrate / 8;
         if (prepare_aac_encoder(&encoder, subchannel_index, channels,
-                    sample_rate, afterburner, &aot) != 0) {
+                    sample_rate, afterburner, bandwidth, &aot) != 0) {
             fprintf(stderr, "Encoder preparation failed\n");
             return 1;
         }
