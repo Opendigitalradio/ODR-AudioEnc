@@ -776,10 +776,6 @@ int main(int argc, char *argv[])
         }
 
         if (err == 0) {
-            err = toolame_set_bitrate(bitrate);
-        }
-
-        if (err == 0) {
             err = toolame_set_psy_model(dab_psy_model);
         }
 
@@ -798,6 +794,11 @@ int main(int argc, char *argv[])
 
         if (err == 0) {
             err = toolame_set_channel_mode(dab_channel_mode);
+        }
+
+        // setting the ScF-CRC len here depends on set sample rate/channel mode
+        if (err == 0) {
+            err = toolame_set_bitrate(bitrate);
         }
 
         if (err == 0) {
