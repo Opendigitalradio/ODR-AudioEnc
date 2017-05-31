@@ -93,6 +93,12 @@ Wave file encoding, for non-realtime processing
 
     odr-audioenc -b $BITRATE -i wave_file.wav -o station1.dabp
 
+Scenario *file that VLC supports*
+---------------------------------
+If you want to input a file through libvlc, you need to give an absolute path:
+
+    odr-audioenc -b $BITRATE -v file:///home/odr/audio/source.mp3 -o station1.dabp
+
 Scenario *ALSA*
 ---------------
 Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:
