@@ -21,6 +21,7 @@
 #include <cstring>
 #include <chrono>
 #include <algorithm>
+#include <functional>
 
 #include "VLCInput.h"
 
