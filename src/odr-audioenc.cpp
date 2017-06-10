@@ -166,7 +166,7 @@ void usage(const char* name) {
     "   Encoder parameters:\n"
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
-    "     -r, --rate={ 32000, 48000 }          Input sample rate (default: 48000).\n"
+    "     -r, --rate={ 24000, 32000, 48000 }   Input sample rate (default: 48000).\n"
     "   DAB specific options\n"
     "     -a, --dab                            Encode in DAB and not in DAB+.\n"
     "         --dabmode=MODE                   Channel mode: s/d/j/m\n"
