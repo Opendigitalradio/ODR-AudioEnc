@@ -636,7 +636,11 @@ int main(int argc, char *argv[])
     if (jack_name) num_inputs++;
     if (vlc_uri != "") num_inputs++;
 
-    if (num_inputs > 1) {
+    if (num_inputs == 0) {
+        fprintf(stderr, "No input defined!\n");
+        return 1;
+    }
+    else if (num_inputs > 1) {
         fprintf(stderr, "You must define only one possible input, not several!\n");
         return 1;
     }
