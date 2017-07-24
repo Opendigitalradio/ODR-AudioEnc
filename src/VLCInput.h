@@ -187,7 +187,7 @@ class VLCInput
         std::string m_gain;
 
         /*! VLC can give us the ICY-Text from an Icecast stream,
-         * which we optionnally write into a text file for mot-encoder
+         * which we optionally write into a text file for ODR-PadEnc
          */
         std::future<bool> icy_text_written;
         std::mutex m_nowplaying_mutex;

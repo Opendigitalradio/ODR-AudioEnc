@@ -43,10 +43,6 @@
  *  - \ref DataInput
  *  - \ref SilenceDetection
  *
- *  For the mot-encoder:
- *  - \ref mot-encoder.cpp
- *
- *
  *  \file odr-audioenc.cpp
  *  \brief The main file for the audio encoder
  */
@@ -158,7 +154,7 @@ void usage(const char* name)
     "                                          multiple times)\n"
     "     -L OPTION                            Give an additional options to VLC (can be given\n"
     "                                          multiple times)\n"
-    "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that mot-encoder can read it.\n"
+    "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that ODR-PadEnc can read it.\n"
     "     -W, --write-icy-text-dl-plus         When writing the ICY Text into the file, add DL Plus information.\n"
 #else
     "     The VLC input was disabled at compile-time\n"

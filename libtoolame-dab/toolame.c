@@ -551,7 +551,7 @@ int toolame_encode_frame(
     }
 
     if (xpad_len) {
-        /* The F-PAD is also given us by mot-encoder */
+        /* The F-PAD is also given us by ODR-PadEnc */
         putbits (&bs, xpad_data[header.dab_length - 2], 8);
         putbits (&bs, xpad_data[header.dab_length - 1], 8);
     }

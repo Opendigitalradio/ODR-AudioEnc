@@ -375,7 +375,7 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 
 const std::string VLCInput::ICY_TEXT_SEPARATOR = " - ";
 
-/*! Write the corresponding text to a file readable by mot-encoder, with optional
+/*! Write the corresponding text to a file readable by ODR-PadEnc, with optional
  * DL+ information. The text is passed as a copy because we actually use the
  * m_nowplaying variable which is also accessed in another thread, so better
  * make a copy.
