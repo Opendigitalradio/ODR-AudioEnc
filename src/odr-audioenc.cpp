@@ -419,7 +419,7 @@ int main(int argc, char *argv[])
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
 
-    char dab_channel_mode = '\0';
+    std::string dab_channel_mode;
     int  dab_psy_model = 1;
     std::deque<uint8_t> toolame_output_buffer;
 
@@ -515,7 +515,15 @@ int main(int argc, char *argv[])
             break;
         case 3: // FIFO SILENCE
         case 4: // DAB channel mode
-            dab_channel_mode = optarg[0];
+            dab_channel_mode = optarg;
+            if (not(    dab_channel_mode == "s" or
+                        dab_channel_mode == "d" or
+                        dab_channel_mode == "j" or
+                        dab_channel_mode == "m")) {
+                fprintf(stderr, "Invalid DAB channel mode\n");
+                usage(argv[0]);
+                return 1;
+            }
             break;
         case 5: // DAB psy model
             dab_psy_model = std::stoi(optarg);
@@ -777,7 +785,7 @@ int main(int argc, char *argv[])
             err = toolame_set_psy_model(dab_psy_model);
         }
 
-        if (dab_channel_mode == '\0') {
+        if (dab_channel_mode.empty()) {
             if (channels == 2) {
                 dab_channel_mode = 'j'; // Default to joint-stereo
             }
@@ -791,7 +799,7 @@ int main(int argc, char *argv[])
         }
 
         if (err == 0) {
-            err = toolame_set_channel_mode(dab_channel_mode);
+            err = toolame_set_channel_mode(dab_channel_mode.c_str()[0]);
         }
 
         // setting the ScF-CRC len here depends on set sample rate/channel mode
