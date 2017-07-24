@@ -4,6 +4,8 @@ dist: trusty
 
 addons: &addons
   apt:
+    sources: &sources
+      - ubuntu-toolchain-r-test
     packages: &packages
       - libzmq3-dev
       - libzmq3
@@ -17,10 +19,10 @@ addons: &addons
       - libjack-jackd2-dev
       - jackd2
       - libmagickwand-dev
+      - g++-6
 
 compiler:
   - gcc
-  - clang
 
 script:
   - |
@@ -28,24 +30,24 @@ script:
     git clone https://github.com/Opendigitalradio/fdk-aac.git
     cd fdk-aac
     ./bootstrap
-    ./configure
+    CC=gcc-6 CXX=g++-6 ./configure
     make
     sudo make install
     popd
   - |
     ./bootstrap
-    ./configure
+    CC=gcc-6 CXX=g++-6 ./configure
     make
   - |
-    ./configure --enable-vlc
+    CC=gcc-6 CXX=g++-6 ./configure --enable-vlc
     make
   - |
-    ./configure --enable-alsa
+    CC=gcc-6 CXX=g++-6 ./configure --enable-alsa
     make
   - |
-    ./configure --enable-jack
+    CC=gcc-6 CXX=g++-6 ./configure --enable-jack
     make
   - |
-    ./configure --enable-alsa --enable-jack --enable-vlc
+    CC=gcc-6 CXX=g++-6 ./configure --enable-alsa --enable-jack --enable-vlc
     make
 
