@@ -16,8 +16,7 @@
  * -------------------------------------------------------------------
  */
 
-#ifndef WAVREADER_H
-#define WAVREADER_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,7 +30,5 @@ int wav_read_data(void* obj, unsigned char* data, unsigned int length);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif
 

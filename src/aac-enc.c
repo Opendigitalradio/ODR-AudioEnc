@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "libAACenc/include/aacenc_lib.h"
-#include "wavreader.h"
+#include "wavfile.h"
 
 void usage(const char* name) {
 	fprintf(stderr, "%s [-r bitrate] [-t aot] [-a afterburner] [-s sbr] [-v vbr] in.wav out.aac\n", name);

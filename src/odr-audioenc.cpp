@@ -55,11 +55,11 @@
 #include "SampleQueue.h"
 #include "zmq.hpp"
 #include "common.h"
+#include "wavfile.h"
 
 extern "C" {
 #include "encryption.h"
 #include "utils.h"
-#include "wavreader.h"
 }
 
 #include <vector>

@@ -16,7 +16,7 @@
  * -------------------------------------------------------------------
  */
 
-#include "wavreader.h"
+#include "wavfile.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

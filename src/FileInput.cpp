@@ -17,7 +17,7 @@
  */
 
 #include "FileInput.h"
-#include "wavreader.h"
+#include "wavfile.h"
 #include <cstring>
 #include <cstdio>
 

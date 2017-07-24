@@ -94,13 +94,13 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/zmq.hpp \
 						   src/utils.c \
 						   src/utils.h \
-						   src/wavreader.c \
+						   src/wavfile.c \
 						   src/common.h \
 						   $(FEC_SOURCES)
 
 bin_PROGRAMS =  odr-audioenc$(EXEEXT)
 
-noinst_HEADERS = src/wavreader.h
+noinst_HEADERS = src/wavfile.h
 
 libtoolame_dab_la_SOURCES = \
 							libtoolame-dab/common.c \
