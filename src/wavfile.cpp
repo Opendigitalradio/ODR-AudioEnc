@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2009 Martin Storsjo
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +18,11 @@
  */
 
 #include "wavfile.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cstdint>
+#include <stdexcept>
 
 #define TAG(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 
@@ -189,5 +191,78 @@ int wav_read_data(void* obj, unsigned char* data, unsigned int length) {
     n = fread(data, 1, length, wr->wav);
     wr->data_length -= length;
     return n;
+}
+
+//============== WAV writer functions
+
+struct wavfile_header {
+    char    riff_tag[4];
+    int     riff_length;
+    char    wave_tag[4];
+    char    fmt_tag[4];
+    int     fmt_length;
+    short   audio_format;
+    short   num_channels;
+    int     sample_rate;
+    int     byte_rate;
+    short   block_align;
+    short   bits_per_sample;
+    char    data_tag[4];
+    int     data_length;
+};
+
+WavWriter::WavWriter(const char *filename, int rate)
+{
+    struct wavfile_header header;
+
+    int samples_per_second = rate;
+    int bits_per_sample = 16;
+
+    strncpy(header.riff_tag,"RIFF",4);
+    strncpy(header.wave_tag,"WAVE",4);
+    strncpy(header.fmt_tag,"fmt ",4);
+    strncpy(header.data_tag,"data",4);
+
+    header.riff_length = 0;
+    header.fmt_length = 16;
+    header.audio_format = 1;
+    header.num_channels = 2;
+    header.sample_rate = samples_per_second;
+    header.byte_rate = samples_per_second*(bits_per_sample/8);
+    header.block_align = bits_per_sample/8;
+    header.bits_per_sample = bits_per_sample;
+    header.data_length = 0;
+
+    m_fd = fopen(filename, "w+");
+    if (not m_fd) {
+        throw std::runtime_error("Could not open wav file");
+    }
+
+    fwrite(&header,sizeof(header),1,m_fd);
+
+    fflush(m_fd);
+}
+
+WavWriter::~WavWriter()
+{
+    // The wav file header contains the full file size, we must
+    // write this at the end
+
+    int file_length = ftell(m_fd);
+
+    int data_length = file_length - sizeof(struct wavfile_header);
+    fseek(m_fd,sizeof(struct wavfile_header) - sizeof(int),SEEK_SET);
+    fwrite(&data_length,sizeof(data_length),1,m_fd);
+
+    int riff_length = file_length - 8;
+    fseek(m_fd,4,SEEK_SET);
+    fwrite(&riff_length,sizeof(riff_length),1,m_fd);
+
+    fclose(m_fd);
+}
+
+void WavWriter::write_data(short data[], int length)
+{
+    fwrite(data,sizeof(short),length,m_fd);
 }
 

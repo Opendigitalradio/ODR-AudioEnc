@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2009 Martin Storsjo
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +19,7 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <cstdio>
 
 void* wav_read_open(const char *filename);
 void wav_read_close(void* obj);
@@ -28,7 +27,16 @@ void wav_read_close(void* obj);
 int wav_get_header(void* obj, int* format, int* channels, int* sample_rate, int* bits_per_sample, unsigned int* data_length);
 int wav_read_data(void* obj, unsigned char* data, unsigned int length);
 
-#ifdef __cplusplus
-}
-#endif
+class WavWriter {
+    public:
+        WavWriter(const char *filename, int rate);
+        ~WavWriter();
+        WavWriter(const WavWriter& other) = delete;
+        WavWriter& operator=(const WavWriter& other) = delete;
+
+        void write_data(short *data, int length);
+
+    private:
+        FILE *m_fd = nullptr;
+};
 

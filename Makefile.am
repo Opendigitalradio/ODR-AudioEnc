@@ -94,7 +94,7 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/zmq.hpp \
 						   src/utils.c \
 						   src/utils.h \
-						   src/wavfile.c \
+						   src/wavfile.cpp \
 						   src/common.h \
 						   $(FEC_SOURCES)
 
