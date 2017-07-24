@@ -53,6 +53,7 @@
 #include "JackInput.h"
 #include "VLCInput.h"
 #include "SampleQueue.h"
+#include "AACDecoder.h"
 #include "zmq.hpp"
 #include "common.h"
 #include "wavfile.h"
@@ -177,6 +178,7 @@ void usage(const char* name)
     "         --sbr                            Force the usage of SBR (HE-AAC)\n"
     "         --ps                             Force the usage of SBR and PS (HE-AACv2)\n"
     "     -B, --bandwidth=VALUE                Set the AAC encoder bandwidth to VALUE [Hz].\n"
+    "         --decode=FILE                    Decode the AAC back to a wav file (loopback test).\n"
     "   Output and pad parameters:\n"
     "     -o, --output=URI                     Output ZMQ uri. (e.g. 'tcp://localhost:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dabp')\n"
@@ -419,6 +421,8 @@ int main(int argc, char *argv[])
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
 
+    std::string decode_wavfilename;
+
     std::string dab_channel_mode;
     int  dab_psy_model = 1;
     std::deque<uint8_t> toolame_output_buffer;
@@ -454,6 +458,7 @@ int main(int argc, char *argv[])
         {"dabmode",                required_argument,  0,  4 },
         {"dabpsy",                 required_argument,  0,  5 },
         {"device",                 required_argument,  0, 'd'},
+        {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
         {"input",                  required_argument,  0, 'i'},
         {"jack",                   required_argument,  0, 'j'},
@@ -527,6 +532,9 @@ int main(int argc, char *argv[])
             break;
         case 5: // DAB psy model
             dab_psy_model = std::stoi(optarg);
+            break;
+        case 6: // Enable loopback decoder for AAC
+            decode_wavfilename = optarg;
             break;
         case 'a':
             selected_encoder = encoder_selection_t::toolame_dab;
@@ -756,6 +764,7 @@ int main(int argc, char *argv[])
     vec_u8 input_buf;
 
     HANDLE_AACENCODER encoder;
+    std::unique_ptr<AACDecoder> decoder;
 
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         int subchannel_index = bitrate / 8;
@@ -777,6 +786,10 @@ int main(int argc, char *argv[])
                 input_size);
 
         input_buf.resize(input_size);
+
+        if (not decode_wavfilename.empty()) {
+            decoder.reset(new AACDecoder(decode_wavfilename.c_str()));
+        }
     }
     else if (selected_encoder == encoder_selection_t::toolame_dab) {
         int err = toolame_init();
@@ -821,6 +834,11 @@ int main(int argc, char *argv[])
         }
 
         input_buf.resize(channels * 1152 * BYTES_PER_SAMPLE);
+
+        if (not decode_wavfilename.empty()) {
+            fprintf(stderr, "--decode not supported for DAB\n");
+            return 1;
+        }
     }
 
     /* We assume that we need to call the encoder
@@ -1222,6 +1240,16 @@ int main(int argc, char *argv[])
             }
             else {
                 numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
+            }
+        }
+
+        if (numOutBytes != 0 and decoder) {
+            try {
+                decoder->decode_frame(outbuf.data(), numOutBytes);
+            }
+            catch (std::runtime_error &e) {
+                fprintf(stderr, "Decoding failed with: %s\n", e.what());
+                return 1;
             }
         }
 

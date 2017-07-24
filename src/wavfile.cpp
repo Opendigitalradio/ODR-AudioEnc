@@ -211,7 +211,15 @@ struct wavfile_header {
     int     data_length;
 };
 
-WavWriter::WavWriter(const char *filename, int rate)
+WavWriter::WavWriter(const char *filename)
+{
+    m_fd = fopen(filename, "w+");
+    if (not m_fd) {
+        throw std::runtime_error("Could not open wav file");
+    }
+}
+
+void WavWriter::initialise_header(int rate)
 {
     struct wavfile_header header;
 
@@ -232,11 +240,6 @@ WavWriter::WavWriter(const char *filename, int rate)
     header.block_align = bits_per_sample/8;
     header.bits_per_sample = bits_per_sample;
     header.data_length = 0;
-
-    m_fd = fopen(filename, "w+");
-    if (not m_fd) {
-        throw std::runtime_error("Could not open wav file");
-    }
 
     fwrite(&header,sizeof(header),1,m_fd);
 
@@ -261,8 +264,8 @@ WavWriter::~WavWriter()
     fclose(m_fd);
 }
 
-void WavWriter::write_data(short data[], int length)
+void WavWriter::write_data(const uint8_t *data, int length)
 {
-    fwrite(data,sizeof(short),length,m_fd);
+    fwrite(data,sizeof(uint8_t),length,m_fd);
 }
 
