@@ -15,7 +15,7 @@ and encode to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
 The libVLC input allows the encoder to use all inputs supported by VLC, and
 therefore also webstreams and other network sources.
 
-The ALSA and libVLC inputs support experimental sound card clock drift
+The ALSA and libVLC inputs support sound card clock drift
 compensation, that can compensate for imprecise sound card clocks.
 
 The JACK input does not automatically connect to anything. The encoder runs
