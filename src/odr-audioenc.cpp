@@ -967,23 +967,23 @@ int main(int argc, char *argv[])
         AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
 
         // --------------- Read data from the PAD fifo
-        int ret;
+        int pad_ret;
         if (padlen != 0) {
-            ret = read(pad_fd, pad_buf, padlen + 1);
+            pad_ret = read(pad_fd, pad_buf, padlen + 1);
         }
         else {
-            ret = 0;
+            pad_ret = 0;
         }
 
 
-        if(ret < 0 && errno == EAGAIN) {
+        if(pad_ret < 0 && errno == EAGAIN) {
             // If this condition passes, there is no data to be read
             in_buf.numBufs = 1;    // Samples;
         }
-        else if(ret >= 0) {
+        else if(pad_ret >= 0) {
             // Otherwise, you're good to go and buffer should contain "count" bytes.
             in_buf.numBufs = 2;    // Samples + Data;
-            if (ret > 0)
+            if (pad_ret > 0)
                 status |= STATUS_PAD_INSERTED;
         }
         else {
@@ -1158,7 +1158,7 @@ int main(int argc, char *argv[])
             //
             int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
             int out_identifier = OUT_BITSTREAM_DATA;
-            const int calculated_padlen = ret > 0 ? pad_buf[padlen] : 0;
+            const int calculated_padlen = pad_ret > 0 ? pad_buf[padlen] : 0;
             const int subchannel_index = bitrate / 8;
 
             void *in_ptr[2], *out_ptr;
@@ -1205,7 +1205,7 @@ int main(int argc, char *argv[])
         }
         else if (selected_encoder == encoder_selection_t::toolame_dab) {
             int calculated_padlen = 0;
-            if (ret == padlen + 1) {
+            if (pad_ret == padlen + 1) {
                 calculated_padlen = pad_buf[padlen];
                 if (calculated_padlen <= 2) {
                     stringstream ss;
