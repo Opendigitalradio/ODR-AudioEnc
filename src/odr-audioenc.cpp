@@ -992,6 +992,17 @@ int main(int argc, char *argv[])
                         break;
         }
 
+        int calculated_padlen = 0;
+        if (pad_ret == padlen + 1) {
+            calculated_padlen = pad_buf[padlen];
+            if (calculated_padlen < 2) {
+                stringstream ss;
+                ss << "Invalid X-PAD length " << calculated_padlen;
+                throw runtime_error(ss.str());
+            }
+        }
+
+
         // -------------- Read Data
         memset(&outbuf[0], 0x00, outbuf_size);
         memset(&input_buf[0], 0x00, input_buf.size());
@@ -1158,7 +1169,6 @@ int main(int argc, char *argv[])
             //
             int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
             int out_identifier = OUT_BITSTREAM_DATA;
-            const int calculated_padlen = pad_ret > 0 ? pad_buf[padlen] : 0;
             const int subchannel_index = bitrate / 8;
 
             void *in_ptr[2], *out_ptr;
@@ -1204,16 +1214,6 @@ int main(int argc, char *argv[])
             numOutBytes = out_args.numOutBytes;
         }
         else if (selected_encoder == encoder_selection_t::toolame_dab) {
-            int calculated_padlen = 0;
-            if (pad_ret == padlen + 1) {
-                calculated_padlen = pad_buf[padlen];
-                if (calculated_padlen < 2) {
-                    stringstream ss;
-                    ss << "Invalid X-PAD length " << calculated_padlen;
-                    throw runtime_error(ss.str());
-                }
-            }
-
             /*! \note toolame expects the audio to be in another shape as
              * we have in input_buf, and we need to convert first
              */
