@@ -982,7 +982,18 @@ int main(int argc, char *argv[])
                     throw runtime_error(ss.str());
                 }
 
-                status |= STATUS_PAD_INSERTED;
+                /*
+                 * AAC: skip PAD if only zero F-PAD (saves four bytes)
+                 * See §5.4.3 in ETSI TS 102 563
+                 */
+                if (
+                		selected_encoder == encoder_selection_t::fdk_dabplus &&
+                		calculated_padlen == 2 &&
+						pad_buf[padlen - 2] == 0x00 &&
+						pad_buf[padlen - 1] == 0x00
+                ) {
+                	calculated_padlen = 0;
+                }
             }
             else {
                 // Some other error occurred during read.
@@ -990,6 +1001,8 @@ int main(int argc, char *argv[])
                 break;
             }
         }
+    	if (calculated_padlen)
+        	status |= STATUS_PAD_INSERTED;
 
 
         // -------------- Read Data
