@@ -964,41 +964,30 @@ int main(int argc, char *argv[])
     int calls = 0; // for checking
     ssize_t read_bytes = 0;
     do {
-        AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
-
         // --------------- Read data from the PAD fifo
-        int pad_ret;
-        if (padlen != 0) {
-            pad_ret = read(pad_fd, pad_buf, padlen + 1);
-        }
-        else {
-            pad_ret = 0;
-        }
-
-
-        if(pad_ret < 0 && errno == EAGAIN) {
-            // If this condition passes, there is no data to be read
-            in_buf.numBufs = 1;    // Samples;
-        }
-        else if(pad_ret >= 0) {
-            // Otherwise, you're good to go and buffer should contain "count" bytes.
-            in_buf.numBufs = 2;    // Samples + Data;
-            if (pad_ret > 0)
-                status |= STATUS_PAD_INSERTED;
-        }
-        else {
-            // Some other error occurred during read.
-            fprintf(stderr, "Unable to read from PAD!\n");
-                        break;
-        }
-
         int calculated_padlen = 0;
-        if (pad_ret == padlen + 1) {
-            calculated_padlen = pad_buf[padlen];
-            if (calculated_padlen < 2) {
-                stringstream ss;
-                ss << "Invalid X-PAD length " << calculated_padlen;
-                throw runtime_error(ss.str());
+
+        if (padlen != 0) {
+            ssize_t pad_ret = read(pad_fd, pad_buf, padlen + 1);
+
+            if((pad_ret < 0 && errno == EAGAIN) || pad_ret == 0) {
+                // If this condition passes, there is no data to be read
+            }
+            else if(pad_ret == padlen + 1) {
+                // Otherwise, you're good to go and buffer should contain "count" bytes.
+                calculated_padlen = pad_buf[padlen];
+                if (calculated_padlen < 2) {
+                    stringstream ss;
+                    ss << "Invalid X-PAD length " << calculated_padlen;
+                    throw runtime_error(ss.str());
+                }
+
+                status |= STATUS_PAD_INSERTED;
+            }
+            else {
+                // Some other error occurred during read.
+                fprintf(stderr, "Unable to read from PAD!\n");
+                break;
             }
         }
 
@@ -1163,6 +1152,7 @@ int main(int argc, char *argv[])
         int numOutBytes = 0;
         if (read_bytes and
                 selected_encoder == encoder_selection_t::fdk_dabplus) {
+            AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
             AACENC_InArgs in_args = { 0 };
             AACENC_OutArgs out_args = { 0 };
             // -------------- AAC Encoding
@@ -1184,6 +1174,7 @@ int main(int argc, char *argv[])
             in_args.numInSamples = input_buf.size()/BYTES_PER_SAMPLE;
             in_args.numAncBytes = calculated_padlen;
 
+            in_buf.numBufs = calculated_padlen ? 2 : 1;    // Samples + Data / Samples
             in_buf.bufs = (void**)&in_ptr;
             in_buf.bufferIdentifiers = in_identifier;
             in_buf.bufSizes = in_size;
