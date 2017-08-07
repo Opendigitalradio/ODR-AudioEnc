@@ -522,7 +522,7 @@ int toolame_encode_frame(
 
 
     if (xpad_len) {
-        assert(xpad_len > 2);
+        assert(xpad_len >= FPAD_LENGTH);
 
         // insert available X-PAD
         for (int i = header.dab_length - xpad_len;

@@ -1207,9 +1207,9 @@ int main(int argc, char *argv[])
             int calculated_padlen = 0;
             if (pad_ret == padlen + 1) {
                 calculated_padlen = pad_buf[padlen];
-                if (calculated_padlen <= 2) {
+                if (calculated_padlen < 2) {
                     stringstream ss;
-                    ss << "Invalid XPAD Length " << calculated_padlen;
+                    ss << "Invalid X-PAD length " << calculated_padlen;
                     throw runtime_error(ss.str());
                 }
             }
