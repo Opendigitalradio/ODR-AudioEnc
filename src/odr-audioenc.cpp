@@ -231,7 +231,8 @@ static int prepare_aac_encoder(
         if(channels == 2 && subchannel_index <= 6) {
             *aot = AOT_DABPLUS_PS;
         }
-        else if((channels == 1 && subchannel_index <= 8) || subchannel_index <= 10) {
+        else if((channels == 1 && subchannel_index <= 8) ||
+                (channels == 2 && subchannel_index <= 10)) {
             *aot = AOT_DABPLUS_SBR;
         }
         else {
