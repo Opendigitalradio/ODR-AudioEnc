@@ -51,9 +51,8 @@ bitrate is more balanced according to the -V value.*/
 
 
 /* Convert ATH values from dB into energy values as required by the psycho model */
-float ATH_energy(float freq, float value) {
-  float db;
-  db = ATH_dB(freq, 0) + value; // Originally: ATH_dB(freq,value)
+FLOAT8 ATH_energy(FLOAT8 freq, FLOAT8 value) {
+  FLOAT db = ATH_dB(freq, 0) + value; // Originally: ATH_dB(freq,value)
   /* The values in the standard, and from the ATH formula are in dB.
      In the psycho model we are working in the energy domain. Hence the values that 
      are in the absthr_X tables are not in dB. This function converts from dB into the energy domain.

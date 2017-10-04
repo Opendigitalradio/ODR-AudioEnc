@@ -454,7 +454,7 @@ void psycho_3_init(options *glopts) {
        by 1.0 of a bark, start a new critical band.  */
     
     numlines = (int *)calloc(HBLKSIZE, sizeof(int));
-    cbval = (float *)calloc(HBLKSIZE, sizeof(float));
+    cbval = (FLOAT*)calloc(HBLKSIZE, sizeof(FLOAT));
     cbandindex[0] = 1;
     for (i=1;i<HBLKSIZE;i++) {
       if ((bark[i] - bark[cbase]) > 1.0) { /* 1 critical band? 1 bark? */

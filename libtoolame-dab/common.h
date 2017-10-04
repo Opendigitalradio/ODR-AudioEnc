@@ -9,7 +9,7 @@
 #define EXIT_FAILURE 1
 #endif
 
-#define FLOAT float
+#define FLOAT double
 
 #ifndef FALSE
 #define         FALSE                   0
@@ -78,7 +78,7 @@
 
 #define         BUFFER_SIZE     4096
 
-#define FLOAT8 float
+#define FLOAT8 double
 /***********************************************************************
 *
 *  Global Type Definitions
