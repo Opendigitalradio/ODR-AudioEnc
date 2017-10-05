@@ -186,7 +186,7 @@ void usage(const char* name)
     "                                          If more than one ZMQ output is given, the socket\n"
     "                                          will be connected to all listed endpoints.\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
-    "     -p, --pad=BYTES                      Set PAD size in bytes.\n"
+    "     -p, --pad=BYTES                      Enable PAD insertion and set PAD size in bytes.\n"
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name"
     "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
