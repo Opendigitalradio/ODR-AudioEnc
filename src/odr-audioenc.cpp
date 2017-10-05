@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
 
     /* For MOT Slideshow and DLS insertion */
     const char* pad_fifo = "/tmp/pad.fifo";
-    int pad_fd;
+    int pad_fd = -1;
     int padlen = 0;
 
     /* Encoder status, see the above STATUS macros */
@@ -971,29 +971,25 @@ int main(int argc, char *argv[])
         if (padlen != 0) {
             ssize_t pad_ret = read(pad_fd, pad_buf, padlen + 1);
 
-            if((pad_ret < 0 && errno == EAGAIN) || pad_ret == 0) {
+            if ((pad_ret < 0 && errno == EAGAIN) || pad_ret == 0) {
                 // If this condition passes, there is no data to be read
             }
-            else if(pad_ret == padlen + 1) {
+            else if (pad_ret == padlen + 1) {
                 // Otherwise, you're good to go and buffer should contain "count" bytes.
                 calculated_padlen = pad_buf[padlen];
+
                 if (calculated_padlen < 2) {
-                    stringstream ss;
-                    ss << "Invalid X-PAD length " << calculated_padlen;
-                    throw runtime_error(ss.str());
+                    throw runtime_error("Invalid X-PAD length " + to_string(calculated_padlen));
                 }
 
-                /*
-                 * AAC: skip PAD if only zero F-PAD (saves four bytes)
+                /* AAC: skip PAD if only zero F-PAD (saves four bytes)
                  * See §5.4.3 in ETSI TS 102 563
                  */
-                if (
-                		selected_encoder == encoder_selection_t::fdk_dabplus &&
-                		calculated_padlen == 2 &&
-						pad_buf[padlen - 2] == 0x00 &&
-						pad_buf[padlen - 1] == 0x00
-                ) {
-                	calculated_padlen = 0;
+                if (    selected_encoder == encoder_selection_t::fdk_dabplus &&
+                        calculated_padlen == 2 &&
+                        pad_buf[padlen - 2] == 0x00 &&
+                        pad_buf[padlen - 1] == 0x00 ) {
+                    calculated_padlen = 0;
                 }
             }
             else {
@@ -1002,8 +998,10 @@ int main(int argc, char *argv[])
                 break;
             }
         }
-    	if (calculated_padlen)
-        	status |= STATUS_PAD_INSERTED;
+
+        if (calculated_padlen > 0) {
+            status |= STATUS_PAD_INSERTED;
+        }
 
 
         // -------------- Read Data
