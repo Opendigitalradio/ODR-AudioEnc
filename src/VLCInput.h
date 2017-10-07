@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,7 @@
  * the encoder to use all inputs VLC supports.
  */
 
-#ifndef __VLC_INPUT_H_
-#define __VLC_INPUT_H_
+#pragma once
 
 #include "config.h"
 
@@ -41,6 +40,7 @@
 
 #include "SampleQueue.h"
 #include "common.h"
+#include "InputInterface.h"
 
 extern "C" {
 #include "utils.h"
@@ -57,19 +57,19 @@ struct ICY_TEXT_T {
 
     bool operator==(const ICY_TEXT_T& other) const {
         return
-            artist == other.artist &&
-            title == other.title &&
+            artist == other.artist and
+            title == other.title and
             now_playing == other.now_playing;
     }
     bool operator!=(const ICY_TEXT_T& other) const {
         return !(*this == other);
     }
-    void useArtistTitle(std::string artist, std::string title) {
+    void useArtistTitle(const std::string& artist, const std::string& title) {
         this->artist = artist;
         this->title = title;
         now_playing = "";
     }
-    void useNowPlaying(std::string now_playing) {
+    void useNowPlaying(const std::string& now_playing) {
         artist = "";
         title = "";
         this->now_playing = now_playing;
@@ -77,7 +77,7 @@ struct ICY_TEXT_T {
 };
 
 
-class VLCInput
+class VLCInput : public InputInterface
 {
     public:
         VLCInput(const std::string& uri,
@@ -113,14 +113,9 @@ class VLCInput
             cleanup();
         }
 
-        /*! Prepare the audio input
-         *
-         * \return 0 on success
-         */
-        int prepare();
-
-        /*! Start the libVLC thread that fills m_samplequeue */
-        void start();
+        /*! Initialise VLC and start playing, and start
+         *  the libVLC thread that fills m_samplequeue */
+        virtual void prepare() override;
 
         /*! Write the last received ICY-Text to the
          * file.
@@ -214,6 +209,4 @@ class VLCInput
 };
 
 #endif // HAVE_VLC
-
-#endif
 

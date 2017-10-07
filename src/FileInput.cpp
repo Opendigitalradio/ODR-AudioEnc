@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,17 +20,30 @@
 #include "wavfile.h"
 #include <cstring>
 #include <cstdio>
-
+#include <stdexcept>
 #include <stdint.h>
 
-int FileInput::prepare(void)
+using namespace std;
+
+FileInput::~FileInput()
 {
+    if (m_raw_input and m_in_fh) {
+        fclose(m_in_fh);
+    }
+    else if (m_wav) {
+        wav_read_close(m_wav);
+    }
+}
+
+void FileInput::prepare(void)
+{
+    const char* fname = m_filename.c_str();
+
     if (m_raw_input) {
-        if (m_filename && strcmp(m_filename, "-")) {
-            m_in_fh = fopen(m_filename, "rb");
+        if (fname && strcmp(fname, "-")) {
+            m_in_fh = fopen(fname, "rb");
             if (!m_in_fh) {
-                fprintf(stderr, "Can't open input file!\n");
-                return 1;
+                throw runtime_error("Can't open input file!");
             }
         }
         else {
@@ -43,37 +56,32 @@ int FileInput::prepare(void)
         int wav_format = 0;
         int sample_rate = 0;
 
-        m_wav = wav_read_open(m_filename);
+        m_wav = wav_read_open(fname);
         if (!m_wav) {
-            fprintf(stderr, "Unable to open wav file %s\n", m_filename);
-            return 1;
+            throw runtime_error("Unable to open wav file " + m_filename);
         }
         if (!wav_get_header(m_wav, &wav_format, &channels, &sample_rate,
-                    &bits_per_sample, NULL)) {
-            fprintf(stderr, "Bad wav file %s\n", m_filename);
-            return 1;
+                    &bits_per_sample, nullptr)) {
+            throw runtime_error("Bad wav file" + m_filename);
         }
         if (wav_format != 1) {
-            fprintf(stderr, "Unsupported WAV format %d\n", wav_format);
-            return 1;
+            throw runtime_error("Unsupported WAV format " + to_string(wav_format));
         }
         if (bits_per_sample != 16) {
-            fprintf(stderr, "Unsupported WAV sample depth %d\n", bits_per_sample);
-            return 1;
+            throw runtime_error("Unsupported WAV sample depth " +
+                    to_string(bits_per_sample));
         }
         if ( !(channels == 1 or channels == 2)) {
-            fprintf(stderr, "Unsupported WAV channels %d\n", channels);
-            return 1;
+            throw runtime_error("Unsupported WAV channels " + to_string(channels));
         }
         if (m_sample_rate != sample_rate) {
-            fprintf(stderr,
-                    "WAV sample rate %d doesn't correspond to desired sample rate %d\n",
-                    sample_rate, m_sample_rate);
-            return 1;
+            throw runtime_error(
+                    "WAV sample rate " +
+                    to_string(sample_rate) +
+                    " doesn't correspond to desired sample rate " +
+                    to_string(m_sample_rate));
         }
     }
-
-    return 0;
 }
 
 ssize_t FileInput::read(uint8_t* buf, size_t length)
@@ -103,14 +111,4 @@ int FileInput::eof()
     return eof;
 }
 
-
-FileInput::~FileInput()
-{
-    if (m_raw_input && m_in_fh) {
-        fclose(m_in_fh);
-    }
-    else if (m_wav) {
-        wav_read_close(m_wav);
-    }
-}
 

@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,20 +32,28 @@ extern "C" {
 
 using namespace std;
 
-int JackInput::prepare()
+JackInput::~JackInput()
+{
+    if (m_client) {
+        jack_client_close(m_client);
+    }
+}
+
+void JackInput::prepare()
 {
     jack_options_t options = JackNullOption;
     jack_status_t status;
     const char *server_name = NULL;
 
-    m_client = jack_client_open(m_jack_name, options, &status, server_name);
+    m_client = jack_client_open(m_jack_name.c_str(), options, &status, server_name);
     if (m_client == NULL) {
-        fprintf(stderr, "jack_client_open() failed, "
-                "status = 0x%2.0x\n", status);
         if (status & JackServerFailed) {
-            fprintf(stderr, "Unable to connect to JACK server\n");
+            throw runtime_error("Unable to connect to JACK server");
         }
-        return -1;
+        else {
+            throw runtime_error("jack_client_open() failed, status = " +
+                    to_string(status));
+        }
     }
 
     if (status & JackServerStarted) {
@@ -53,8 +61,7 @@ int JackInput::prepare()
     }
 
     if (status & JackNameNotUnique) {
-        fprintf(stderr, "JACK name '%s' not unique!\n", m_jack_name);
-        return -1;
+        throw runtime_error("JACK name '" + m_jack_name + "' not unique!");
     }
 
     /* Set up real-time process callback */
@@ -66,11 +73,10 @@ int JackInput::prepare()
     jack_on_shutdown(m_client, shutdown_cb, this);
 
     if (m_rate != jack_get_sample_rate(m_client)) {
-        fprintf(stderr, "JACK uses different sample_rate %d "
-                "than requested (%d)!\n",
-                jack_get_sample_rate(m_client),
-                m_rate);
-        return -1;
+        throw runtime_error(
+                "JACK uses different sample_rate " +
+                to_string(jack_get_sample_rate(m_client)) +
+                " than requested (" + to_string(m_rate) + ")!");
     }
 
     /* create ports */
@@ -85,8 +91,7 @@ int JackInput::prepare()
                 0);
 
         if (input_port == NULL) {
-            fprintf(stderr, "no more JACK ports available\n");
-            return -1;
+            throw runtime_error("no more JACK ports available");
         }
 
         m_input_ports.push_back(input_port);
@@ -95,11 +100,8 @@ int JackInput::prepare()
     /* Tell the JACK server that we are ready to roll. Our
      * process() callback will start running now. */
     if (jack_activate(m_client)) {
-        fprintf (stderr, "JACK: cannot activate client");
-        return -1;
+        throw runtime_error("JACK: cannot activate client");
     }
-
-    return 0;
 }
 
 void JackInput::jack_process(jack_nframes_t nframes)

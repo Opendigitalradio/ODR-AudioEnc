@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013,2014 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,7 @@
  * This input uses libasound to get audio data.
  */
 
-#ifndef __ALSA_H_
-#define __ALSA_H_
+#pragma once
 
 #include "config.h"
 
@@ -37,12 +36,13 @@
 
 #include "SampleQueue.h"
 #include "common.h"
+#include "InputInterface.h"
 
 /*! Common functionality for the direct alsa input and the
  * threaded alsa input. The threaded one is used for
  * drift compensation.
  */
-class AlsaInput
+class AlsaInput : public InputInterface
 {
     public:
         AlsaInput(const std::string& alsa_dev,
@@ -50,31 +50,27 @@ class AlsaInput
                 unsigned int rate) :
             m_alsa_dev(alsa_dev),
             m_channels(channels),
-            m_rate(rate),
-            m_alsa_handle(NULL) { }
+            m_rate(rate) { }
 
-        ~AlsaInput() {
+        AlsaInput(const AlsaInput& other) = delete;
+        AlsaInput& operator=(const AlsaInput& other) = delete;
 
-            if (m_alsa_handle) {
-                snd_pcm_close(m_alsa_handle);
-                m_alsa_handle = NULL;
-            }
-        }
-
-        /* Prepare the audio input */
-        int prepare();
+        virtual ~AlsaInput();
 
     protected:
+        /* Read from the ALSA device. Returns number of samples,
+         * or -1 in case of error
+         */
         ssize_t m_read(uint8_t* buf, snd_pcm_uframes_t length);
+
+        /* Open the ALSA device and set it up */
+        void m_init_alsa(void);
 
         std::string m_alsa_dev;
         unsigned int m_channels;
         unsigned int m_rate;
 
-        snd_pcm_t *m_alsa_handle;
-
-    private:
-        AlsaInput(const AlsaInput& other) {}
+        snd_pcm_t *m_alsa_handle = nullptr;
 };
 
 class AlsaInputDirect : public AlsaInput
@@ -85,16 +81,31 @@ class AlsaInputDirect : public AlsaInput
                 unsigned int rate) :
             AlsaInput(alsa_dev, channels, rate) { }
 
+#if 0
+        AlsaInputDirect(AlsaInputDirect&& other) :
+            AlsaInput(other.m_alsa_dev, other.m_channels, other.m_rate) {
+            m_alsa_handle = other.m_alsa_handle;
+            other.m_alsa_handle = nullptr;
+        }
+
+        AlsaInputDirect& operator=(AlsaInputDirect&& other) {
+            m_alsa_dev = other.m_alsa_dev;
+            m_channels = other.m_channels;
+            m_rate = other.m_rate;
+            m_alsa_handle = other.m_alsa_handle;
+            other.m_alsa_handle = nullptr;
+            return *this;
+        }
+#endif
+
+        virtual void prepare(void) override;
+
         /*! Read length Bytes from from the alsa device.
          * length must be a multiple of channels * bytes_per_sample.
          *
          * \return the number of bytes read.
          */
         ssize_t read(uint8_t* buf, size_t length);
-
-    private:
-        AlsaInputDirect(const AlsaInputDirect& other) :
-            AlsaInput("", 0, 0) { }
 };
 
 class AlsaInputThreaded : public AlsaInput
@@ -109,7 +120,7 @@ class AlsaInputThreaded : public AlsaInput
             m_running(false),
             m_queue(queue) { }
 
-        ~AlsaInputThreaded()
+        virtual ~AlsaInputThreaded()
         {
             if (m_running) {
                 m_running = false;
@@ -118,15 +129,11 @@ class AlsaInputThreaded : public AlsaInput
         }
 
         /*! Start the ALSA thread that fills the queue */
-        virtual void start();
+        virtual void prepare(void) override;
 
-        bool fault_detected() { return m_fault; };
+        bool fault_detected() const { return m_fault; };
 
     private:
-        AlsaInputThreaded(const AlsaInputThreaded& other) :
-            AlsaInput("", 0, 0),
-            m_queue(other.m_queue) {}
-
         void process();
 
         std::atomic<bool> m_fault;
@@ -138,7 +145,4 @@ class AlsaInputThreaded : public AlsaInput
 };
 
 #endif // HAVE_ALSA
-
-#endif // __ALSA_H_
-
 

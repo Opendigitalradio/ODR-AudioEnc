@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,30 +26,29 @@
  * line (number of channels, rate)
  */
 
-#ifndef _FILE_INPUT_H_
-#define _FILE_INPUT_H_
+#pragma once
 
 #include <stdint.h>
-#include <stdio.h>
+#include <cstdio>
+#include <string>
+#include "InputInterface.h"
 
-class FileInput
+class FileInput : public InputInterface
 {
     public:
-        FileInput(const char* filename,
+        FileInput(const std::string& filename,
                 bool raw_input,
                 int sample_rate) :
             m_filename(filename),
             m_raw_input(raw_input),
-            m_sample_rate(sample_rate),
-            m_wav(nullptr) { }
+            m_sample_rate(sample_rate) {}
 
         ~FileInput();
+        FileInput(const FileInput& other) = delete;
+        FileInput& operator=(const FileInput& other) = delete;
 
-        /*! Open the file and prepare the wav decoder.
-         *
-         * \return nonzero on error
-         */
-        int prepare(void);
+        /*! Open the file and prepare the wav decoder. */
+        virtual void prepare(void) override;
 
         /*! Read length bytes into buf.
          *
@@ -59,15 +58,12 @@ class FileInput
         int eof();
 
     protected:
-        const char* m_filename;
+        std::string m_filename;
         bool m_raw_input;
         int m_sample_rate;
 
         /* handle to the wav reader */
-        void *m_wav;
-
-        FILE* m_in_fh;
+        void *m_wav = nullptr;
+        FILE* m_in_fh = nullptr;
 };
-
-#endif
 

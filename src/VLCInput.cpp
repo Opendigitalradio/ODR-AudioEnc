@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,12 @@ const size_t bytes_per_float_sample = sizeof(float);
 
 #include <sys/time.h>
 
-int check_vlc_uses_size_t();
+enum class vlc_data_type_e {
+    vlc_uses_size_t,
+    vlc_uses_unsigned_int
+};
+
+static vlc_data_type_e check_vlc_uses_size_t();
 
 using namespace std;
 
@@ -117,32 +122,31 @@ void handleVLCExit(void* opaque)
     ((VLCInput*)opaque)->exit_cb();
 }
 
-int VLCInput::prepare()
+void VLCInput::prepare()
 {
+    if (m_fault) {
+        throw runtime_error("Cannot start VLC input. Fault detected previously!");
+    }
+
     fprintf(stderr, "Initialising VLC...\n");
 
     long long int handleStream_address;
     long long int prepareRender_address;
 
-    int vlc_version_check = check_vlc_uses_size_t();
-    if (vlc_version_check == 0) {
-        fprintf(stderr, "You are using VLC with unsigned int size callbacks\n");
+    switch (check_vlc_uses_size_t()) {
+        case vlc_data_type_e::vlc_uses_unsigned_int:
+            fprintf(stderr, "You are using VLC with unsigned int size callbacks\n");
 
-        handleStream_address = (long long int)(intptr_t)(void*)&handleStream;
-        prepareRender_address = (long long int)(intptr_t)(void*)&prepareRender;
-    }
-    else if (vlc_version_check == 1) {
-        fprintf(stderr, "You are using VLC with size_t size callbacks\n");
+            handleStream_address = (long long int)(intptr_t)(void*)&handleStream;
+            prepareRender_address = (long long int)(intptr_t)(void*)&prepareRender;
+            break;
+        case vlc_data_type_e::vlc_uses_size_t:
+            fprintf(stderr, "You are using VLC with size_t size callbacks\n");
 
-        handleStream_address = (long long int)(intptr_t)(void*)&handleStream_size_t;
-        prepareRender_address = (long long int)(intptr_t)(void*)&prepareRender_size_t;
+            handleStream_address = (long long int)(intptr_t)(void*)&handleStream_size_t;
+            prepareRender_address = (long long int)(intptr_t)(void*)&prepareRender_size_t;
+            break;
     }
-    else {
-        fprintf(stderr, "Error detecting VLC version!\n");
-        fprintf(stderr, "      you are using %s\n", libvlc_get_version());
-        return -1;
-    }
-
 
     // VLC options
     std::stringstream transcode_options_ss;
@@ -199,8 +203,7 @@ int VLCInput::prepare()
             vlc_args[arg_ix++] = opt.c_str();
         }
         else {
-            fprintf(stderr, "Too many VLC options given");
-            return 1;
+            throw runtime_error("Too many VLC options given");
         }
     }
 
@@ -241,7 +244,12 @@ int VLCInput::prepare()
         }
     }
 
-    return ret;
+    if (ret == -1) {
+        throw runtime_error("VLC input did not start playing media");
+    }
+
+    m_running = true;
+    m_thread = std::thread(&VLCInput::process, this);
 }
 
 void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
@@ -347,17 +355,20 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
             break;
         }
 
-        // handle meta data
+        // handle meta data. Warning: do not leak these!
         char* artist_sz = libvlc_media_get_meta(media, libvlc_meta_Artist);
         char* title_sz = libvlc_media_get_meta(media, libvlc_meta_Title);
 
-        if (artist_sz && title_sz) {
+        if (artist_sz and title_sz) {
             // use Artist and Title
             std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
             m_nowplaying.useArtistTitle(artist_sz, title_sz);
-        } else {
+        }
+        else {
             // try fallback to NowPlaying
-            char* nowplaying_sz = libvlc_media_get_meta(media, libvlc_meta_NowPlaying);
+            char* nowplaying_sz = libvlc_media_get_meta(media,
+                    libvlc_meta_NowPlaying);
+
             if (nowplaying_sz) {
                 std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
                 m_nowplaying.useNowPlaying(nowplaying_sz);
@@ -387,7 +398,7 @@ bool write_icy_to_file(const ICY_TEXT_T text, const std::string& filename, bool 
     FILE* fd = fopen(filename.c_str(), "wb");
     if (fd) {
         bool ret = true;
-        bool artist_title_used = !text.artist.empty() && !text.title.empty();
+        bool artist_title_used = !text.artist.empty() and !text.title.empty();
 
         // if desired, prepend DL Plus information
         if (dl_plus) {
@@ -418,7 +429,8 @@ bool write_icy_to_file(const ICY_TEXT_T text, const std::string& filename, bool 
             ret &= fputs(text.artist.c_str(), fd) >= 0;
             ret &= fputs(VLCInput::ICY_TEXT_SEPARATOR.c_str(), fd) >= 0;
             ret &= fputs(text.title.c_str(), fd) >= 0;
-        } else {
+        }
+        else {
             ret &= fputs(text.now_playing.c_str(), fd) >= 0;
         }
         fclose(fd);
@@ -457,16 +469,6 @@ void VLCInput::write_icy_text(const std::string& filename, bool dl_plus)
 }
 
 
-void VLCInput::start()
-{
-    if (m_fault) {
-        fprintf(stderr, "Cannot start VLC input. Fault detected previsouly!\n");
-    }
-    else {
-        m_running = true;
-        m_thread = std::thread(&VLCInput::process, this);
-    }
-}
 
 /*! How many samples we insert into the queue each call
  * 10 samples @ 32kHz = 3.125ms
@@ -495,17 +497,11 @@ void VLCInput::process()
 
 /*! VLC up to version 2.1.0 used a different callback function signature.
  * VLC 2.2.0 uses size_t
- *
- * \return 1 if the callback with size_t size should be used.
- *         0 if the callback with unsigned int size should be used.
- *        -1 if there was an error.
  */
-int check_vlc_uses_size_t()
+vlc_data_type_e check_vlc_uses_size_t()
 {
-    int retval = -1;
-
-    char libvlc_version[256];
-    strncpy(libvlc_version, libvlc_get_version(), 256);
+    char libvlc_version[256] = {};
+    strncpy(libvlc_version, libvlc_get_version(), 255);
 
     char *space_position = strstr(libvlc_version, " ");
 
@@ -522,11 +518,18 @@ int check_vlc_uses_size_t()
         if (minor_ver_sz) {
             int minor_ver = atoi(minor_ver_sz);
 
-            retval = (major_ver >= 2 && minor_ver >= 2) ? 1 : 0;
+            if (major_ver >= 2 && minor_ver >= 2) {
+                return vlc_data_type_e::vlc_uses_size_t;
+            }
+            else {
+                return vlc_data_type_e::vlc_uses_unsigned_int;
+            }
         }
     }
 
-    return retval;
+    fprintf(stderr, "Error detecting VLC version!\n");
+    fprintf(stderr, "      you are using %s\n", libvlc_get_version());
+    throw runtime_error("Cannot identify VLC datatype!");
 }
 
 

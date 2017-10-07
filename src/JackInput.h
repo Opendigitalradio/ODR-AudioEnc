@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2016 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
  * compensation, because there is no blocking way to read from JACK.
  */
 
-#ifndef __JACK_INPUT_H
-#define __JACK_INPUT_H
+#pragma once
+
 #include "config.h"
 #include <cstdio>
 #include <string>
@@ -35,14 +35,15 @@ extern "C" {
 }
 
 #include "SampleQueue.h"
+#include "InputInterface.h"
 
 // 16 bits per sample is fine for now
 #define BYTES_PER_SAMPLE 2
 
-class JackInput
+class JackInput : public InputInterface
 {
     public:
-        JackInput(const char* jack_name,
+        JackInput(const std::string& jack_name,
                 unsigned int channels,
                 unsigned int samplerate,
                 SampleQueue<uint8_t>& queue) :
@@ -52,26 +53,19 @@ class JackInput
             m_rate(samplerate),
             m_queue(queue) { }
 
-        ~JackInput() {
-            if (m_client) {
-                jack_client_close(m_client);
-            }
-        }
+        JackInput(const JackInput& other) = delete;
+        JackInput& operator=(const JackInput& other) = delete;
 
-        /*! Prepare the audio input
-         *
-         * \return 0 on success
-         */
-        int prepare();
+        virtual ~JackInput();
+
+        virtual void prepare() override;
 
     private:
-        JackInput(const JackInput& other);
-
         jack_client_t *m_client;
 
         std::vector<jack_port_t*> m_input_ports;
 
-        const char* m_jack_name;
+        std::string m_jack_name;
         unsigned int m_channels;
         unsigned int m_rate;
 
@@ -104,6 +98,4 @@ class JackInput
 };
 
 #endif // HAVE_JACK
-
-#endif
 

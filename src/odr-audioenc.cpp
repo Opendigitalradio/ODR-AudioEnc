@@ -130,12 +130,12 @@ void usage(const char* name)
     fprintf(stderr,
     "   For the alsa input:\n"
 #if HAVE_ALSA
-    "     -d, --device=alsa_device             Set ALSA input device (default: \"default\").\n"
+    "     -d, --device=alsa_device             Set ALSA input device.\n"
 #else
     "     The Alsa input was disabled at compile time\n"
 #endif
     "   For the file input:\n"
-    "     -i, --input=FILENAME                 Input filename (default: stdin).\n"
+    "     -i, --input=FILENAME                 Input filename (use -i - for stdin).\n"
     "     -f, --format={ wav, raw }            Set input file format (default: wav).\n"
     "         --fifo-silence                   Input file is fifo and encoder generates silence when fifo is empty. Ignore EOF.\n"
     "   For the JACK input:\n"
@@ -391,10 +391,10 @@ int main(int argc, char *argv[])
     encoder_selection_t selected_encoder = encoder_selection_t::fdk_dabplus;
 
     // For the ALSA input
-    const char *alsa_device = NULL;
+    string alsa_device;
 
     // For the file input
-    const char *infile = NULL;
+    string infile;
     int raw_input = 0;
 
     // For the VLC input
@@ -409,7 +409,7 @@ int main(int argc, char *argv[])
     // For the file output
     FILE *out_fh = NULL;
 
-    const char *jack_name = NULL;
+    string jack_name;
 
     std::vector<std::string> output_uris;
 
@@ -640,9 +640,9 @@ int main(int argc, char *argv[])
     }
 
     int num_inputs = 0;
-    if (alsa_device) num_inputs++;
-    if (infile) num_inputs++;
-    if (jack_name) num_inputs++;
+    if (not alsa_device.empty()) num_inputs++;
+    if (not infile.empty()) num_inputs++;
+    if (not jack_name.empty()) num_inputs++;
     if (vlc_uri != "") num_inputs++;
 
     if (num_inputs == 0) {
@@ -865,11 +865,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* No input defined ? default to alsa "default" */
-    if (!alsa_device) {
-        alsa_device = "default";
-    }
-
     // We'll use one of the tree possible inputs
 #if HAVE_ALSA
     AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
@@ -883,53 +878,37 @@ int main(int argc, char *argv[])
     VLCInput          vlc_input(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
 #endif
 
-    if (infile) {
-        if (file_in.prepare() != 0) {
-            fprintf(stderr, "File input preparation failed\n");
-            return 1;
-        }
+    InputInterface *input = nullptr;
+
+    if (not infile.empty()) {
+        input = &file_in;
     }
 #if HAVE_JACK
-    else if (jack_name) {
-        if (jack_in.prepare() != 0) {
-            fprintf(stderr, "JACK preparation failed\n");
-            return 1;
-        }
+    else if (not jack_name.empty()) {
+        input = &jack_in;
     }
 #endif
 #if HAVE_VLC
-    else if (vlc_uri != "") {
-        if (vlc_input.prepare() != 0) {
-            fprintf(stderr, "VLC with drift compensation: preparation failed\n");
-            return 1;
-        }
-
-        fprintf(stderr, "Start VLC thread\n");
-        vlc_input.start();
+    else if (not vlc_uri.empty()) {
+        input = &vlc_input;
     }
 #endif
 #if HAVE_ALSA
     else if (drift_compensation) {
-        if (alsa_in_threaded.prepare() != 0) {
-            fprintf(stderr, "Alsa with drift compensation: preparation failed\n");
-            return 1;
-        }
+        input = &alsa_in_threaded;
+    }
+    else {
+        input = &alsa_in_direct;
+    }
+#endif
 
-        fprintf(stderr, "Start ALSA capture thread\n");
-        alsa_in_threaded.start();
-    }
-    else {
-        if (alsa_in_direct.prepare() != 0) {
-            fprintf(stderr, "Alsa preparation failed\n");
-            return 1;
-        }
-    }
-#else
-    else {
+    if (input == nullptr) {
         fprintf(stderr, "No input defined\n");
         return 1;
     }
-#endif
+    else {
+        input->prepare();
+    }
 
     int outbuf_size;
     vec_u8 zmqframebuf;
@@ -1020,7 +999,7 @@ int main(int argc, char *argv[])
          * \c drift_compensation_delay() function handles rate throttling.
          */
 
-        if (infile) {
+        if (not infile.empty()) {
             read_bytes = file_in.read(&input_buf[0], input_buf.size());
             if (read_bytes < 0) {
                 break;
@@ -1086,7 +1065,7 @@ int main(int argc, char *argv[])
             }
         }
 #endif
-        else if (drift_compensation || jack_name) {
+        else if (drift_compensation or not jack_name.empty()) {
 #if HAVE_ALSA
             if (drift_compensation && alsa_in_threaded.fault_detected()) {
                 fprintf(stderr, "Detected fault in alsa input!\n");

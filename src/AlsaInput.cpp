@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2013,2014 Matthias P. Braendli
+ * Copyright (C) 2017 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,28 @@
 
 #include "AlsaInput.h"
 #include <cstdio>
+#include <stdexcept>
 #include <string>
 #include <alsa/asoundlib.h>
 #include <sys/time.h>
 
 using namespace std;
 
-int AlsaInput::prepare()
+AlsaInput::~AlsaInput()
+{
+    if (m_alsa_handle) {
+        snd_pcm_close(m_alsa_handle);
+        m_alsa_handle = nullptr;
+    }
+}
+
+static std::string alsa_strerror(int err)
+{
+    string s(snd_strerror(err));
+    return s;
+}
+
+void AlsaInput::m_init_alsa()
 {
     int err;
     snd_pcm_hw_params_t *hw_params;
@@ -39,67 +54,54 @@ int AlsaInput::prepare()
 
     if ((err = snd_pcm_open(&m_alsa_handle, m_alsa_dev.c_str(),
                     SND_PCM_STREAM_CAPTURE, open_mode)) < 0) {
-        fprintf (stderr, "cannot open audio device %s (%s)\n",
-                m_alsa_dev.c_str(), snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot open audio device " +
+                m_alsa_dev + "(" + alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params_malloc(&hw_params)) < 0) {
-        fprintf (stderr, "cannot allocate hardware parameter structure (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot allocate hardware parameter structure (" +
+                alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params_any(m_alsa_handle, hw_params)) < 0) {
-        fprintf (stderr, "cannot initialize hardware parameter structure (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot initialize hardware parameter structure (" +
+                alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params_set_access(m_alsa_handle, hw_params,
                     SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
-        fprintf (stderr, "cannot set access type (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot set access type (" + alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params_set_format(m_alsa_handle, hw_params,
                     SND_PCM_FORMAT_S16_LE)) < 0) {
-        fprintf (stderr, "cannot set sample format (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot set sample format (" +
+                alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params_set_rate_near(m_alsa_handle,
                 hw_params, &m_rate, 0)) < 0) {
-        fprintf (stderr, "cannot set sample rate (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot set sample rate (" + alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params_set_channels(m_alsa_handle,
                     hw_params, m_channels)) < 0) {
-        fprintf (stderr, "cannot set channel count (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot set channel count (" +
+                alsa_strerror(err) + ")");
     }
 
     if ((err = snd_pcm_hw_params(m_alsa_handle, hw_params)) < 0) {
-        fprintf (stderr, "cannot set parameters (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot set parameters (" + alsa_strerror(err) + ")");
     }
 
     snd_pcm_hw_params_free (hw_params);
 
     if ((err = snd_pcm_prepare(m_alsa_handle)) < 0) {
-        fprintf (stderr, "cannot prepare audio interface for use (%s)\n",
-                snd_strerror(err));
-        return 1;
+        throw runtime_error("cannot prepare audio interface for use (" +
+                alsa_strerror(err) + ")");
     }
 
     fprintf(stderr, "ALSA init done.\n");
-    return 0;
 }
 
 ssize_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
@@ -122,12 +124,14 @@ ssize_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
     return err;
 }
 
-void AlsaInputThreaded::start()
+void AlsaInputThreaded::prepare()
 {
     if (m_fault) {
         fprintf(stderr, "Cannot start alsa input. Fault detected previsouly!\n");
     }
     else {
+        m_init_alsa();
+
         m_running = true;
         m_thread = std::thread(&AlsaInputThreaded::process, this);
     }
@@ -149,6 +153,10 @@ void AlsaInputThreaded::process()
     }
 }
 
+void AlsaInputDirect::prepare()
+{
+    m_init_alsa();
+}
 
 ssize_t AlsaInputDirect::read(uint8_t* buf, size_t length)
 {
