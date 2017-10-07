@@ -137,6 +137,12 @@ void AlsaInputThreaded::prepare()
     }
 }
 
+bool AlsaInputThreaded::read_source(size_t num_bytes)
+{
+    // Reading done in separate thread, no normal termination condition possible
+    return true;
+}
+
 void AlsaInputThreaded::process()
 {
     uint8_t samplebuf[NUM_SAMPLES_PER_CALL * BYTES_PER_SAMPLE * m_channels];
@@ -158,14 +164,19 @@ void AlsaInputDirect::prepare()
     m_init_alsa();
 }
 
-ssize_t AlsaInputDirect::read(uint8_t* buf, size_t length)
+bool AlsaInputDirect::read_source(size_t num_bytes)
 {
-    int bytes_per_frame = m_channels * BYTES_PER_SAMPLE;
-    assert(length % bytes_per_frame == 0);
+    const int bytes_per_frame = m_channels * BYTES_PER_SAMPLE;
+    assert(num_bytes % bytes_per_frame == 0);
 
-    ssize_t read = m_read(buf, length / bytes_per_frame);
+    const size_t num_frames = num_bytes / bytes_per_frame;
+    vector<uint8_t> buf(num_bytes);
+    ssize_t ret = m_read(buf.data(), num_frames);
 
-    return (read > 0) ? read * bytes_per_frame : read;
+    if (ret > 0) {
+        m_queue.push(buf.data(), ret * bytes_per_frame);
+    }
+    return ret == num_frames;
 }
 
 #endif // HAVE_ALSA

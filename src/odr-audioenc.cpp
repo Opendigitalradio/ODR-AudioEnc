@@ -299,12 +299,12 @@ static int prepare_aac_encoder(
             return 1;
         }
     }
-    if (aacEncEncode(*encoder, NULL, NULL, NULL, NULL) != AACENC_OK) {
+    if (aacEncEncode(*encoder, nullptr, nullptr, nullptr, nullptr) != AACENC_OK) {
         fprintf(stderr, "Unable to initialize the encoder\n");
         return 1;
     }
 
-    uint32_t bw = aacEncoder_GetParam(*encoder, AACENC_BANDWIDTH);
+    const uint32_t bw = aacEncoder_GetParam(*encoder, AACENC_BANDWIDTH);
     fprintf(stderr, "Bandwidth is %d\n", bw);
 
     return 0;
@@ -395,6 +395,7 @@ int main(int argc, char *argv[])
 
     // For the file input
     string infile;
+    bool continue_after_eof = false;
     int raw_input = 0;
 
     // For the VLC input
@@ -407,17 +408,16 @@ int main(int argc, char *argv[])
     unsigned verbosity = 0;
 
     // For the file output
-    FILE *out_fh = NULL;
+    FILE *out_fh = nullptr;
 
     string jack_name;
 
     vector<string> output_uris;
 
     int sample_rate=48000, channels=2;
-    void *rs_handler = NULL;
+    void *rs_handler = nullptr;
     bool afterburner = true;
     uint32_t bandwidth = 0;
-    bool inFifoSilence = false;
     bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
@@ -449,7 +449,7 @@ int main(int argc, char *argv[])
     int show_level = 0;
 
     /* Data for ZMQ CURVE authentication */
-    char* keyfile = NULL;
+    char* keyfile = nullptr;
     char secretkey[CURVE_KEYLEN+1];
 
     const struct option longopts[] = {
@@ -519,7 +519,11 @@ int main(int argc, char *argv[])
         case 2: // PS
             aot = AOT_DABPLUS_PS;
             break;
-        case 3: // FIFO SILENCE
+        case 3: // FIFO Silence
+            continue_after_eof = true;
+            // Enable drift compensation, otherwise we would block instead of inserting silence.
+            drift_compensation = true;
+            break;
         case 4: // DAB channel mode
             dab_channel_mode = optarg;
             if (not(    dab_channel_mode == "s" or
@@ -694,7 +698,7 @@ int main(int argc, char *argv[])
     if (not output_uris.empty()) {
         for (auto uri : output_uris) {
             if (uri == "-") {
-                if (out_fh != NULL) {
+                if (out_fh != nullptr) {
                     fprintf(stderr, "You can't write to more than one file!\n");
                     return 1;
                 }
@@ -722,7 +726,7 @@ int main(int argc, char *argv[])
                 zmq_sock.connect(uri.c_str());
             }
             else { // We assume it's a file name
-                if (out_fh != NULL) {
+                if (out_fh != nullptr) {
                     fprintf(stderr, "You can't write to more than one file!\n");
                     return 1;
                 }
@@ -860,7 +864,7 @@ int main(int argc, char *argv[])
 
     /* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
     rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
-    if (rs_handler == NULL) {
+    if (rs_handler == nullptr) {
         perror("init_rs_char failed");
         return 1;
     }
@@ -868,9 +872,9 @@ int main(int argc, char *argv[])
     // We'll use one of the tree possible inputs
 #if HAVE_ALSA
     AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
-    AlsaInputDirect   alsa_in_direct(alsa_device, channels, sample_rate);
+    AlsaInputDirect   alsa_in_direct(alsa_device, channels, sample_rate, queue);
 #endif
-    FileInput         file_in(infile, raw_input, sample_rate);
+    FileInput         file_in(infile, raw_input, sample_rate, continue_after_eof, queue);
 #if HAVE_JACK
     JackInput         jack_in(jack_name, channels, sample_rate, queue);
 #endif
@@ -992,8 +996,8 @@ int main(int argc, char *argv[])
          * without drift compensation) or in a non-blocking way (VLC or ALSA
          * with drift compensation, JACK).
          *
-         * The file input doesn't need the queue at all. But the other inputs
-         * do, and either use \c pop() or \c pop_wait() depending on if it's blocking or not
+         * All inputs write samples into the queue, and either use \c pop() or
+         * \c pop_wait() depending on if it's blocking or not
          *
          * In non-blocking, the \c queue makes the data available without delay, and the
          * \c drift_compensation_delay() function handles rate throttling.
@@ -1005,68 +1009,14 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (not infile.empty()) {
-            read_bytes = file_in.read(&input_buf[0], input_buf.size());
-            if (read_bytes < 0) {
-                break;
-            }
-            else if (read_bytes != input_buf.size()) {
-                if (inFifoSilence && file_in.eof()) {
-                    memset(&input_buf[0], 0, input_buf.size());
-                    read_bytes = input_buf.size();
-                    usleep((long)input_buf.size() * 1000000 /
-                            (BYTES_PER_SAMPLE * channels * sample_rate));
-                }
-                else {
-                    fprintf(stderr, "Short file read !\n");
-                    read_bytes = 0;
-                }
-            }
+        if (not input->read_source(input_buf.size())) {
+            fprintf(stderr, "End of input reached\n");
+            retval = 0;
+            break;
         }
-#if HAVE_VLC
-        else if (not vlc_uri.empty()) {
 
-            if (drift_compensation) {
-                size_t overruns;
-                size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
-                if (bytes_from_queue != input_buf.size()) {
-                    expand_missing_samples(input_buf, channels, bytes_from_queue);
-                }
-                read_bytes = input_buf.size();
-                drift_compensation_delay(sample_rate, channels, read_bytes);
-
-                if (bytes_from_queue != input_buf.size()) {
-                    status |= STATUS_UNDERRUN;
-                }
-
-                if (overruns) {
-                    status |= STATUS_OVERRUN;
-                }
-            }
-            else {
-                const int timeout_ms = 10000;
-                read_bytes = input_buf.size();
-
-                /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
-                 * its job.
-                 */
-                size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms); // returns bytes
-
-                if (bytes_from_queue < read_bytes) {
-                    // queue timeout occurred
-                    fprintf(stderr, "Detected fault in VLC input! No data in time.\n");
-                    retval = 5;
-                    break;
-                }
-            }
-
-            if (not vlc_icytext_file.empty()) {
-                vlc_input.write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
-            }
-        }
-#endif
-        else if (drift_compensation or not jack_name.empty()) {
-            size_t overruns;
+        if (drift_compensation) {
+            size_t overruns = 0;
             size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
             if (bytes_from_queue != input_buf.size()) {
                 expand_missing_samples(input_buf, channels, bytes_from_queue);
@@ -1083,16 +1033,30 @@ int main(int argc, char *argv[])
             }
         }
         else {
-#if HAVE_ALSA
-            read_bytes = alsa_in_direct.read(&input_buf[0], input_buf.size());
-            if (read_bytes < 0) {
+            const int timeout_ms = 10000;
+            read_bytes = input_buf.size();
+
+            /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
+             * its job. */
+            size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms); // returns bytes
+
+            if (bytes_from_queue < read_bytes) {
+                // queue timeout occurred
+                fprintf(stderr, "Detected fault in VLC input! No data in time.\n");
+                retval = 5;
                 break;
             }
-            else if (read_bytes != input_buf.size()) {
-                fprintf(stderr, "Short alsa read !\n");
-            }
-#endif
         }
+
+        /*! \section MetadataFromSource
+         * The VLC input is the only input that can also give us metadata, which
+         * we can hand over to ODR-PadEnc.
+         */
+#if HAVE_VLC
+        if (not vlc_uri.empty() and not vlc_icytext_file.empty()) {
+            vlc_input.write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
+        }
+#endif
 
         /*! \section AudioLevel
          * Audio level measurement is always done assuming we have two
@@ -1113,7 +1077,7 @@ int main(int argc, char *argv[])
          * only useful if the connection dropped, or if no data is available. It is not
          * useful if the source is nearly silent (some noise present), because the
          * threshold is 0, and not configurable. The rationale is that we want to
-         * guard against connection issues, not source level issues
+         * guard against connection issues, not source level issues.
          */
         if (die_on_silence && MAX(peak_left, peak_right) == 0) {
             const unsigned int frame_time_msec = 1000ul *

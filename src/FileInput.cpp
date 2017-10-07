@@ -84,31 +84,44 @@ void FileInput::prepare(void)
     }
 }
 
-ssize_t FileInput::read(uint8_t* buf, size_t length)
+bool FileInput::read_source(size_t num_bytes)
 {
-    ssize_t pcmread;
+    vector<uint8_t> samplebuf(num_bytes);
+
+    ssize_t ret = 0;
 
     if (m_raw_input) {
-        if (fread(buf, length, 1, m_in_fh) == 1) {
-            pcmread = length;
-        }
-        else {
-            //fprintf(stderr, "Unable to read from input!\n");
-            return 0;
-        }
+        ret = fread(samplebuf.data(), 1, num_bytes, m_in_fh);
     }
     else {
-        pcmread = wav_read_data(m_wav, buf, length);
+        ret = wav_read_data(m_wav, samplebuf.data(), num_bytes);
     }
 
-    return pcmread;
-}
+    if (ret > 0) {
+        m_queue.push(samplebuf.data(), ret);
+    }
 
-int FileInput::eof()
-{
-    int eof = feof(m_in_fh);
-    clearerr(m_in_fh);
-    return eof;
-}
+    if (ret < num_bytes) {
+        if (m_raw_input) {
+            if (ferror(m_in_fh)) {
+                return false;
+            }
 
+            if (feof(m_in_fh)) {
+                if (m_continue_after_eof) {
+                    clearerr(m_in_fh);
+                }
+                else {
+                    return false;
+                }
+            }
+        }
+        else {
+            // the wavfile input doesn't support the continuation after EOF
+            return false;
+        }
+    }
+
+    return true;
+}
 

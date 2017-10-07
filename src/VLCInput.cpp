@@ -252,6 +252,12 @@ void VLCInput::prepare()
     m_thread = std::thread(&VLCInput::process, this);
 }
 
+bool VLCInput::read_source(size_t num_bytes)
+{
+    // Reading done in separate thread, no normal termination condition possible
+    return true;
+}
+
 void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
 {
     const size_t max_length = 20 * size;

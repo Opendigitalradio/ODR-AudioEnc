@@ -117,6 +117,8 @@ class VLCInput : public InputInterface
          *  the libVLC thread that fills m_samplequeue */
         virtual void prepare() override;
 
+        virtual bool read_source(size_t num_bytes) override;
+
         /*! Write the last received ICY-Text to the
          * file.
          */

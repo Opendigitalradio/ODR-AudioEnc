@@ -104,6 +104,12 @@ void JackInput::prepare()
     }
 }
 
+bool JackInput::read_source(size_t num_bytes)
+{
+    // Reading done in separate thread, no normal termination condition possible
+    return true;
+}
+
 void JackInput::jack_process(jack_nframes_t nframes)
 {
     /*! JACK works with float samples, we need to convert

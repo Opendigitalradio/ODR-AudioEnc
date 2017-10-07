@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <cstdio>
 #include <string>
+#include "SampleQueue.h"
 #include "InputInterface.h"
 
 class FileInput : public InputInterface
@@ -38,10 +39,14 @@ class FileInput : public InputInterface
     public:
         FileInput(const std::string& filename,
                 bool raw_input,
-                int sample_rate) :
+                int sample_rate,
+                bool continue_after_eof,
+                SampleQueue<uint8_t>& queue) :
             m_filename(filename),
             m_raw_input(raw_input),
-            m_sample_rate(sample_rate) {}
+            m_sample_rate(sample_rate),
+            m_continue_after_eof(continue_after_eof),
+            m_queue(queue) {}
 
         ~FileInput();
         FileInput(const FileInput& other) = delete;
@@ -52,17 +57,14 @@ class FileInput : public InputInterface
 
         virtual bool fault_detected(void) const override { return false; };
 
-        /*! Read length bytes into buf.
-         *
-         * \return the number of bytes read.
-         */
-        ssize_t read(uint8_t* buf, size_t length);
-        int eof();
+        virtual bool read_source(size_t num_bytes) override;
 
     protected:
         std::string m_filename;
         bool m_raw_input;
         int m_sample_rate;
+        bool m_continue_after_eof;
+        SampleQueue<uint8_t>& m_queue;
 
         /* handle to the wav reader */
         void *m_wav = nullptr;

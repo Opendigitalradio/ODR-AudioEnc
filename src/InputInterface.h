@@ -32,6 +32,20 @@ class InputInterface {
          */
         virtual void prepare(void) = 0;
 
-        /*! Return true if the input detected some sort of fault */
+        /*! Return true if the input detected some sort of fault or
+         *  abnormal termination
+         */
         virtual bool fault_detected(void) const = 0;
+
+        /*! Tell the input that it shall read from source and fill the queue.
+         *  The num_samples argument is an indication on how many bytes
+         *  the encoder needs.
+         *  Some inputs fill the queue from another thread, in which case
+         *  this function might only serve as indication that data gets
+         *  consumed.
+         *
+         *  A return value of true means data was read, a return value of
+         *  false means a normal termination of the input (e.g. end of file)
+         */
+        virtual bool read_source(size_t num_bytes) = 0;
 };

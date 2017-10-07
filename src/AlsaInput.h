@@ -47,10 +47,12 @@ class AlsaInput : public InputInterface
     public:
         AlsaInput(const std::string& alsa_dev,
                 unsigned int channels,
-                unsigned int rate) :
+                unsigned int rate,
+                SampleQueue<uint8_t>& queue) :
             m_alsa_dev(alsa_dev),
             m_channels(channels),
-            m_rate(rate) { }
+            m_rate(rate),
+            m_queue(queue) { }
 
         AlsaInput(const AlsaInput& other) = delete;
         AlsaInput& operator=(const AlsaInput& other) = delete;
@@ -70,6 +72,8 @@ class AlsaInput : public InputInterface
         unsigned int m_channels;
         unsigned int m_rate;
 
+        SampleQueue<uint8_t>& m_queue;
+
         snd_pcm_t *m_alsa_handle = nullptr;
 };
 
@@ -78,8 +82,9 @@ class AlsaInputDirect : public AlsaInput
     public:
         AlsaInputDirect(const std::string& alsa_dev,
                 unsigned int channels,
-                unsigned int rate) :
-            AlsaInput(alsa_dev, channels, rate) { }
+                unsigned int rate,
+                SampleQueue<uint8_t>& queue) :
+            AlsaInput(alsa_dev, channels, rate, queue) { }
 
 #if 0
         AlsaInputDirect(AlsaInputDirect&& other) :
@@ -102,6 +107,8 @@ class AlsaInputDirect : public AlsaInput
 
         virtual bool fault_detected(void) const override { return false; };
 
+        virtual bool read_source(size_t num_bytes) override;
+
         /*! Read length Bytes from from the alsa device.
          * length must be a multiple of channels * bytes_per_sample.
          *
@@ -117,10 +124,9 @@ class AlsaInputThreaded : public AlsaInput
                 unsigned int channels,
                 unsigned int rate,
                 SampleQueue<uint8_t>& queue) :
-            AlsaInput(alsa_dev, channels, rate),
+            AlsaInput(alsa_dev, channels, rate, queue),
             m_fault(false),
-            m_running(false),
-            m_queue(queue) { }
+            m_running(false) { }
 
         virtual ~AlsaInputThreaded()
         {
@@ -135,14 +141,14 @@ class AlsaInputThreaded : public AlsaInput
 
         virtual bool fault_detected(void) const override { return m_fault; };
 
+        virtual bool read_source(size_t num_bytes) override;
+
     private:
         void process();
 
         std::atomic<bool> m_fault;
         std::atomic<bool> m_running;
         std::thread m_thread;
-
-        SampleQueue<uint8_t>& m_queue;
 
 };
 

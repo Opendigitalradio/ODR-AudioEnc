@@ -59,7 +59,10 @@ class JackInput : public InputInterface
         virtual ~JackInput();
 
         virtual void prepare() override;
+
         virtual bool fault_detected(void) const override { return m_fault; };
+
+        virtual bool read_source(size_t num_bytes) override;
 
     private:
         jack_client_t *m_client;
