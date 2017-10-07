@@ -86,23 +86,6 @@ class AlsaInputDirect : public AlsaInput
                 SampleQueue<uint8_t>& queue) :
             AlsaInput(alsa_dev, channels, rate, queue) { }
 
-#if 0
-        AlsaInputDirect(AlsaInputDirect&& other) :
-            AlsaInput(other.m_alsa_dev, other.m_channels, other.m_rate) {
-            m_alsa_handle = other.m_alsa_handle;
-            other.m_alsa_handle = nullptr;
-        }
-
-        AlsaInputDirect& operator=(AlsaInputDirect&& other) {
-            m_alsa_dev = other.m_alsa_dev;
-            m_channels = other.m_channels;
-            m_rate = other.m_rate;
-            m_alsa_handle = other.m_alsa_handle;
-            other.m_alsa_handle = nullptr;
-            return *this;
-        }
-#endif
-
         virtual void prepare(void) override;
 
         virtual bool fault_detected(void) const override { return false; };

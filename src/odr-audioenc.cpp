@@ -869,44 +869,31 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // We'll use one of the tree possible inputs
-#if HAVE_ALSA
-    AlsaInputThreaded alsa_in_threaded(alsa_device, channels, sample_rate, queue);
-    AlsaInputDirect   alsa_in_direct(alsa_device, channels, sample_rate, queue);
-#endif
-    FileInput         file_in(infile, raw_input, sample_rate, continue_after_eof, queue);
-#if HAVE_JACK
-    JackInput         jack_in(jack_name, channels, sample_rate, queue);
-#endif
-#if HAVE_VLC
-    VLCInput          vlc_input(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
-#endif
-
-    InputInterface *input = nullptr;
+    shared_ptr<InputInterface> input;
 
     if (not infile.empty()) {
-        input = &file_in;
+        input = make_shared<FileInput>(infile, raw_input, sample_rate, continue_after_eof, queue);
     }
 #if HAVE_JACK
     else if (not jack_name.empty()) {
-        input = &jack_in;
+        input = make_shared<JackInput>(jack_name, channels, sample_rate, queue);
     }
 #endif
 #if HAVE_VLC
     else if (not vlc_uri.empty()) {
-        input = &vlc_input;
+        input = make_shared<VLCInput>(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
     }
 #endif
 #if HAVE_ALSA
     else if (drift_compensation) {
-        input = &alsa_in_threaded;
+        input = make_shared<AlsaInputThreaded>(alsa_device, channels, sample_rate, queue);
     }
     else {
-        input = &alsa_in_direct;
+        input = make_shared<AlsaInputDirect>(alsa_device, channels, sample_rate, queue);
     }
 #endif
 
-    if (input == nullptr) {
+    if (not input) {
         fprintf(stderr, "No input defined\n");
         return 1;
     }
@@ -1054,7 +1041,9 @@ int main(int argc, char *argv[])
          */
 #if HAVE_VLC
         if (not vlc_uri.empty() and not vlc_icytext_file.empty()) {
-            vlc_input.write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
+            // Using std::dynamic_pointer_cast would be safer, but is C++17
+            VLCInput *vlc_input = (VLCInput*)(input.get());
+            vlc_input->write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
         }
 #endif
 
