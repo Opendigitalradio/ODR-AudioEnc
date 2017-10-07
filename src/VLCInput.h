@@ -103,15 +103,7 @@ class VLCInput : public InputInterface
 
         VLCInput(const VLCInput& other) = delete;
         VLCInput& operator=(const VLCInput& other) = delete;
-        ~VLCInput()
-        {
-            if (m_running) {
-                m_running = false;
-                m_thread.join();
-            }
-
-            cleanup();
-        }
+        virtual ~VLCInput();
 
         /*! Initialise VLC and start playing, and start
          *  the libVLC thread that fills m_samplequeue */

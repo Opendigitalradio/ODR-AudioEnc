@@ -37,9 +37,7 @@ Requirements:
 
 * A C++11 compiler
 * FDK-AAC with the DAB+ patches
-* Install ZeroMQ 4.0.4 or more recent
-  * If your distribution does not include it, take it from
-    from http://download.zeromq.org/zeromq-4.0.4.tar.gz
+* ZeroMQ 4.0.4 or more recent
 * JACK audio connection kit (optional)
 * The alsa libraries (libasound2, optional)
 * libvlc and vlc for the plugins (optional)
@@ -184,6 +182,10 @@ odr-audioenc returns:
  * 3 if the AAC encoder failed
  * 4 it the ZeroMQ send failed
  * 5 if the input had a fault
+
+You can use the *-R* option to get ODR-AudioEnc to restart the input automatically after
+a fault. This does not guarantee that the odr-audioenc process will never die, and running
+it under a process supervisor is encouraged regardless of this feature being enabled or not.
 
 
 Known Limitations

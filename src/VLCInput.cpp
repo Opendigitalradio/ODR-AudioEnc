@@ -122,6 +122,17 @@ void handleVLCExit(void* opaque)
     ((VLCInput*)opaque)->exit_cb();
 }
 
+VLCInput::~VLCInput()
+{
+    m_running = false;
+
+    if (m_thread.joinable()) {
+        m_thread.join();
+    }
+
+    cleanup();
+}
+
 void VLCInput::prepare()
 {
     if (m_fault) {
@@ -300,7 +311,7 @@ void VLCInput::cleanup()
 
     if (m_vlc) {
         libvlc_release(m_vlc);
-        m_vlc = NULL;
+        m_vlc = nullptr;
     }
 }
 
@@ -520,7 +531,7 @@ vlc_data_type_e check_vlc_uses_size_t()
     if (major_ver_sz) {
         int major_ver = atoi(major_ver_sz);
 
-        char *minor_ver_sz = strtok_r(NULL, ".", &saveptr);
+        char *minor_ver_sz = strtok_r(nullptr, ".", &saveptr);
         if (minor_ver_sz) {
             int minor_ver = atoi(minor_ver_sz);
 

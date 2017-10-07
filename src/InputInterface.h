@@ -27,6 +27,8 @@
 
 class InputInterface {
     public:
+        virtual ~InputInterface() {}
+
         /*! Open the input interface. In case of failure, throws a
          * runtime_error.
          */

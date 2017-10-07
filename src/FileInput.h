@@ -48,7 +48,7 @@ class FileInput : public InputInterface
             m_continue_after_eof(continue_after_eof),
             m_queue(queue) {}
 
-        ~FileInput();
+        virtual ~FileInput();
         FileInput(const FileInput& other) = delete;
         FileInput& operator=(const FileInput& other) = delete;
 

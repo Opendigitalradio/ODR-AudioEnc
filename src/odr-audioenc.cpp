@@ -95,6 +95,33 @@ enum class encoder_selection_t {
 
 using namespace std;
 
+struct audioenc_settings_t {
+    int sample_rate=48000;
+    int channels=2;
+
+    // For the ALSA input
+    string alsa_device;
+
+    // For the file input
+    string infile;
+    bool continue_after_eof = false;
+    int raw_input = 0;
+
+    // For the VLC input
+    string vlc_uri;
+    string vlc_icytext_file;
+    bool vlc_icytext_dlplus = false;
+    string vlc_gain;
+    string vlc_cache;
+    vector<string> vlc_additional_opts;
+    unsigned verbosity = 0;
+
+    string jack_name;
+
+    bool drift_compensation = false;
+};
+
+
 void usage(const char* name)
 {
     fprintf(stderr,
@@ -179,7 +206,7 @@ void usage(const char* name)
     "         --ps                             Force the usage of SBR and PS (HE-AACv2)\n"
     "     -B, --bandwidth=VALUE                Set the AAC encoder bandwidth to VALUE [Hz].\n"
     "         --decode=FILE                    Decode the AAC back to a wav file (loopback test).\n"
-    "   Output and pad parameters:\n"
+    "   Output and PAD parameters:\n"
     "     -o, --output=URI                     Output ZMQ uri. (e.g. 'tcp://localhost:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dabp')\n"
     "                                     -or- a single dash '-' to denote stdout\n"
@@ -191,6 +218,7 @@ void usage(const char* name)
     "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
     "     -s, --silence=TIMEOUT                Abort encoding after TIMEOUT seconds of silence.\n"
+    "     -R, --restart                        Automatically restart input on fault.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
     " but epgm:// and pgm:// are also accepted\n"
@@ -375,6 +403,50 @@ static void drift_compensation_delay(int sample_rate, int channels, size_t bytes
     timepoint_last_compensation += wait_time;
 }
 
+static shared_ptr<InputInterface> initialise_input(
+        audioenc_settings_t& s,
+        SampleQueue<uint8_t>& queue)
+{
+    shared_ptr<InputInterface> input;
+
+    if (not s.infile.empty()) {
+        input = make_shared<FileInput>(s.infile, s.raw_input, s.sample_rate,
+                s.continue_after_eof, queue);
+    }
+#if HAVE_JACK
+    else if (not s.jack_name.empty()) {
+        input = make_shared<JackInput>(s.jack_name, s.channels, s.sample_rate,
+                queue);
+    }
+#endif
+#if HAVE_VLC
+    else if (not s.vlc_uri.empty()) {
+        input = make_shared<VLCInput>(s.vlc_uri, s.sample_rate, s.channels,
+                s.verbosity, s.vlc_gain, s.vlc_cache, s.vlc_additional_opts,
+                queue);
+    }
+#endif
+#if HAVE_ALSA
+    else if (s.drift_compensation) {
+        input = make_shared<AlsaInputThreaded>(s.alsa_device, s.channels,
+                s.sample_rate, queue);
+    }
+    else {
+        input = make_shared<AlsaInputDirect>(s.alsa_device, s.channels,
+                s.sample_rate, queue);
+    }
+#endif
+
+    if (not input) {
+        throw logic_error("Initialising input incomplete!");
+    }
+
+    input->prepare();
+
+    return input;
+}
+
+
 #define no_argument 0
 #define required_argument 1
 #define optional_argument 2
@@ -385,40 +457,23 @@ static void drift_compensation_delay(int sample_rate, int channels, size_t bytes
 
 int main(int argc, char *argv[])
 {
+    audioenc_settings_t settings;
+
+    bool restart_on_fault = false;
+
     int bitrate = 0; // 0 is default
     int ch=0;
 
     encoder_selection_t selected_encoder = encoder_selection_t::fdk_dabplus;
 
-    // For the ALSA input
-    string alsa_device;
-
-    // For the file input
-    string infile;
-    bool continue_after_eof = false;
-    int raw_input = 0;
-
-    // For the VLC input
-    string vlc_uri;
-    string vlc_icytext_file;
-    bool vlc_icytext_dlplus = false;
-    string vlc_gain;
-    string vlc_cache;
-    vector<string> vlc_additional_opts;
-    unsigned verbosity = 0;
-
     // For the file output
     FILE *out_fh = nullptr;
 
-    string jack_name;
-
     vector<string> output_uris;
 
-    int sample_rate=48000, channels=2;
     void *rs_handler = nullptr;
     bool afterburner = true;
     uint32_t bandwidth = 0;
-    bool drift_compensation = false;
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
 
@@ -483,6 +538,7 @@ int main(int argc, char *argv[])
         {"level",                  no_argument,        0, 'l'},
         {"no-afterburner",         no_argument,        0, 'A'},
         {"ps",                     no_argument,        0,  2 },
+        {"restart",                no_argument,        0, 'R'},
         {"sbr",                    no_argument,        0,  1 },
         {"verbosity",              no_argument,        0, 'V'},
         {0, 0, 0, 0},
@@ -508,7 +564,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlVb:B:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -520,9 +576,9 @@ int main(int argc, char *argv[])
             aot = AOT_DABPLUS_PS;
             break;
         case 3: // FIFO Silence
-            continue_after_eof = true;
+            settings.continue_after_eof = true;
             // Enable drift compensation, otherwise we would block instead of inserting silence.
-            drift_compensation = true;
+            settings.drift_compensation = true;
             break;
         case 4: // DAB channel mode
             dab_channel_mode = optarg;
@@ -554,26 +610,26 @@ int main(int argc, char *argv[])
             bandwidth = std::stoi(optarg);
             break;
         case 'c':
-            channels = std::stoi(optarg);
+            settings.channels = std::stoi(optarg);
             break;
         case 'd':
-            alsa_device = optarg;
+            settings.alsa_device = optarg;
             break;
         case 'D':
-            drift_compensation = true;
+            settings.drift_compensation = true;
             break;
         case 'f':
             if(strcmp(optarg, "raw")==0) {
-                raw_input = 1;
+                settings.raw_input = 1;
             } else if(strcmp(optarg, "wav")!=0)
                 usage(argv[0]);
             break;
         case 'i':
-            infile = optarg;
+            settings.infile = optarg;
             break;
         case 'j':
 #if HAVE_JACK
-            jack_name = optarg;
+            settings.jack_name = optarg;
 #else
             fprintf(stderr, "JACK disabled at compile time!\n");
             return 1;
@@ -595,7 +651,10 @@ int main(int argc, char *argv[])
             pad_fifo = optarg;
             break;
         case 'r':
-            sample_rate = std::stoi(optarg);
+            settings.sample_rate = std::stoi(optarg);
+            break;
+        case 'R':
+            restart_on_fault = true;
             break;
         case 's':
             silence_timeout = std::stoi(optarg);
@@ -610,22 +669,22 @@ int main(int argc, char *argv[])
             break;
 #ifdef HAVE_VLC
         case 'v':
-            vlc_uri = optarg;
+            settings.vlc_uri = optarg;
             break;
         case 'w':
-            vlc_icytext_file = optarg;
+            settings.vlc_icytext_file = optarg;
             break;
         case 'W':
-            vlc_icytext_dlplus = true;
+            settings.vlc_icytext_dlplus = true;
             break;
         case 'g':
-            vlc_gain = optarg;
+            settings.vlc_gain = optarg;
             break;
         case 'C':
-            vlc_cache = optarg;
+            settings.vlc_cache = optarg;
             break;
         case 'L':
-            vlc_additional_opts.push_back(optarg);
+            settings.vlc_additional_opts.push_back(optarg);
             break;
 #else
         case 'v':
@@ -634,7 +693,7 @@ int main(int argc, char *argv[])
             return 1;
 #endif
         case 'V':
-            verbosity++;
+            settings.verbosity++;
             break;
         case '?':
         case 'h':
@@ -644,10 +703,16 @@ int main(int argc, char *argv[])
     }
 
     int num_inputs = 0;
-    if (not alsa_device.empty()) num_inputs++;
-    if (not infile.empty()) num_inputs++;
-    if (not jack_name.empty()) num_inputs++;
-    if (vlc_uri != "") num_inputs++;
+#if HAVE_ALSA
+    if (not settings.alsa_device.empty()) num_inputs++;
+#endif
+    if (not settings.infile.empty()) num_inputs++;
+#if HAVE_JACK
+    if (not settings.jack_name.empty()) num_inputs++;
+#endif
+#if HAVE_VLC
+    if (not settings.vlc_uri.empty()) num_inputs++;
+#endif
 
     if (num_inputs == 0) {
         fprintf(stderr, "No input defined!\n");
@@ -671,7 +736,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        if ( ! (sample_rate == 32000 || sample_rate == 48000)) {
+        if ( ! (settings.sample_rate == 32000 || settings.sample_rate == 48000)) {
             fprintf(stderr, "Invalid sample rate. Possible values are: 32000, 48000.\n");
             return 1;
         }
@@ -681,7 +746,7 @@ int main(int argc, char *argv[])
             bitrate = 192;
         }
 
-        if ( ! (sample_rate == 24000 || sample_rate == 48000)) {
+        if ( ! (settings.sample_rate == 24000 || settings.sample_rate == 48000)) {
             fprintf(stderr, "Invalid sample rate. Possible values are: 24000, 48000.\n");
             return 1;
         }
@@ -773,8 +838,8 @@ int main(int argc, char *argv[])
 
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         int subchannel_index = bitrate / 8;
-        if (prepare_aac_encoder(&encoder, subchannel_index, channels,
-                    sample_rate, afterburner, bandwidth, &aot) != 0) {
+        if (prepare_aac_encoder(&encoder, subchannel_index, settings.channels,
+                    settings.sample_rate, afterburner, bandwidth, &aot) != 0) {
             fprintf(stderr, "Encoder preparation failed\n");
             return 1;
         }
@@ -785,7 +850,7 @@ int main(int argc, char *argv[])
         }
 
         // Each DAB+ frame will need input_size audio bytes
-        const int input_size = channels * BYTES_PER_SAMPLE * info.frameLength;
+        const int input_size = settings.channels * BYTES_PER_SAMPLE * info.frameLength;
         fprintf(stderr, "DAB+ Encoding: framelen=%d (%dB)\n",
                 info.frameLength,
                 input_size);
@@ -800,7 +865,7 @@ int main(int argc, char *argv[])
         int err = toolame_init();
 
         if (err == 0) {
-            err = toolame_set_samplerate(sample_rate);
+            err = toolame_set_samplerate(settings.sample_rate);
         }
 
         if (err == 0) {
@@ -808,14 +873,15 @@ int main(int argc, char *argv[])
         }
 
         if (dab_channel_mode.empty()) {
-            if (channels == 2) {
+            if (settings.channels == 2) {
                 dab_channel_mode = 'j'; // Default to joint-stereo
             }
-            else if (channels == 1) {
+            else if (settings.channels == 1) {
                 dab_channel_mode = 'm'; // Default to mono
             }
             else {
-                fprintf(stderr, "Unsupported channels number %d\n", channels);
+                fprintf(stderr, "Unsupported channels number %d\n",
+                        settings.channels);
                 return 1;
             }
         }
@@ -838,7 +904,7 @@ int main(int argc, char *argv[])
             return err;
         }
 
-        input_buf.resize(channels * 1152 * BYTES_PER_SAMPLE);
+        input_buf.resize(settings.channels * 1152 * BYTES_PER_SAMPLE);
 
         if (not decode_wavfilename.empty()) {
             fprintf(stderr, "--decode not supported for DAB\n");
@@ -852,15 +918,15 @@ int main(int argc, char *argv[])
      * is active. This is only valid for FDK-AAC.
      */
     const int enc_calls_per_output = (aot == AOT_DABPLUS_AAC_LC) ?
-        sample_rate / 8000 :
-        sample_rate / 16000;
+        settings.sample_rate / 8000 :
+        settings.sample_rate / 16000;
 
     int max_size = 32*input_buf.size() + NUM_SAMPLES_PER_CALL;
 
     /*! The SampleQueue \c queue is given to the inputs, so that they
      * can fill it.
      */
-    SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, channels, max_size);
+    SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, settings.channels, max_size);
 
     /* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
     rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
@@ -870,35 +936,12 @@ int main(int argc, char *argv[])
     }
 
     shared_ptr<InputInterface> input;
-
-    if (not infile.empty()) {
-        input = make_shared<FileInput>(infile, raw_input, sample_rate, continue_after_eof, queue);
+    try {
+        input = initialise_input(settings, queue);
     }
-#if HAVE_JACK
-    else if (not jack_name.empty()) {
-        input = make_shared<JackInput>(jack_name, channels, sample_rate, queue);
-    }
-#endif
-#if HAVE_VLC
-    else if (not vlc_uri.empty()) {
-        input = make_shared<VLCInput>(vlc_uri, sample_rate, channels, verbosity, vlc_gain, vlc_cache, vlc_additional_opts, queue);
-    }
-#endif
-#if HAVE_ALSA
-    else if (drift_compensation) {
-        input = make_shared<AlsaInputThreaded>(alsa_device, channels, sample_rate, queue);
-    }
-    else {
-        input = make_shared<AlsaInputDirect>(alsa_device, channels, sample_rate, queue);
-    }
-#endif
-
-    if (not input) {
-        fprintf(stderr, "No input defined\n");
+    catch (const runtime_error& e) {
+        fprintf(stderr, "Initialising input triggered exception: %s\n", e.what());
         return 1;
-    }
-    else {
-        input->prepare();
     }
 
     int outbuf_size;
@@ -992,8 +1035,22 @@ int main(int argc, char *argv[])
 
         if (input->fault_detected()) {
             fprintf(stderr, "Detected fault in input!\n");
-            retval = 5;
-            break;
+
+            if (restart_on_fault) {
+                try {
+                    input = initialise_input(settings, queue);
+                }
+                catch (const runtime_error& e) {
+                    fprintf(stderr, "Initialising input triggered exception: %s\n", e.what());
+                    return 1;
+                }
+
+                continue;
+            }
+            else {
+                retval = 5;
+                break;
+            }
         }
 
         if (not input->read_source(input_buf.size())) {
@@ -1002,14 +1059,14 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (drift_compensation) {
+        if (settings.drift_compensation) {
             size_t overruns = 0;
             size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
             if (bytes_from_queue != input_buf.size()) {
-                expand_missing_samples(input_buf, channels, bytes_from_queue);
+                expand_missing_samples(input_buf, settings.channels, bytes_from_queue);
             }
             read_bytes = input_buf.size();
-            drift_compensation_delay(sample_rate, channels, read_bytes);
+            drift_compensation_delay(settings.sample_rate, settings.channels, read_bytes);
 
             if (bytes_from_queue != input_buf.size()) {
                 status |= STATUS_UNDERRUN;
@@ -1029,9 +1086,23 @@ int main(int argc, char *argv[])
 
             if (bytes_from_queue < read_bytes) {
                 // queue timeout occurred
-                fprintf(stderr, "Detected fault in VLC input! No data in time.\n");
-                retval = 5;
-                break;
+                fprintf(stderr, "Detected fault in input! No data in time.\n");
+
+                if (restart_on_fault) {
+                    try {
+                        input = initialise_input(settings, queue);
+                    }
+                    catch (const runtime_error& e) {
+                        fprintf(stderr, "Initialising input triggered exception: %s\n", e.what());
+                        return 1;
+                    }
+
+                    continue;
+                }
+                else {
+                    retval = 5;
+                    break;
+                }
             }
         }
 
@@ -1040,10 +1111,10 @@ int main(int argc, char *argv[])
          * we can hand over to ODR-PadEnc.
          */
 #if HAVE_VLC
-        if (not vlc_uri.empty() and not vlc_icytext_file.empty()) {
+        if (not settings.vlc_uri.empty() and not settings.vlc_icytext_file.empty()) {
             // Using std::dynamic_pointer_cast would be safer, but is C++17
             VLCInput *vlc_input = (VLCInput*)(input.get());
-            vlc_input->write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
+            vlc_input->write_icy_text(settings.vlc_icytext_file, settings.vlc_icytext_dlplus);
         }
 #endif
 
@@ -1070,7 +1141,7 @@ int main(int argc, char *argv[])
          */
         if (die_on_silence && MAX(peak_left, peak_right) == 0) {
             const unsigned int frame_time_msec = 1000ul *
-                read_bytes / (BYTES_PER_SAMPLE * channels * sample_rate);
+                read_bytes / (BYTES_PER_SAMPLE * settings.channels * settings.sample_rate);
 
             measured_silence_ms += frame_time_msec;
 
@@ -1146,10 +1217,10 @@ int main(int argc, char *argv[])
              */
             short input_buffers[2][1152];
 
-            if (channels == 1) {
+            if (settings.channels == 1) {
                 memcpy(input_buffers[0], &input_buf[0], 1152 * BYTES_PER_SAMPLE);
             }
-            else if (channels == 2) {
+            else if (settings.channels == 2) {
                 for (int i = 0; i < 1152; i++) {
                     int16_t l = input_buf[4*i]   | (input_buf[4*i+1] << 8);
                     int16_t r = input_buf[4*i+2] | (input_buf[4*i+3] << 8);
@@ -1281,14 +1352,14 @@ int main(int argc, char *argv[])
         if (numOutBytes != 0)
         {
             if (show_level) {
-                if (channels == 1) {
+                if (settings.channels == 1) {
                     fprintf(stderr, "\rIn: [%-6s] %1s %1s %1s",
                             level(1, MAX(peak_right, peak_left)),
                             status & STATUS_PAD_INSERTED ? "P" : " ",
                             status & STATUS_UNDERRUN ? "U" : " ",
                             status & STATUS_OVERRUN ? "O" : " ");
                 }
-                else if (channels == 2) {
+                else if (settings.channels == 2) {
                     fprintf(stderr, "\rIn: [%6s|%-6s] %1s %1s %1s",
                             level(0, peak_left),
                             level(1, peak_right),
