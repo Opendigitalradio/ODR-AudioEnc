@@ -100,6 +100,8 @@ class AlsaInputDirect : public AlsaInput
 
         virtual void prepare(void) override;
 
+        virtual bool fault_detected(void) const override { return false; };
+
         /*! Read length Bytes from from the alsa device.
          * length must be a multiple of channels * bytes_per_sample.
          *
@@ -131,7 +133,7 @@ class AlsaInputThreaded : public AlsaInput
         /*! Start the ALSA thread that fills the queue */
         virtual void prepare(void) override;
 
-        bool fault_detected() const { return m_fault; };
+        virtual bool fault_detected(void) const override { return m_fault; };
 
     private:
         void process();

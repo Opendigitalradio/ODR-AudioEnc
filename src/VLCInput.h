@@ -140,7 +140,7 @@ class VLCInput : public InputInterface
 
         int getChannels() { return m_channels; }
 
-        bool fault_detected() { return m_fault; };
+        virtual bool fault_detected(void) const override { return m_fault; };
 
         /*! Separator string used when artist/title are written
          */

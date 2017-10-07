@@ -398,12 +398,12 @@ int main(int argc, char *argv[])
     int raw_input = 0;
 
     // For the VLC input
-    std::string vlc_uri = "";
-    std::string vlc_icytext_file = "";
+    string vlc_uri;
+    string vlc_icytext_file;
     bool vlc_icytext_dlplus = false;
-    std::string vlc_gain = "";
-    std::string vlc_cache = "";
-    std::vector<std::string> vlc_additional_opts;
+    string vlc_gain;
+    string vlc_cache;
+    vector<string> vlc_additional_opts;
     unsigned verbosity = 0;
 
     // For the file output
@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
 
     string jack_name;
 
-    std::vector<std::string> output_uris;
+    vector<string> output_uris;
 
     int sample_rate=48000, channels=2;
     void *rs_handler = NULL;
@@ -422,11 +422,11 @@ int main(int argc, char *argv[])
     AACENC_InfoStruct info = { 0 };
     int aot = AOT_NONE;
 
-    std::string decode_wavfilename;
+    string decode_wavfilename;
 
-    std::string dab_channel_mode;
-    int  dab_psy_model = 1;
-    std::deque<uint8_t> toolame_output_buffer;
+    string dab_channel_mode;
+    int dab_psy_model = 1;
+    deque<uint8_t> toolame_output_buffer;
 
     /* Keep track of peaks */
     int peak_left  = 0;
@@ -765,7 +765,7 @@ int main(int argc, char *argv[])
     vec_u8 input_buf;
 
     HANDLE_AACENCODER encoder;
-    std::unique_ptr<AACDecoder> decoder;
+    unique_ptr<AACDecoder> decoder;
 
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         int subchannel_index = bitrate / 8;
@@ -999,6 +999,12 @@ int main(int argc, char *argv[])
          * \c drift_compensation_delay() function handles rate throttling.
          */
 
+        if (input->fault_detected()) {
+            fprintf(stderr, "Detected fault in input!\n");
+            retval = 5;
+            break;
+        }
+
         if (not infile.empty()) {
             read_bytes = file_in.read(&input_buf[0], input_buf.size());
             if (read_bytes < 0) {
@@ -1019,12 +1025,6 @@ int main(int argc, char *argv[])
         }
 #if HAVE_VLC
         else if (not vlc_uri.empty()) {
-
-            if (drift_compensation && vlc_input.fault_detected()) {
-                fprintf(stderr, "Detected fault in VLC input!\n");
-                retval = 5;
-                break;
-            }
 
             if (drift_compensation) {
                 size_t overruns;
@@ -1066,14 +1066,6 @@ int main(int argc, char *argv[])
         }
 #endif
         else if (drift_compensation or not jack_name.empty()) {
-#if HAVE_ALSA
-            if (drift_compensation && alsa_in_threaded.fault_detected()) {
-                fprintf(stderr, "Detected fault in alsa input!\n");
-                retval = 5;
-                break;
-            }
-#endif
-
             size_t overruns;
             size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
             if (bytes_from_queue != input_buf.size()) {
@@ -1229,7 +1221,7 @@ int main(int argc, char *argv[])
             try {
                 decoder->decode_frame(outbuf.data(), numOutBytes);
             }
-            catch (std::runtime_error &e) {
+            catch (runtime_error &e) {
                 fprintf(stderr, "Decoding failed with: %s\n", e.what());
                 return 1;
             }

@@ -50,6 +50,8 @@ class FileInput : public InputInterface
         /*! Open the file and prepare the wav decoder. */
         virtual void prepare(void) override;
 
+        virtual bool fault_detected(void) const override { return false; };
+
         /*! Read length bytes into buf.
          *
          * \return the number of bytes read.

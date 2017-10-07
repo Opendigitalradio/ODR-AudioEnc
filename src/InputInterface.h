@@ -31,4 +31,7 @@ class InputInterface {
          * runtime_error.
          */
         virtual void prepare(void) = 0;
+
+        /*! Return true if the input detected some sort of fault */
+        virtual bool fault_detected(void) const = 0;
 };
