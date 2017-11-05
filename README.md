@@ -154,9 +154,10 @@ can then be used for the alsa encoder.
 Then, you can use any media player that has an alsa output to play whatever source it supports:
 
     cd your/preferred/music
-    mplayer -ao alsa:device=hw=1.1 -srate 32000 -shuffle *
+    mplayer -ao alsa:device=hw=1.1 -srate 32000 -format=s16le -shuffle *
 
-Important: you must specify the correct sample rate on both "sides" of the virtual sound card.
+Important: you must specify the correct sample rate and sample format on both
+"sides" of the virtual sound card.
 
 
 Scenario *mplayer and fifo*
