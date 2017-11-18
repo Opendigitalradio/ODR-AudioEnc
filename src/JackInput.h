@@ -82,8 +82,7 @@ class JackInput : public InputInterface
             m_fault = true;
         }
 
-        bool m_fault;
-        bool m_running;
+        bool m_fault = false;
 
         SampleQueue<uint8_t>& m_queue;
 
