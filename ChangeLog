@@ -1,3 +1,12 @@
+2017-11-18: Matthias P. Braendli <matthias@mpb.li>
+	(v2.2.0):
+		Add a decoder option for loopback testing.
+		Add a auto-restart option in case of input fault.
+		PAD improvements for DAB and DAB+.
+		Fix a few issues in mono.
+		Unify internal API for all inputs and simplify implementation.
+		Usage screen clarifications and minor internal fixes.
+
 2017-03-10: Matthias P. Braendli <matthias@mpb.li>
 	(v2.1.0):
 		Improve drift compensation quality, reduce occurrence of microglitches.
