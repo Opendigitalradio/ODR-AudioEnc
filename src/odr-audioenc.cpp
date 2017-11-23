@@ -221,7 +221,7 @@ void usage(const char* name)
     "     -R, --restart                        Automatically restart input on fault.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
-    " but epgm:// and pgm:// are also accepted\n"
+    " but epgm://, pgm:// and ipc:// are also accepted\n"
     );
 
 }
@@ -771,7 +771,8 @@ int main(int argc, char *argv[])
             }
             else if ((uri.compare(0, 6, "tcp://") == 0) ||
                     (uri.compare(0, 6, "pgm://") == 0) ||
-                    (uri.compare(0, 7, "epgm://") == 0)) {
+                    (uri.compare(0, 7, "epgm://") == 0) ||
+                    (uri.compare(0,6, "ipc://") == 0)) {
                 if (keyfile) {
                     fprintf(stderr, "Enabling encryption\n");
 
