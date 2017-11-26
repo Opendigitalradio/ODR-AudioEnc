@@ -772,7 +772,7 @@ int main(int argc, char *argv[])
             else if ((uri.compare(0, 6, "tcp://") == 0) ||
                     (uri.compare(0, 6, "pgm://") == 0) ||
                     (uri.compare(0, 7, "epgm://") == 0) ||
-                    (uri.compare(0,6, "ipc://") == 0)) {
+                    (uri.compare(0, 6, "ipc://") == 0)) {
                 if (keyfile) {
                     fprintf(stderr, "Enabling encryption\n");
 
