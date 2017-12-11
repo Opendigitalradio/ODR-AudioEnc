@@ -21,6 +21,7 @@
 #include "config.h"
 #include "AACDecoder.h"
 #include <stdexcept>
+#include <string>
 
 AACDecoder::AACDecoder(const char* wavfilename) :
     m_wav_writer(wavfilename)
