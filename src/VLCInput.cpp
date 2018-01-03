@@ -236,11 +236,18 @@ void VLCInput::prepare()
     m_mp = libvlc_media_player_new_from_media(m);
     libvlc_media_release(m);
 
+    if (!m_mp) {
+        throw runtime_error("VLC did not return media player");
+    }
+
     // Start playing
     int ret = libvlc_media_player_play(m_mp);
 
     if (ret == 0) {
         libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
+        if (!media) {
+            throw runtime_error("VLC did not have a media");
+        }
         libvlc_state_t st;
 
         ret = -1;
@@ -253,6 +260,8 @@ void VLCInput::prepare()
                 break;
             }
         }
+
+        libvlc_media_release(media);
     }
 
     if (ret == -1) {
@@ -363,6 +372,12 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
+        if (!media) {
+            fprintf(stderr, "VLC no media\n");
+            err = -1;
+            break;
+        }
+
         libvlc_state_t st = libvlc_media_get_state(media);
         if (!(st == libvlc_Opening   ||
               st == libvlc_Buffering ||
@@ -392,6 +407,8 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
                 free(nowplaying_sz);
             }
         }
+
+        libvlc_media_release(media);
 
         if (artist_sz)
             free(artist_sz);
