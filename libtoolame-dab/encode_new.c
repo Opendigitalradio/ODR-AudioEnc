@@ -676,13 +676,13 @@ int bits_for_nonoise_new (double SMR[2][SBLIMIT],
          until we have the required MNR value */
       for (ba = 0; ba < maxAlloc - 1; ++ba) {
         int thisstep_index = step_index[thisline][ba];
-        if ((SNR[thisstep_index] - SMR[ch][sb]) >= min_mnr)
+        if ((SNR[thisstep_index] - SMR[ch][sb]) >= (double)min_mnr)
           break;                /* we found enough bits */
       }
       if (nch == 2 && sb >= jsbound)    /* check other JS channel */
         for (; ba < maxAlloc - 1; ++ba) {
           int thisstep_index = step_index[thisline][ba];
-          if ((SNR[thisstep_index] - SMR[1-ch][sb]) >= min_mnr)
+          if ((SNR[thisstep_index] - SMR[1-ch][sb]) >= (double)min_mnr)
             break;
         }
       if (ba > 0) {
