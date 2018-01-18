@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2017 Matthias P. Braendli
+ * Copyright (C) 2018 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,6 +84,10 @@ extern "C" {
 #include "contrib/fec/fec.h"
 #include "libtoolame-dab/toolame.h"
 }
+
+/* Due to memory leaks in the VLC input,
+ * we don't want to restart it endlessly. */
+constexpr int MAX_FAULTS_ALLOWED = 5;
 
 using vec_u8 = std::vector<uint8_t>;
 
@@ -218,7 +222,7 @@ void usage(const char* name)
     "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
     "     -s, --silence=TIMEOUT                Abort encoding after TIMEOUT seconds of silence.\n"
-    "     -R, --restart                        Automatically restart input on fault.\n"
+    "     -R, --restart                        Automatically restart input on fault, up to five times.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
     " but epgm://, pgm:// and ipc:// are also accepted\n"
@@ -460,6 +464,7 @@ int main(int argc, char *argv[])
     audioenc_settings_t settings;
 
     bool restart_on_fault = false;
+    int fault_counter = 0;
 
     int bitrate = 0; // 0 is default
     int ch=0;
@@ -1038,12 +1043,21 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Detected fault in input!\n");
 
             if (restart_on_fault) {
+                fault_counter++;
+
+                if (fault_counter >= MAX_FAULTS_ALLOWED) {
+                    fprintf(stderr, "Maximum number of input faults reached, aborting");
+                    retval = 5;
+                    break;
+                }
+
                 try {
                     input = initialise_input(settings, queue);
                 }
                 catch (const runtime_error& e) {
                     fprintf(stderr, "Initialising input triggered exception: %s\n", e.what());
-                    return 1;
+                    retval = 5;
+                    break;
                 }
 
                 continue;
@@ -1090,6 +1104,14 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Detected fault in input! No data in time.\n");
 
                 if (restart_on_fault) {
+                    fault_counter++;
+
+                    if (fault_counter >= MAX_FAULTS_ALLOWED) {
+                        fprintf(stderr, "Maximum number of input faults reached, aborting");
+                        retval = 5;
+                        break;
+                    }
+
                     try {
                         input = initialise_input(settings, queue);
                     }
