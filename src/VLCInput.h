@@ -126,9 +126,11 @@ class VLCInput : public InputInterface
                 uint8_t** pp_pcm_buffer,
                 size_t size);
 
-        /*! Notification from VLC that the buffer is now filled
+        /*! Notification from VLC that the buffer is now filled.
+         *  VLC also tells us how many channels and how many
+         *  samples
          */
-        void postRender_cb();
+        void postRender_cb(unsigned int channels, size_t size);
 
         int getRate() { return m_rate; }
 

@@ -82,14 +82,13 @@ void handleStream_size_t(
 {
     VLCInput* in = (VLCInput*)p_audio_data;
 
-    assert(channels == in->getChannels());
     assert(rate == in->getRate());
     assert(bits_per_sample == 8*bytes_per_float_sample);
 
     // This assumes VLC always gives back the full
     // buffer it asked for. According to VLC code
     // smem.c for v2.2.0 this holds.
-    in->postRender_cb();
+    in->postRender_cb(channels, size);
 }
 
 /*! Audio postrender callback for VLC versions that use unsigned int.
@@ -282,17 +281,16 @@ void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
 {
     const size_t max_length = 20 * size;
 
-    for (;;) {
-        {
-            std::lock_guard<std::mutex> lock(m_queue_mutex);
+    while (true) {
+        std::unique_lock<std::mutex> lock(m_queue_mutex);
 
-            if (m_queue.size() < max_length) {
-                m_current_buf.resize(size / sizeof(float));
-                *pp_pcm_buffer = reinterpret_cast<uint8_t*>(&m_current_buf[0]);
-                return;
-            }
+        if (m_queue.size() < max_length) {
+            m_current_buf.resize(size / sizeof(float));
+            *pp_pcm_buffer = reinterpret_cast<uint8_t*>(&m_current_buf[0]);
+            return;
         }
 
+        lock.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
@@ -324,51 +322,70 @@ void VLCInput::cleanup()
     }
 }
 
-void VLCInput::postRender_cb()
+void VLCInput::postRender_cb(unsigned int channels, size_t size)
 {
     std::lock_guard<std::mutex> lock(m_queue_mutex);
 
-    size_t queue_size = m_queue.size();
-    m_queue.resize(m_queue.size() + m_current_buf.size());
-    std::copy(m_current_buf.begin(), m_current_buf.end(),
-            m_queue.begin() + queue_size);
+    assert(size == m_current_buf.size() * sizeof(float));
+
+    if (channels == getChannels()) {
+        size_t queue_size = m_queue.size();
+        m_queue.resize(m_queue.size() + m_current_buf.size());
+        std::copy(m_current_buf.begin(), m_current_buf.end(),
+                m_queue.begin() + queue_size);
+    }
+    else if (channels == 2 and getChannels() == 1) {
+        size_t queue_size = m_queue.size();
+        m_queue.resize(m_queue.size() + m_current_buf.size());
+
+        // Downmix to 1 channel
+        for (size_t i = 0; i+1 < m_current_buf.size(); i += 2) {
+            m_queue.push_back(0.5f * (m_current_buf[i] + m_current_buf[i+1]));
+        }
+    }
+    else {
+        fprintf(stderr, "Got invalid number of channels back from VLC! "
+                "requested: %d, got %d\n", getChannels(), channels);
+        m_running = false;
+        m_fault = true;
+    }
 }
 
 ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 {
     ssize_t err = 0;
     while (m_running) {
-        {
-            std::lock_guard<std::mutex> lock(m_queue_mutex);
+        std::unique_lock<std::mutex> lock(m_queue_mutex);
 
-            assert((length % sizeof(int16_t)) == 0);
-            const size_t num_samples_requested = length / sizeof(int16_t);
+        assert((length % sizeof(int16_t)) == 0);
+        const size_t num_samples_requested = length / sizeof(int16_t);
 
-            // The queue contains float samples.
-            // buf has to contain signed 16-bit samples.
-            if (m_queue.size() >= num_samples_requested) {
-                int16_t* buffer = reinterpret_cast<int16_t*>(buf);
+        // The queue contains float samples.
+        // buf has to contain signed 16-bit samples.
+        if (m_queue.size() >= num_samples_requested) {
+            int16_t* buffer = reinterpret_cast<int16_t*>(buf);
 
-                for (size_t i = 0; i < num_samples_requested; i++) {
-                    const auto in = m_queue[i];
-                    if (in <= -1.0f) {
-                        buffer[i] = INT16_MAX;
-                    }
-                    else if (in >= 1.0f) {
-                        buffer[i] = INT16_MIN;
-                    }
-                    else {
-                        buffer[i] = (int16_t)lrintf(in * 32768.0f);
-                    }
+            for (size_t i = 0; i < num_samples_requested; i++) {
+                const auto in = m_queue[i];
+                if (in <= -1.0f) {
+                    buffer[i] = INT16_MAX;
                 }
-
-                m_queue.erase(
-                        m_queue.begin(),
-                        m_queue.begin() + num_samples_requested);
-
-                return num_samples_requested * sizeof(int16_t);
+                else if (in >= 1.0f) {
+                    buffer[i] = INT16_MIN;
+                }
+                else {
+                    buffer[i] = (int16_t)lrintf(in * 32768.0f);
+                }
             }
+
+            m_queue.erase(
+                    m_queue.begin(),
+                    m_queue.begin() + num_samples_requested);
+
+            return num_samples_requested * sizeof(int16_t);
         }
+
+        lock.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
