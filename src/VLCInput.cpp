@@ -332,16 +332,13 @@ void VLCInput::postRender_cb(unsigned int channels, size_t size)
 
     assert(size == m_current_buf.size() * sizeof(float));
 
-    if (channels == getChannels()) {
+    if (channels == m_channels) {
         size_t queue_size = m_queue.size();
         m_queue.resize(m_queue.size() + m_current_buf.size());
         std::copy(m_current_buf.begin(), m_current_buf.end(),
                 m_queue.begin() + queue_size);
     }
-    else if (channels == 2 and getChannels() == 1) {
-        size_t queue_size = m_queue.size();
-        m_queue.resize(m_queue.size() + m_current_buf.size());
-
+    else if (channels == 2 and m_channels == 1) {
         // Downmix to 1 channel
         for (size_t i = 0; i+1 < m_current_buf.size(); i += 2) {
             m_queue.push_back(0.5f * (m_current_buf[i] + m_current_buf[i+1]));
@@ -349,7 +346,7 @@ void VLCInput::postRender_cb(unsigned int channels, size_t size)
     }
     else {
         fprintf(stderr, "Got invalid number of channels back from VLC! "
-                "requested: %d, got %d\n", getChannels(), channels);
+                "requested: %d, got %d\n", m_channels, channels);
         m_running = false;
         m_fault = true;
     }

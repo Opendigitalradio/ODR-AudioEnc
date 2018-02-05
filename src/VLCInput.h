@@ -134,7 +134,6 @@ class VLCInput : public InputInterface
 
         int getRate() { return m_rate; }
 
-        int getChannels() { return m_channels; }
 
         virtual bool fault_detected(void) const override { return m_fault; };
 
