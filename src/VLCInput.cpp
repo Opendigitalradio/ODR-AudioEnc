@@ -227,6 +227,10 @@ void VLCInput::prepare()
     // Launch VLC
     m_vlc = libvlc_new(arg_ix, vlc_args);
 
+    if (m_vlc == nullptr) {
+        throw runtime_error("VLC initialisation failed");
+    }
+
     libvlc_set_exit_handler(m_vlc, handleVLCExit, this);
 
     // Load the media
