@@ -185,10 +185,11 @@ odr-audioenc returns:
  * 4 it the ZeroMQ send failed
  * 5 if the input had a fault
 
-You can use the *-R* option to get ODR-AudioEnc to restart the input
-automatically up to five times after a fault. As this does not guarantee that
+The *-R* option to get ODR-AudioEnc to restart the input
+automatically has been deprecated. As this feature does not guarantee that
 the odr-audioenc process will never die, running it under a process supervisor
-is recommended regardless of this feature being enabled or not.
+is recommended regardless of this feature being enabled or not. It will be removed
+in a future version.
 
 
 Known Limitations

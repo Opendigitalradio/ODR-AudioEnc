@@ -222,7 +222,6 @@ void usage(const char* name)
     "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
     "     -s, --silence=TIMEOUT                Abort encoding after TIMEOUT seconds of silence.\n"
-    "     -R, --restart                        Automatically restart input on fault, up to five times.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
     " but epgm://, pgm:// and ipc:// are also accepted\n"
@@ -974,6 +973,11 @@ int main(int argc, char *argv[])
     zmq_frame_header_t *zmq_frame_header = (zmq_frame_header_t*)&zmqframebuf[0];
 
     unsigned char pad_buf[padlen + 1];
+
+    if (restart_on_fault) {
+        fprintf(stderr, "Autorestart has been deprecated and will be removed in the future!\n");
+        this_thread::sleep_for(chrono::seconds(2));
+    }
 
     fprintf(stderr, "Starting encoding\n");
 
