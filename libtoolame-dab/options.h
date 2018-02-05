@@ -11,7 +11,6 @@ typedef struct
   int usepadbit;		/* TRUE   by default, use a padding bit */
   int quickmode;		/* FALSE  calculate psy model for every frame */
   int quickcount;		/* 10     when quickmode = TRUE, calculate psymodel every 10th frame */
-  int downmix;			/* FALSE  downmix from stereo to mono */
   int byteswap;			/* FALSE  swap the bytes */
   int dab;			/* FALSE  DAB extensions */
   int vbr;			/* FALSE  switch for VBR mode */

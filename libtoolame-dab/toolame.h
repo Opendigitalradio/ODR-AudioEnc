@@ -20,7 +20,6 @@ int toolame_finish(
         unsigned char *output_buffer,
         size_t output_buffer_size);
 
-int toolame_enable_downmix_stereo(void);
 int toolame_enable_byteswap(void);
 
 /*! Set channel mode. Allowed values:

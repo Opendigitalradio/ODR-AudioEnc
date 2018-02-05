@@ -11,9 +11,3 @@ Insert drift compensation statistics into ZeroMQ metadata. This would maybe
 need a new protocol version and adaptations in ODR-DabMux, but ideally should
 be done in a backward-compatible way.
 
-
-DAB stereo downmix
-------------------
-
-There is no cmdline option to call the toolame_enable_downmix_stereo()
-function.

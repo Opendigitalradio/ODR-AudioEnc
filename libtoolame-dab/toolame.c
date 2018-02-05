@@ -35,7 +35,6 @@ void global_init (void)
     glopts.usepadbit = TRUE;
     glopts.quickmode = FALSE;
     glopts.quickcount = 10;
-    glopts.downmix = FALSE;
     glopts.byteswap = FALSE;
     glopts.vbr = FALSE;
     glopts.vbrlevel = 0;
@@ -164,14 +163,6 @@ int toolame_finish(
     close_bit_stream_w(&bs);
 
     return bs.output_buffer_written;
-}
-
-int toolame_enable_downmix_stereo(void)
-{
-    glopts.downmix = TRUE;
-    header.mode = MPG_MD_MONO;
-    header.mode_ext = 0;
-    return 0;
 }
 
 int toolame_enable_byteswap(void)
