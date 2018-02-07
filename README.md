@@ -67,6 +67,27 @@ input on port 9000.
     DST="tcp://yourserver:9000"
     BITRATE=64
 
+General remarks
+---------------
+
+Avoid using sources that are already encoded with a low bitrate, because
+encoder cascading will noticeably reduce audio quality. Best are sources
+encoded with a lossless codec (FLAC). Otherwise, try to get MP3 at 320kbps, AAC
+at 256kbps or higher bitrates.
+
+Ideally use a source at the correct sampling rate (32kHz or 48kHz, according to
+your encoder configuration). VLC can do resampling, but on some systems selects
+the ugly resampler which creates artifacts. Try adding
+`-L --audio-resampler=samplerate -L --src-converter-type=0`
+to your command line, but enable verbose mode and read the VLC debug output to
+check that it enables the libsamplerate resampler, and not the ugly resampler.
+
+The codecs do not behave well when your source material has peaks that go close
+to saturation, especially when you have to resample. When you see little
+exclamation marks with the -l option, it's too loud! Reduce the gain at the
+source, or use the gain option if that's not possible.
+
+
 DAB+ AAC encoder configuration
 ------------------------------
 By default, when not overridden by the --aaclc, --sbr or --ps options,

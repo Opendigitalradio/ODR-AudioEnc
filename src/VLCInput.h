@@ -134,7 +134,6 @@ class VLCInput : public InputInterface
 
         int getRate() { return m_rate; }
 
-
         virtual bool fault_detected(void) const override { return m_fault; };
 
         /*! Separator string used when artist/title are written
