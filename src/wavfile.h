@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2009 Martin Storsjo
- * Copyright (C) 2017 Matthias P. Braendli
+ * Copyright (C) 2018 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ class WavWriter {
         WavWriter(const WavWriter& other) = delete;
         WavWriter& operator=(const WavWriter& other) = delete;
 
-        void initialise_header(int rate);
+        void initialise_header(int rate, int channels);
 
         void write_data(const uint8_t *data, int length);
 

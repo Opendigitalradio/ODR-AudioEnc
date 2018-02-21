@@ -219,7 +219,7 @@ WavWriter::WavWriter(const char *filename)
     }
 }
 
-void WavWriter::initialise_header(int rate)
+void WavWriter::initialise_header(int rate, int channels)
 {
     struct wavfile_header header;
 
@@ -234,10 +234,10 @@ void WavWriter::initialise_header(int rate)
     header.riff_length = 0;
     header.fmt_length = 16;
     header.audio_format = 1;
-    header.num_channels = 2;
+    header.num_channels = channels;
     header.sample_rate = samples_per_second;
-    header.byte_rate = samples_per_second*(bits_per_sample/8);
-    header.block_align = bits_per_sample/8;
+    header.byte_rate = samples_per_second*(bits_per_sample/8)*channels;
+    header.block_align = channels*bits_per_sample/8;
     header.bits_per_sample = bits_per_sample;
     header.data_length = 0;
 

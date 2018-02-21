@@ -104,13 +104,13 @@ void AACDecoder::decode_frame(uint8_t *data, size_t len)
                     std::to_string(init_result));
         }
 
-        m_channels = aac_channel_mode || ps_flag ? 2 : 1;
+        m_channels = (aac_channel_mode or ps_flag) ? 2 : 1;
         size_t output_frame_len = 960 * 2 * m_channels * (sbr_flag ? 2 : 1);
         m_output_frame.resize(output_frame_len);
         fprintf(stderr, "  Setting decoder output frame len %zu\n", output_frame_len);
 
         const int sample_rate = dac_rate ? 48000 : 32000;
-        m_wav_writer.initialise_header(sample_rate);
+        m_wav_writer.initialise_header(sample_rate, m_channels);
         m_decoder_set_up = true;
 
         fprintf(stderr, "  Set up decoder with %d Hz, %s%swith %d channels\n",
