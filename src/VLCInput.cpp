@@ -560,7 +560,10 @@ vlc_data_type_e check_vlc_uses_size_t()
         if (minor_ver_sz) {
             int minor_ver = atoi(minor_ver_sz);
 
-            if (major_ver >= 2 && minor_ver >= 2) {
+            if (major_ver > 2) {
+                return vlc_data_type_e::vlc_uses_size_t;
+            }
+            else if (major_ver >= 2 && minor_ver >= 2) {
                 return vlc_data_type_e::vlc_uses_size_t;
             }
             else {
