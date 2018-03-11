@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2017 Matthias P. Braendli
+ * Copyright (C) 2018 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,29 +159,6 @@ void VLCInput::prepare()
     }
 
     // VLC options
-    std::stringstream transcode_options_ss;
-    transcode_options_ss << "acodec=fl32";
-    transcode_options_ss << ",samplerate=" << m_rate;
-    if (not m_gain.empty()) {
-        transcode_options_ss << ",afilter=compressor";
-    }
-    string transcode_options = transcode_options_ss.str();
-
-    char smem_options[512];
-    snprintf(smem_options, sizeof(smem_options),
-            "#transcode{%s}:"
-            // We are using transcode because smem only support raw audio and
-            // video formats
-            "smem{"
-                "audio-postrender-callback=%lld,"
-                "audio-prerender-callback=%lld,"
-                "audio-data=%lld"
-            "}",
-            transcode_options.c_str(),
-            handleStream_address,
-            prepareRender_address,
-            (long long int)(intptr_t)this);
-
     vector<string> vlc_args;
     vlc_args.push_back("--verbose=" + to_string(m_verbosity));
 
@@ -192,9 +169,6 @@ void VLCInput::prepare()
     if (not m_gain.empty()) {
         vlc_args.push_back("--compressor-makeup=" + m_gain);
     }
-
-    vlc_args.push_back("--sout");
-    vlc_args.push_back(smem_options); // Stream to memory
 
     copy(m_additional_opts.begin(), m_additional_opts.end(),
             back_inserter(vlc_args));
@@ -223,6 +197,35 @@ void VLCInput::prepare()
     // Load the media
     libvlc_media_t *m;
     m = libvlc_media_new_location(m_vlc, m_uri.c_str());
+
+    std::stringstream transcode_options_ss;
+    transcode_options_ss << "acodec=fl32";
+    transcode_options_ss << ",samplerate=" << m_rate;
+    if (not m_gain.empty()) {
+        transcode_options_ss << ",afilter=compressor";
+    }
+    string transcode_options = transcode_options_ss.str();
+
+    char smem_options[512];
+    snprintf(smem_options, 511,
+            ":sout=#transcode{%s}:"
+            // We are using transcode because smem only support raw audio and
+            // video formats
+            "smem{"
+                "audio-postrender-callback=%lld,"
+                "audio-prerender-callback=%lld,"
+                "audio-data=%lld"
+            "}",
+            transcode_options.c_str(),
+            handleStream_address,
+            prepareRender_address,
+            (long long int)(intptr_t)this);
+
+    if (m_verbosity) {
+        fprintf(stderr, "Setting VLC media option: %s\n", smem_options);
+    }
+
+    libvlc_media_add_option(m, smem_options);
     m_mp = libvlc_media_player_new_from_media(m);
     libvlc_media_release(m);
 
