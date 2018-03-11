@@ -182,50 +182,37 @@ void VLCInput::prepare()
             prepareRender_address,
             (long long int)(intptr_t)this);
 
-#define VLC_ARGS_LEN 32
-    const char* vlc_args[VLC_ARGS_LEN];
-    size_t arg_ix = 0;
-    std::stringstream arg_verbose;
-    arg_verbose << "--verbose=" << m_verbosity;
-    vlc_args[arg_ix++] = arg_verbose.str().c_str();
+    vector<string> vlc_args;
+    vlc_args.push_back("--verbose=" + to_string(m_verbosity));
 
-    std::string arg_network_caching;
     if (not m_cache.empty()) {
-        stringstream ss;
-        ss << "--network-caching=" << m_cache;
-        arg_network_caching = ss.str();
-        vlc_args[arg_ix++] = arg_network_caching.c_str();
+        vlc_args.push_back("--network-caching=" + m_cache);
     }
 
-    std::string arg_gain;
     if (not m_gain.empty()) {
-        stringstream ss;
-        ss << "--compressor-makeup=" << m_gain;
-        arg_gain = ss.str();
-        vlc_args[arg_ix++] = arg_gain.c_str();
+        vlc_args.push_back("--compressor-makeup=" + m_gain);
     }
 
-    vlc_args[arg_ix++] = "--sout";
-    vlc_args[arg_ix++] = smem_options; // Stream to memory
+    vlc_args.push_back("--sout");
+    vlc_args.push_back(smem_options); // Stream to memory
 
-    for (const auto& opt : m_additional_opts) {
-        if (arg_ix < VLC_ARGS_LEN) {
-            vlc_args[arg_ix++] = opt.c_str();
-        }
-        else {
-            throw runtime_error("Too many VLC options given");
-        }
-    }
+    copy(m_additional_opts.begin(), m_additional_opts.end(),
+            back_inserter(vlc_args));
 
     if (m_verbosity) {
         fprintf(stderr, "Initialising VLC with options:\n");
-        for (size_t i = 0; i < arg_ix; i++) {
-            fprintf(stderr, "  %s\n", vlc_args[i]);
+        for (const auto& arg : vlc_args) {
+            fprintf(stderr, "  %s\n", arg.c_str());
         }
     }
 
     // Launch VLC
-    m_vlc = libvlc_new(arg_ix, vlc_args);
+    vector<const char*> vlc_args_c;
+    for (const auto& arg : vlc_args) {
+        vlc_args_c.push_back(arg.c_str());
+    }
+
+    m_vlc = libvlc_new(vlc_args_c.size(), vlc_args_c.data());
 
     if (m_vlc == nullptr) {
         throw runtime_error("VLC initialisation failed");
