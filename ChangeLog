@@ -1,7 +1,13 @@
-2018-01-29: Matthias P. Braendli <matthias@mpb.li>
-	(upcoming version):
+2018-03-21: Matthias P. Braendli <matthias@mpb.li>
+	(v2.3.0):
 		Deprecate -R option.
 		Allow usage of zeromq IPC socket.
+		Improve portability.
+		Deprecate autorestart, as it was not a good concept. Autorestart
+		functionality is much better handled by an external supervisor.
+		Improve a few mono scenarios.
+		Fix .wav header write when using --decode option.
+		Make compatible with VLC 3.
 
 2017-11-18: Matthias P. Braendli <matthias@mpb.li>
 	(v2.2.0):
