@@ -35,6 +35,8 @@ void FFMPEGInput::prepare() {
     int ret;
     AVCodec *dec;
 
+    av_register_all();
+    avfilter_register_all();
     avformat_network_init();
 
     if ((ret = avformat_open_input(&fmt_ctx, m_uri.c_str(), NULL, NULL)) < 0) {
@@ -62,6 +64,7 @@ void FFMPEGInput::prepare() {
     if ((ret = avcodec_open2(dec_ctx, dec, NULL)) < 0) {
         throw std::runtime_error("Cannot open audio decoder");
     }
+    init_filters();
 }
 
 void FFMPEGInput::init_filters() {
@@ -86,22 +89,28 @@ void FFMPEGInput::init_filters() {
     if (!dec_ctx->channel_layout)
         dec_ctx->channel_layout = av_get_default_channel_layout(dec_ctx->channels);
 
-    ret = avfilter_graph_create_filter(&buffersrc_ctx, abuffersrc, "in",
-                                       NULL, NULL, filter_graph);
-    if (ret < 0) {
-        throw std::runtime_error("Cannot create audio buffer source");
+    buffersrc_ctx = avfilter_graph_alloc_filter(filter_graph, abuffersrc, "in");
+    if (!buffersrc_ctx) {
+        throw std::runtime_error("Cannot alloc audio buffer source");
     }
 
     //TODO: error parse
-    ret = av_opt_set_q(buffersrc_ctx, "time_base", time_base, AV_OPT_SEARCH_CHILDREN);
+    char ch_layout[64];
+    av_get_channel_layout_string(ch_layout, sizeof(ch_layout), 0, dec_ctx->channel_layout);
+    ret = av_opt_set(buffersrc_ctx, "channel_layout", ch_layout, AV_OPT_SEARCH_CHILDREN);
+    if (ret>= 0) ret = av_opt_set_q(buffersrc_ctx, "time_base", time_base, AV_OPT_SEARCH_CHILDREN);
     if (ret >= 0) ret = av_opt_set_int(buffersrc_ctx, "sample_rate", dec_ctx->sample_rate, AV_OPT_SEARCH_CHILDREN);
     if (ret >= 0) ret = av_opt_set_sample_fmt(buffersrc_ctx, "sample_fmt", dec_ctx->sample_fmt, AV_OPT_SEARCH_CHILDREN);
-    if (ret >= 0) ret = av_opt_set_channel_layout(buffersrc_ctx, "channel_layout", dec_ctx->channel_layout, AV_OPT_SEARCH_CHILDREN);
+    //Somehow this does not work
+    //if (ret >= 0) ret = av_opt_set_channel_layout(buffersrc_ctx, "channel_layout", dec_ctx->channel_layout, AV_OPT_SEARCH_CHILDREN);
     if (ret < 0) {
         throw new std::runtime_error("Could not set buffersrc arguments");
     }
 
-
+    ret = avfilter_init_str(buffersrc_ctx, NULL);
+    if (ret < 0) {
+        throw std::runtime_error("Cannot create audio buffer source");
+    }
 
     /* buffer audio sink: to terminate the filter chain. */
     ret = avfilter_graph_create_filter(&buffersink_ctx, abuffersink, "out",
@@ -139,11 +148,12 @@ void FFMPEGInput::init_filters() {
     inputs->pad_idx    = 0;
     inputs->next       = NULL;
 
-    if ((ret = avfilter_graph_parse_ptr(filter_graph, "",
+    if ((ret = avfilter_graph_parse_ptr(filter_graph, "volume=volume=0.5",
                                     &inputs, &outputs, NULL)) < 0) {
         throw std::runtime_error("Could not parse filter graph");
     }
 
+    avfilter_graph_set_auto_convert(filter_graph, AVFILTER_AUTO_CONVERT_ALL);
     if ((ret = avfilter_graph_config(filter_graph, NULL)) < 0) {
         throw std::runtime_error("Could not configure filter graph");
     }
@@ -189,8 +199,10 @@ bool FFMPEGInput::read_source(size_t num_bytes) {
                     ret = av_buffersink_get_frame(buffersink_ctx, filt_frame);
                     if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
                         break;
-                    if (ret < 0)
+                    if (ret < 0) {
+                        fprintf(stderr, "Error while getting audio from the filtergraph\n");
                         goto end;
+                    }
 
                     const uint8_t *p     = (uint8_t*)frame->data[0];
                     const int n = frame->nb_samples * av_get_channel_layout_nb_channels(frame->channel_layout);
@@ -211,7 +223,10 @@ bool FFMPEGInput::read_source(size_t num_bytes) {
         return false;
     }
 
-    if (ret < 0) {
+    if (ret < 0 && ret != AVERROR(EAGAIN)) {
+        char str_error[AV_ERROR_MAX_STRING_SIZE];
+        av_strerror(ret,str_error, AV_ERROR_MAX_STRING_SIZE );
+        fprintf(stderr, "Error! %d %s\n", ret, str_error);
         m_fault = true;
         return false;
     }
