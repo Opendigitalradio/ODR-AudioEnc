@@ -50,6 +50,7 @@
 #include "config.h"
 #include "AlsaInput.h"
 #include "FileInput.h"
+#include "FFMPEGInput.h"
 #include "JackInput.h"
 #include "VLCInput.h"
 #include "SampleQueue.h"
@@ -1430,4 +1431,3 @@ int main(int argc, char *argv[])
 
     return retval;
 }
-

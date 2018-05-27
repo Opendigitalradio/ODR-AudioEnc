@@ -52,6 +52,9 @@ AC_ARG_ENABLE([jack],
 AC_ARG_ENABLE([vlc],
         AS_HELP_STRING([--enable-vlc], [Enable libvlc input]))
 
+AC_ARG_ENABLE([ffmpeg],
+        AS_HELP_STRING([--enable-ffmpeg], [Enable ffmpeg input]))
+
 
 AS_IF([test "x$enable_alsa" = "xyes"],
       [AM_PATH_ALSA(1.0.25)])
@@ -74,10 +77,15 @@ AS_IF([test "x$enable_vlc" = "xyes"], [
 AS_IF([test "x$enable_vlc" = "xyes"],
        AC_DEFINE(HAVE_VLC, [1], [Define if VLC input is enabled]))
 
+AS_IF([test "x$enable_ffmpeg" = "xyes"],
+      AC_DEFINE(HAVE_FFMPEG, [1], [Define if VLC input is enabled]))
+
 
 # Link against jack and alsa conditionally
 AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
 AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
+AM_CONDITIONAL([HAVE_FFMPEG], [ test "x$enable_ffmpeg" = "xyes" ])
+
 
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
 AC_CHECK_LIB(fdk-aac, aacEncOpen, , AC_MSG_ERROR(The FDK-AAC library is required))
@@ -118,7 +126,7 @@ echo
 echo "Features enabled:"
 enabled=""
 disabled=""
-for feature in jack vlc alsa
+for feature in jack vlc alsa ffmpeg
 do
     eval var=\$enable_$feature
     AS_IF([test "x$var" = "xyes"],

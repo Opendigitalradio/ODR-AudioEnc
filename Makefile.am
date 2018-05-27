@@ -64,6 +64,12 @@ else
 odr_audioenc_LDADD_ALSA  =
 endif
 
+if HAVE_FFMPEG
+odr_audioenc_LDADD_FFMPEG = -lavdevice -lavformat -lavfilter -lavcodec
+else
+odr_audioenc_LDADD_FFMPEG =
+endif
+
 FEC_SOURCES = contrib/fec/char.h \
 			  contrib/fec/decode_rs_char.c contrib/fec/decode_rs.h \
 			  contrib/fec/encode_rs_char.c contrib/fec/encode_rs.h \
@@ -77,6 +83,7 @@ odr_audioenc_LDADD       = libtoolame-dab.la \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
+						   $(odr_audioenc_LDADD_FFMPEG) \
 						   $(LIBVLC_LIBS)
 odr_audioenc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
@@ -88,6 +95,8 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/JackInput.h \
 						   src/VLCInput.cpp \
 						   src/VLCInput.h \
+						   src/FFMPEGInput.cpp \
+						   src/FFMPEGInput.h \
 						   src/AACDecoder.cpp \
 						   src/AACDecoder.h \
 						   src/SampleQueue.h \
