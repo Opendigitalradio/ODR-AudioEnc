@@ -1,5 +1,7 @@
 #pragma once
 
+#include "config.h"
+
 #if HAVE_FFMPEG
 
 #include "SampleQueue.h"
@@ -7,45 +9,54 @@
 #include "InputInterface.h"
 
 extern "C" {
+#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
+#include <libavutil/opt.h>
 }
 
 class FFMPEGInput : public InputInterface
 {
     public:
-        FFMPEGInput(
-            const std::string& uri,
-            SampleQueue<uint8_t>& queue) {
-
+        FFMPEGInput(const std::string& uri,
+                int rate,
+                unsigned channels,
+                SampleQueue<uint8_t>& queue) :
+            m_uri(uri),
+            m_channels(channels),
+            m_rate(rate),
+            m_fault(false),
+            m_samplequeue(queue) {
+                frame = av_frame_alloc();
+                filt_frame = av_frame_alloc();
         }
+        ~FFMPEGInput() override;
 
-        /*! Open the input interface. In case of failure, throws a
-         * runtime_error.
-         */
-        virtual void prepare(void) {
+        virtual void prepare() override;
+        virtual bool fault_detected(void) const override { return m_fault; };
+        virtual bool read_source(size_t num_bytes) override;
 
-        };
 
-        /*! Return true if the input detected some sort of fault or
-         *  abnormal termination
-         */
-        virtual bool fault_detected(void) {
-            return true;
-        };
+    private:
+        std::string m_uri;
+        int m_rate;
+        bool m_fault;
+        unsigned m_channels;
+        SampleQueue<uint8_t>& m_samplequeue;
 
-        /*! Tell the input that it shall read from source and fill the queue.
-         *  The num_samples argument is an indication on how many bytes
-         *  the encoder needs.
-         *  Some inputs fill the queue from another thread, in which case
-         *  this function might only serve as indication that data gets
-         *  consumed.
-         *
-         *  A return value of true means data was read, a return value of
-         *  false means a normal termination of the input (e.g. end of file)
-         */
-        virtual bool read_source(size_t num_bytes) {
-            return false;
-        }
+        //FFMPEG Data structures:
+        AVFormatContext *fmt_ctx;
+        AVCodecContext *dec_ctx;
+        int audio_stream_index = -1;
+        AVFrame *frame;
+        AVFrame *filt_frame;
+        AVFilterContext *buffersink_ctx;
+        AVFilterContext *buffersrc_ctx;
+        AVFilterGraph *filter_graph;
+
+        void init_filters();
+
 };
 
 #endif

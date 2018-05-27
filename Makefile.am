@@ -65,7 +65,7 @@ odr_audioenc_LDADD_ALSA  =
 endif
 
 if HAVE_FFMPEG
-odr_audioenc_LDADD_FFMPEG = -lavdevice -lavformat -lavfilter -lavcodec
+odr_audioenc_LDADD_FFMPEG = -lavdevice -lavformat -lavfilter -lavcodec -lavutil
 else
 odr_audioenc_LDADD_FFMPEG =
 endif
