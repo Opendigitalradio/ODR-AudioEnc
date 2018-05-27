@@ -148,7 +148,7 @@ void FFMPEGInput::init_filters() {
     inputs->pad_idx    = 0;
     inputs->next       = NULL;
 
-    if ((ret = avfilter_graph_parse_ptr(filter_graph, "volume=volume=0.5",
+    if ((ret = avfilter_graph_parse_ptr(filter_graph, m_filters.c_str(),
                                     &inputs, &outputs, NULL)) < 0) {
         throw std::runtime_error("Could not parse filter graph");
     }

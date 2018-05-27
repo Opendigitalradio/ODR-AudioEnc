@@ -20,10 +20,12 @@ class FFMPEGInput : public InputInterface
 {
     public:
         FFMPEGInput(const std::string& uri,
+                const std::string& filters,
                 int rate,
                 unsigned channels,
                 SampleQueue<uint8_t>& queue) :
             m_uri(uri),
+            m_filters(filters),
             m_channels(channels),
             m_rate(rate),
             m_fault(false),
@@ -40,6 +42,7 @@ class FFMPEGInput : public InputInterface
 
     private:
         std::string m_uri;
+        std::string m_filters;
         int m_rate;
         bool m_fault;
         unsigned m_channels;

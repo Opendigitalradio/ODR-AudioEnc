@@ -124,6 +124,7 @@ struct audioenc_settings_t {
     string jack_name;
 
     string ffmpeg_uri;
+    string ffmpeg_filter = "acopy";
 
     bool drift_compensation = false;
 };
@@ -434,7 +435,7 @@ static shared_ptr<InputInterface> initialise_input(
 #endif
 #if HAVE_FFMPEG
     else if (not s.ffmpeg_uri.empty()) {
-        input = make_shared<FFMPEGInput>(s.ffmpeg_uri, s.sample_rate, s.channels, queue);
+        input = make_shared<FFMPEGInput>(s.ffmpeg_uri, s.ffmpeg_filter, s.sample_rate, s.channels, queue);
     }
 #endif
 #if HAVE_ALSA
@@ -543,6 +544,7 @@ int main(int argc, char *argv[])
         {"write-icy-text",         required_argument,  0, 'w'},
         {"write-icy-text-dl-plus", no_argument,        0, 'W'},
         {"ffmpeg-uri",             required_argument,  0, 'F'},
+        {"ffmpeg-filter",          required_argument,  0, 'G'},
         {"aaclc",                  no_argument,        0,  0 },
         {"dab",                    no_argument,        0, 'a'},
         {"drift-comp",             no_argument,        0, 'D'},
@@ -577,7 +579,7 @@ int main(int argc, char *argv[])
 
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:F:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:F:G:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             aot = AOT_DABPLUS_AAC_LC;
@@ -705,10 +707,16 @@ int main(int argc, char *argv[])
             fprintf(stderr, "VLC input not enabled at compile time!\n");
             return 1;
 #endif
-        case 'F':
 #ifdef HAVE_FFMPEG
+        case 'F':
             settings.ffmpeg_uri = optarg;
+            break;
+        case 'G':
+            settings.ffmpeg_filter = optarg;
+            break;
 #else
+        case 'F':
+        case 'G':
             fprintf(stderr, "VLC input not enabled at compile time!\n");
             return 1;
 #endif
