@@ -204,8 +204,8 @@ bool FFMPEGInput::read_source(size_t num_bytes) {
                         goto end;
                     }
 
-                    const uint8_t *p     = (uint8_t*)frame->data[0];
-                    const int n = frame->nb_samples * av_get_channel_layout_nb_channels(frame->channel_layout);
+                    const uint8_t *p     = (uint8_t*)filt_frame->data[0];
+                    const int n = filt_frame->nb_samples * av_get_channel_layout_nb_channels(filt_frame->channel_layout);
 
                     m_samplequeue.push(p, n * 2);
                     bytes_send += n * 2;
