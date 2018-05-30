@@ -164,7 +164,8 @@ bool FFMPEGInput::read_source(size_t num_bytes) {
     int ret;
     AVPacket packet;
     int bytes_send = 0;
-    while (bytes_send < num_bytes) {
+    if (m_samplequeue.remaining() < num_bytes) return true;
+    while (bytes_send == 0) {
         if ((ret = av_read_frame(fmt_ctx, &packet)) < 0) {
             break;
         }

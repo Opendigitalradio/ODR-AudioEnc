@@ -117,6 +117,12 @@ public:
         return m_queue.size();
     }
 
+    size_t remaining() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_max_size - m_queue.size();
+    }
+
     /*! Wait until len elements in the queue are available,
      * and then fill the buf. If the timeout_ms (expressed in milliseconds
      * expires), fill the available number of elements.
