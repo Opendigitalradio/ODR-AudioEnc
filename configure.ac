@@ -77,8 +77,14 @@ AS_IF([test "x$enable_vlc" = "xyes"], [
 AS_IF([test "x$enable_vlc" = "xyes"],
        AC_DEFINE(HAVE_VLC, [1], [Define if VLC input is enabled]))
 
-AS_IF([test "x$enable_ffmpeg" = "xyes"],
-      AC_DEFINE(HAVE_FFMPEG, [1], [Define if VLC input is enabled]))
+AS_IF([test "x$enable_ffmpeg" = "xyes"], [
+    PKG_CHECK_MODULES(FFMPEG, [libavformat libavutil libavcodec libavdevice libavfilter], [
+        AC_DEFINE(HAVE_FFMPEG, [1], [Define if ffmpeg input is enabled])
+    ], [
+        AC_MSG_ERROR([ffmpeg libraries could not be found])
+    ])
+
+])
 
 
 # Link against jack and alsa conditionally

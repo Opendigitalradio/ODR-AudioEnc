@@ -1,5 +1,3 @@
-//FROM: https://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/filtering_audio.c
-
 /*
  * Copyright (c) 2010 Nicolas George
  * Copyright (c) 2011 Stefano Sabatini
@@ -24,13 +22,14 @@
  * THE SOFTWARE.
  */
 
+ //Based largely on https://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/filtering_audio.c
+
 #include "FFMPEGInput.h"
 
 #include "config.h"
 
 #if HAVE_FFMPEG
 
-//Based largely on https://github.com/FFmpeg/FFmpeg/blob/master/doc/examples/filtering_audio.c
 void FFMPEGInput::prepare() {
     int ret;
     AVCodec *dec;
@@ -94,15 +93,12 @@ void FFMPEGInput::init_filters() {
         throw std::runtime_error("Cannot alloc audio buffer source");
     }
 
-    //TODO: error parse
     char ch_layout[64];
     av_get_channel_layout_string(ch_layout, sizeof(ch_layout), 0, dec_ctx->channel_layout);
     ret = av_opt_set(buffersrc_ctx, "channel_layout", ch_layout, AV_OPT_SEARCH_CHILDREN);
     if (ret>= 0) ret = av_opt_set_q(buffersrc_ctx, "time_base", time_base, AV_OPT_SEARCH_CHILDREN);
     if (ret >= 0) ret = av_opt_set_int(buffersrc_ctx, "sample_rate", dec_ctx->sample_rate, AV_OPT_SEARCH_CHILDREN);
     if (ret >= 0) ret = av_opt_set_sample_fmt(buffersrc_ctx, "sample_fmt", dec_ctx->sample_fmt, AV_OPT_SEARCH_CHILDREN);
-    //Somehow this does not work
-    //if (ret >= 0) ret = av_opt_set_channel_layout(buffersrc_ctx, "channel_layout", dec_ctx->channel_layout, AV_OPT_SEARCH_CHILDREN);
     if (ret < 0) {
         throw new std::runtime_error("Could not set buffersrc arguments");
     }
@@ -158,6 +154,8 @@ void FFMPEGInput::init_filters() {
         throw std::runtime_error("Could not configure filter graph");
     }
 
+    avfilter_inout_free(&inputs);
+    avfilter_inout_free(&outputs);
 }
 
 bool FFMPEGInput::read_source(size_t num_bytes) {
@@ -183,7 +181,8 @@ bool FFMPEGInput::read_source(size_t num_bytes) {
              ret = avcodec_receive_frame(dec_ctx, frame);
              if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                  break;
-             } else if (ret < 0) {
+             }
+             else if (ret < 0) {
                  fprintf(stderr, "Error while receiving a frame from the decoder\n");
                  goto end;
              }
@@ -205,11 +204,11 @@ bool FFMPEGInput::read_source(size_t num_bytes) {
                         goto end;
                     }
 
-                    const uint8_t *p     = (uint8_t*)filt_frame->data[0];
+                    const uint8_t *p     = reinterpret_cast<uint8_t*>(filt_frame->data[0]);
                     const int n = filt_frame->nb_samples * av_get_channel_layout_nb_channels(filt_frame->channel_layout);
 
-                    m_samplequeue.push(p, n * 2);
-                    bytes_send += n * 2;
+                    m_samplequeue.push(p, n * BYTES_PER_SAMPLE);
+                    bytes_send += n * BYTES_PER_SAMPLE;
 
                     av_frame_unref(filt_frame);
                 }
