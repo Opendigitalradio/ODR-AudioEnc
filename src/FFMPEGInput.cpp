@@ -34,8 +34,6 @@ void FFMPEGInput::prepare() {
     int ret;
     AVCodec *dec;
 
-    av_register_all();
-    avfilter_register_all();
     avformat_network_init();
 
     if ((ret = avformat_open_input(&fmt_ctx, m_uri.c_str(), NULL, NULL)) < 0) {
