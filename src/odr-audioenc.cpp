@@ -1099,9 +1099,16 @@ int main(int argc, char *argv[])
             const int timeout_ms = 10000;
             read_bytes = input_buf.size();
 
+            size_t overruns = 0;
+
             /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
              * its job. */
-            size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms); // returns bytes
+            size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms, &overruns); // returns bytes
+
+            if (overruns) {
+                fprintf(stderr, "%zd overruns occured!\n", overruns);
+                status |= STATUS_OVERRUN;
+            }
 
             if (bytes_from_queue < read_bytes) {
                 // queue timeout occurred
