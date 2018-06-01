@@ -20,6 +20,7 @@ addons: &addons
       - jackd2
       - libmagickwand-dev
       - g++-6
+      - ffmpeg #Already a dependency of vlc, but for completeness.
 
 compiler:
   - gcc
@@ -47,7 +48,8 @@ script:
   - |
     CC=gcc-6 CXX=g++-6 ./configure --enable-jack
     make
-  - |
-    CC=gcc-6 CXX=g++-6 ./configure --enable-alsa --enable-jack --enable-vlc
+    CC=gcc-6 CXX=g++-6 ./configure --enable-ffmpeg
     make
-
+  - |
+    CC=gcc-6 CXX=g++-6 ./configure --enable-alsa --enable-jack --enable-vlc --enable-ffmpeg
+    make
