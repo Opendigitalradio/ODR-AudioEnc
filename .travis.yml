@@ -20,7 +20,6 @@ addons: &addons
       - jackd2
       - libmagickwand-dev
       - g++-6
-      - ffmpeg #Already a dependency of vlc, but for completeness.
 
 compiler:
   - gcc
