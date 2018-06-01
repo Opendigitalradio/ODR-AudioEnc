@@ -120,10 +120,12 @@ public:
     /*! Wait until len elements in the queue are available,
      * and then fill the buf. If the timeout_ms (expressed in milliseconds
      * expires), fill the available number of elements.
+     * Also update the overrun variable with the information
+     * of how many overruns we saw since the last pop.
      *
      * \return the number of elemets written into buf
      */
-    size_t pop_wait(T* buf, size_t len, int timeout_ms)
+    size_t pop_wait(T* buf, size_t len, int timeout_ms, size_t* overruns = NULL)
     {
         assert(len % (m_channels * m_bytes_per_sample) == 0);
 
@@ -131,6 +133,11 @@ public:
         fprintf(stdout, "######## pop_wait %zu\n", len);
 #endif
         std::unique_lock<std::mutex> lock(m_mutex);
+
+        if (overruns) {
+            *overruns = m_overruns;
+            m_overruns = 0;
+        }
 
         auto time_start = std::chrono::steady_clock::now();
         const auto timeout = std::chrono::milliseconds(timeout_ms);
