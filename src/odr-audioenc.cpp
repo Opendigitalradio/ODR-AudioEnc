@@ -931,7 +931,7 @@ int main(int argc, char *argv[])
     /*! The SampleQueue \c queue is given to the inputs, so that they
      * can fill it.
      */
-    SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, settings.channels, max_size);
+    SampleQueue<uint8_t> queue(BYTES_PER_SAMPLE, settings.channels, max_size, settings.drift_compensation);
 
     /* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
     rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
@@ -1106,8 +1106,7 @@ int main(int argc, char *argv[])
             size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms, &overruns); // returns bytes
 
             if (overruns) {
-                fprintf(stderr, "%zd overruns occured!\n", overruns);
-                status |= STATUS_OVERRUN;
+                throw logic_error("Queue overrun in non-drift compensation!");
             }
 
             if (bytes_from_queue < read_bytes) {
