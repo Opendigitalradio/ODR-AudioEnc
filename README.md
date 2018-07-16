@@ -157,6 +157,31 @@ name for the encoder:
 
 The samplerate of the JACK server should be 32kHz or 48kHz.
 
+Scenario *LiveWire* or *AES67*
+------------------------------
+
+When audio data is available on the network as a multicast stream, it can be encoded using the following pipeline:
+
+    rtpdump -F payload 239.192.1.1/5004 | \
+    sox -t raw -e signed-integer -r 48000 -c 2 -b 24 -B /dev/stdin -t raw --no-dither -r 48000 -c 2 -b 16 -L /dev/stdout gain 4 | \
+    odr-audioenc -f raw -b $BITRATE -i /dev/stdin -o $DST
+
+It is also possible to use the libvlc input, where you need to create an SDP file with the following contents:
+
+    v=0
+    o=Node 1 1 IN IP4 172.16.235.155
+    s=TestSine
+    t=0 0
+    a=type:multicast
+    c=IN IP4 239.192.0.1
+    m=audio 5004 RTP/AVP 97
+    a=rtpmap:97 L24/48000/2
+
+Replace the IP address in the `o=` field by the one corresponding to your
+source node IP address, and the IP in `c=` by the multicast IP of your stream.
+Then use this SDP file as input for the VLC input.
+
+
 Scenario *local file through snd-aloop*
 ---------------------------------------
 Play some local audio source from a file, with ZMQ output for ODR-DabMux. The problem with
