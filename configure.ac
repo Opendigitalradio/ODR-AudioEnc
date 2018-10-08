@@ -80,7 +80,9 @@ AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
 AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
 
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
-AC_CHECK_LIB(fdk-aac, aacEncOpen, , AC_MSG_ERROR(The FDK-AAC library is required))
+PKG_CHECK_MODULES([LIBFDKAAC], [fdk-aac])
+AC_SUBST([LIBFDKAAC_CFLAGS])
+AC_SUBST([LIBFDKAAC_LIBS])
 
 # We need to have the ODR fdk-aac, the upstream one doesn't support DAB+
 AC_MSG_CHECKING([for DAB+ support in FDK-AAC])

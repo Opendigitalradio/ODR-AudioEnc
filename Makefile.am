@@ -77,8 +77,9 @@ odr_audioenc_LDADD       = libtoolame-dab.la \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
-						   $(LIBVLC_LIBS)
-odr_audioenc_CPPFLAGS    = $(AM_CPPFLAGS) $(GITVERSION_FLAGS) -ggdb -O2
+						   $(LIBVLC_LIBS) $(LIBFDKAAC_LIBS)
+odr_audioenc_CPPFLAGS    = $(AM_CPPFLAGS) $(LIBFDKAAC_CFLAGS) $(GITVERSION_FLAGS) \
+						   -ggdb -O2
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/FileInput.cpp \
 						   src/FileInput.h \
