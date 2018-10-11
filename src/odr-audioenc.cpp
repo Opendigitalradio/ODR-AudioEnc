@@ -764,6 +764,10 @@ int main(int argc, char *argv[])
     zmq::context_t zmq_ctx;
     zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
 
+    // Do not wait at teardown to send all data out
+    int linger = 0;
+    zmq_sock.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+
     if (not output_uris.empty()) {
         for (auto uri : output_uris) {
             if (uri == "-") {
