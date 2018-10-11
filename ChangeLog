@@ -1,3 +1,11 @@
+2018-10-11: Matthias P. Braendli <matthias@mpb.li>
+	(v2.3.1):
+		Improve internal queue behaviour to avoid dropping data when not using
+		drift compensation.
+		Check for fdk-aac using pkg-config, to fix compilation on systems
+		where both libfdk-aac.so.0 and libfdk-aac.so.1 are present.
+		Set ZMQ socket linger time to 0, to fix some teardown lockups.
+
 2018-03-21: Matthias P. Braendli <matthias@mpb.li>
 	(v2.3.0):
 		Deprecate -R option.
