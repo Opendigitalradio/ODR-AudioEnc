@@ -153,9 +153,12 @@ Scenario *JACK input*
 JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
 name for the encoder:
 
-    odr-audioenc -j myenc -l -b $BITRATE -f raw -o $DST
+    odr-audioenc -j myenc -l -b $BITRATE -o $DST
 
-The samplerate of the JACK server should be 32kHz or 48kHz.
+The JACK server must run at the samplerate of the encoder (32kHz or 48kHz). If that is not possible,
+one workaround is to access JACK through VLC, which will resample accordingly:
+
+    odr-audioenc -l -v jack://dab -b $BITRATE -o $DST
 
 Scenario *LiveWire* or *AES67*
 ------------------------------
