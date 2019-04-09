@@ -623,10 +623,13 @@ int main(int argc, char *argv[])
             settings.drift_compensation = true;
             break;
         case 'f':
-            if(strcmp(optarg, "raw")==0) {
+            if (strcmp(optarg, "raw") == 0) {
                 settings.raw_input = 1;
-            } else if(strcmp(optarg, "wav")!=0)
+            }
+            else if (strcmp(optarg, "wav") != 0) {
                 usage(argv[0]);
+                return 1;
+            }
             break;
         case 'i':
             settings.infile = optarg;
