@@ -31,28 +31,41 @@ For detailed usage, see the usage screen of the tool with the *-h* option.
 More information is available on the
 [Opendigitalradio wiki](http://opendigitalradio.org)
 
-How to build
-=============
 
-Requirements:
+Requirements
+============
 
 * A C++11 compiler
-* [FDK-AAC](https://github.com/Opendigitalradio/fdk-aac.git) with the DAB+ patches
+* [FDK-AAC](https://github.com/Opendigitalradio/fdk-aac.git) (already contains the DAB+ patches)
 * ZeroMQ 4.0.4 or more recent
 * JACK audio connection kit (optional)
 * The alsa libraries (libasound2, optional)
 * libvlc and vlc for the plugins (optional)
 
-This package:
+For Debian (and Ubuntu) use
 
-    ./bootstrap
-    ./configure
-    make
-    sudo make install
+    $ sudo apt-get install libvlc*
+    $ sudo apt-get install jack
+    $ sudo apt-get install libasound2
 
+Installation
+============
+
+    $ git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git
+    
+If you want to clone the next branch (under development) use
+
+    $ git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git -b next
+    $ cd ODR-AudioEnc/
+    $ ./bootstrap
+    $ ./configure
+    
 If you want to use ALSA, JACK and libVLC inputs, please use
 
-    ./configure --enable-alsa --enable-jack --enable-vlc
+    $ ./configure --enable-alsa --enable-jack --enable-vlc    
+    
+    $ make
+    $ sudo make install
 
 * See the possible scenarios below on how to use the tools
 
