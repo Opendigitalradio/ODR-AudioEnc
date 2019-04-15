@@ -44,26 +44,32 @@ Requirements
 
 For Debian (and Ubuntu) use
 
-    $ sudo apt-get install libvlc*
-    $ sudo apt-get install jack
-    $ sudo apt-get install libasound2
+    $ sudo apt-get install libzmq3-dev libzmq5
+    $ sudo apt-get install libvlc-dev vlc-data vlc-nox
+    $ sudo apt-get install libjack-jackd2-dev jackd2
+    $ sudo apt-get install libasound2-dev libasound2
+
+Attention: on debian buster, you'll need `libzmq5-dev` and `vlc-plugins-base`
 
 Installation
 ============
 
     $ git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git
-    
+
 If you want to clone the next branch (under development) use
 
     $ git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git -b next
+
+Configure the project
+
     $ cd ODR-AudioEnc/
     $ ./bootstrap
     $ ./configure
-    
+
 If you want to use ALSA, JACK and libVLC inputs, please use
 
-    $ ./configure --enable-alsa --enable-jack --enable-vlc    
-    
+    $ ./configure --enable-alsa --enable-jack --enable-vlc
+
     $ make
     $ sudo make install
 
