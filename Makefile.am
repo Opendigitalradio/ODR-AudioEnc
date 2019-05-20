@@ -89,6 +89,8 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/JackInput.h \
 						   src/VLCInput.cpp \
 						   src/VLCInput.h \
+						   src/Outputs.cpp \
+						   src/Outputs.h \
 						   src/AACDecoder.cpp \
 						   src/AACDecoder.h \
 						   src/SampleQueue.h \

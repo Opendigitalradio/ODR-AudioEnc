@@ -36,6 +36,7 @@
  *  - \ref VLCInput.h VLC Input
  *  - \ref AlsaInput.h Alsa Input
  *  - \ref JackInput.h JACK Input
+ *  - \ref Outputs.h ZeroMQ and file outputs
  *  - \ref SampleQueue.h
  *  - \ref charset.h Charset conversion
  *  - \ref toolame.h libtolame API
@@ -54,7 +55,7 @@
 #include "VLCInput.h"
 #include "SampleQueue.h"
 #include "AACDecoder.h"
-#include "zmq.hpp"
+#include "Outputs.h"
 #include "common.h"
 #include "wavfile.h"
 
@@ -90,12 +91,6 @@ extern "C" {
 constexpr int MAX_FAULTS_ALLOWED = 5;
 
 using vec_u8 = std::vector<uint8_t>;
-
-//! Enumeration of encoders we can use
-enum class encoder_selection_t {
-    fdk_dabplus,
-    toolame_dab
-};
 
 using namespace std;
 
@@ -470,8 +465,8 @@ int main(int argc, char *argv[])
 
     encoder_selection_t selected_encoder = encoder_selection_t::fdk_dabplus;
 
-    // For the file output
-    FILE *out_fh = nullptr;
+    shared_ptr<Output::File> file_output;
+    shared_ptr<Output::ZMQ> zmq_output;
 
     vector<string> output_uris;
 
@@ -485,7 +480,6 @@ int main(int argc, char *argv[])
 
     string dab_channel_mode;
     int dab_psy_model = 1;
-    deque<uint8_t> toolame_output_buffer;
 
     /* Keep track of peaks */
     int peak_left  = 0;
@@ -764,62 +758,37 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    zmq::context_t zmq_ctx;
-    zmq::socket_t zmq_sock(zmq_ctx, ZMQ_PUB);
-
-    // Do not wait at teardown to send all data out
-    int linger = 0;
-    zmq_sock.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
-
-    if (not output_uris.empty()) {
-        for (auto uri : output_uris) {
-            if (uri == "-") {
-                if (out_fh != nullptr) {
-                    fprintf(stderr, "You can't write to more than one file!\n");
-                    return 1;
-                }
-                out_fh = stdout;
-            }
-            else if ((uri.compare(0, 6, "tcp://") == 0) ||
-                    (uri.compare(0, 6, "pgm://") == 0) ||
-                    (uri.compare(0, 7, "epgm://") == 0) ||
-                    (uri.compare(0, 6, "ipc://") == 0)) {
-                if (keyfile) {
-                    fprintf(stderr, "Enabling encryption\n");
-
-                    int rc = readkey(keyfile, secretkey);
-                    if (rc) {
-                        fprintf(stderr, "Error reading secret key\n");
-                        return 2;
-                    }
-
-                    const int yes = 1;
-                    zmq_sock.setsockopt(ZMQ_CURVE_SERVER,
-                            &yes, sizeof(yes));
-
-                    zmq_sock.setsockopt(ZMQ_CURVE_SECRETKEY,
-                            secretkey, CURVE_KEYLEN);
-                }
-                zmq_sock.connect(uri.c_str());
-            }
-            else { // We assume it's a file name
-                if (out_fh != nullptr) {
-                    fprintf(stderr, "You can't write to more than one file!\n");
-                    return 1;
-                }
-
-                out_fh = fopen(uri.c_str(), "wb");
-
-                if (!out_fh) {
-                    fprintf(stderr, "Can't open output file!\n");
-                    return 1;
-                }
-            }
-        }
-    }
-    else {
+    if (output_uris.empty()) {
         fprintf(stderr, "No output URI defined\n");
         return 1;
+    }
+
+    for (const auto& uri : output_uris) {
+        if (uri == "-") {
+            if (file_output) {
+                fprintf(stderr, "You can't write to more than one file!\n");
+                return 1;
+            }
+            file_output = make_shared<Output::File>(stdout);
+        }
+        else if ((uri.compare(0, 6, "tcp://") == 0) ||
+                (uri.compare(0, 6, "pgm://") == 0) ||
+                (uri.compare(0, 7, "epgm://") == 0) ||
+                (uri.compare(0, 6, "ipc://") == 0)) {
+
+            if (not zmq_output) {
+                zmq_output = make_shared<Output::ZMQ>();
+            }
+
+            zmq_output->connect(uri.c_str(), keyfile);
+        }
+        else { // We assume it's a file name
+            if (file_output) {
+                fprintf(stderr, "You can't write to more than one file!\n");
+                return 1;
+            }
+            file_output = make_shared<Output::File>(uri.c_str());
+        }
     }
 
     if (padlen != 0) {
@@ -956,13 +925,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    zmq_output->set_encoder_type(selected_encoder, bitrate);
+
     int outbuf_size;
     vec_u8 zmqframebuf;
     vec_u8 outbuf;
+
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         outbuf_size = bitrate/8*120;
         outbuf.resize(24*120);
-        zmqframebuf.resize(ZMQ_HEADER_SIZE + 24*120);
 
         if(outbuf_size % 5 != 0) {
             fprintf(stderr, "Warning: (outbuf_size mod 5) = %d\n", outbuf_size % 5);
@@ -972,12 +943,7 @@ int main(int argc, char *argv[])
         outbuf_size = 4092;
         outbuf.resize(outbuf_size);
         fprintf(stderr, "Setting outbuf size to %zu\n", outbuf.size());
-
-        // ODR-DabMux expects frames of length 3*bitrate
-        zmqframebuf.resize(ZMQ_HEADER_SIZE + 3 * bitrate);
     }
-
-    zmq_frame_header_t *zmq_frame_header = (zmq_frame_header_t*)&zmqframebuf[0];
 
     unsigned char pad_buf[padlen + 1];
 
@@ -1327,61 +1293,18 @@ int main(int argc, char *argv[])
         }
 
         if (numOutBytes != 0) {
-            if (out_fh) {
-                fwrite(&outbuf[0], 1, numOutBytes, out_fh);
+            if (file_output) {
+                file_output->write_frame(outbuf.data(), numOutBytes);
             }
-            else {
-                // ------------ ZeroMQ transmit
-                try {
-                    if (selected_encoder == encoder_selection_t::fdk_dabplus) {
-                        zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
-                        zmq_frame_header->version = 1;
-                        zmq_frame_header->datasize = numOutBytes;
-                        zmq_frame_header->audiolevel_left = peak_left;
-                        zmq_frame_header->audiolevel_right = peak_right;
+            else if (zmq_output) {
+                bool success = zmq_output->write_frame(outbuf.data(), numOutBytes);
 
-                        assert(ZMQ_FRAME_SIZE(zmq_frame_header) <= zmqframebuf.size());
-
-                        memcpy(ZMQ_FRAME_DATA(zmq_frame_header),
-                                &outbuf[0], numOutBytes);
-
-                        zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
-                                ZMQ_DONTWAIT);
-
-                    }
-                    else if (selected_encoder == encoder_selection_t::toolame_dab) {
-                        toolame_output_buffer.insert(toolame_output_buffer.end(),
-                                outbuf.begin(), outbuf.begin() + numOutBytes);
-
-                        while (toolame_output_buffer.size() > 3 * bitrate) {
-                            zmq_frame_header->encoder = ZMQ_ENCODER_TOOLAME;
-                            zmq_frame_header->version = 1;
-                            zmq_frame_header->datasize = 3 * bitrate;
-                            zmq_frame_header->audiolevel_left = peak_left;
-                            zmq_frame_header->audiolevel_right = peak_right;
-
-                            uint8_t *encoded_frame = ZMQ_FRAME_DATA(zmq_frame_header);
-
-                            // no memcpy for std::deque
-                            for (size_t i = 0; i < 3*bitrate; i++) {
-                                encoded_frame[i] = toolame_output_buffer[i];
-                            }
-
-                            zmq_sock.send(&zmqframebuf[0], ZMQ_FRAME_SIZE(zmq_frame_header),
-                                    ZMQ_DONTWAIT);
-
-                            toolame_output_buffer.erase(toolame_output_buffer.begin(),
-                                                        toolame_output_buffer.begin() + 3 * bitrate);
-                        }
-                    }
-                }
-                catch (zmq::error_t& e) {
+                if (not success) {
                     fprintf(stderr, "ZeroMQ send error !\n");
                     send_error_count ++;
                 }
 
-                if (send_error_count > 10)
-                {
+                if (send_error_count > 10) {
                     fprintf(stderr, "ZeroMQ send failed ten times, aborting!\n");
                     retval = 4;
                     break;
@@ -1389,8 +1312,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (numOutBytes != 0)
-        {
+        if (numOutBytes != 0) {
             if (show_level) {
                 if (settings.channels == 1) {
                     fprintf(stderr, "\rIn: [%-6s] %1s %1s %1s",
@@ -1430,11 +1352,9 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "\n");
 
-    if (out_fh) {
-        fclose(out_fh);
-    }
+    file_output.reset();
+    zmq_output.reset();
 
-    zmq_sock.close();
     free_rs_char(rs_handler);
 
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {

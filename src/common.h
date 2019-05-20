@@ -16,8 +16,7 @@
  * -------------------------------------------------------------------
  */
 
-#ifndef __COMMON_H_
-#define __COMMON_H_
+#pragma once
 
 // 16 bits per sample is fine for now
 #define BYTES_PER_SAMPLE 2
@@ -25,5 +24,9 @@
 // How many samples we insert into the queue each call
 #define NUM_SAMPLES_PER_CALL 10 // 10 samples @ 32kHz = 3.125ms
 
-#endif // __COMMON_H_
+//! Enumeration of encoders we can use
+enum class encoder_selection_t {
+    fdk_dabplus,
+    toolame_dab
+};
 
