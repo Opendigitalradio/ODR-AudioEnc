@@ -11,7 +11,7 @@ in the [repository](https://github.com/Opendigitalradio/fdk-aac.git).
 
 The main tool is the *odr-audioenc* encoder, which can read audio from
 a file (raw or wav), from an ALSA source, from JACK or using libVLC,
-and encode to a file, a pipe, or to a ZeroMQ output compatible with ODR-DabMux.
+and encode to a file, a pipe, to a ZeroMQ or EDI output compatible with ODR-DabMux.
 
 The libVLC input allows the encoder to use all inputs supported by VLC, and
 therefore also webstreams and other network sources.
@@ -282,6 +282,7 @@ The ODR-AudioEnc project contains
    http://www.apache.org/licenses/LICENSE-2.0
  - libtoolame-dab, derived from TooLAME, licensed under LGPL v2.1 or later. See
    libtoolame-dab/LGPL.txt. This is built into a shared library.
+ - EDI output (files in src/edi) are GPLv3+
 
 The odr-audioenc binary is linked against the libtoolame-dab and fdk-aac
 shared libraries.

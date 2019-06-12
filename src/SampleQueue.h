@@ -275,6 +275,11 @@ public:
         return ret;
     }
 
+    void set_max_size(size_t max_size)
+    {
+        m_max_size = max_size;
+    }
+
 private:
     std::deque<T> m_queue;
     mutable std::mutex m_mutex;

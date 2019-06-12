@@ -99,39 +99,6 @@ void ZMQ::set_encoder_type(encoder_selection_t& enc, int bitrate)
 
 bool ZMQ::write_frame(const uint8_t *buf, size_t len)
 {
-    switch (m_encoder) {
-        case encoder_selection_t::fdk_dabplus:
-            return send_frame(buf, len);
-        case encoder_selection_t::toolame_dab:
-            return write_toolame(buf, len);
-    }
-    throw logic_error("Unhandled encoder in ZMQ::write_frame");
-}
-
-bool ZMQ::write_toolame(const uint8_t *buf, size_t len)
-{
-    m_toolame_buffer.insert(m_toolame_buffer.end(),
-            buf, buf + len);
-
-    // ODR-DabMux expects frames of length 3*bitrate
-    const auto frame_len = 3 * m_bitrate;
-    while (m_toolame_buffer.size() > frame_len) {
-        vec_u8 frame(frame_len);
-        // this is probably not very efficient
-        std::copy(m_toolame_buffer.begin(), m_toolame_buffer.begin() + frame_len, frame.begin());
-
-        bool success = send_frame(frame.data(), frame.size());
-        if (not success) {
-            return false;
-        }
-
-        m_toolame_buffer.erase(m_toolame_buffer.begin(), m_toolame_buffer.begin() + frame_len);
-    }
-    return true;
-}
-
-bool ZMQ::send_frame(const uint8_t *buf, size_t len)
-{
     if (m_framebuf.size() != ZMQ_HEADER_SIZE + len) {
         m_framebuf.resize(ZMQ_HEADER_SIZE + len);
     }
@@ -165,6 +132,74 @@ bool ZMQ::send_frame(const uint8_t *buf, size_t len)
         return false;
     }
 
+    return true;
+}
+
+EDI::EDI() { }
+
+EDI::~EDI() { }
+
+void EDI::add_udp_destination(const std::string& host, int port)
+{
+    auto dest = make_shared<edi::udp_destination_t>();
+    dest->dest_addr = host;
+    m_edi_conf.dest_port = port;
+    m_edi_conf.destinations.push_back(dest);
+
+    // We cannot carry AF packets over UDP, because they would be too large.
+    m_edi_conf.enable_pft = true;
+
+    // TODO make FEC configurable
+}
+
+void EDI::add_tcp_destination(const std::string& host, int port)
+{
+    auto dest = make_shared<edi::tcp_client_t>();
+    dest->dest_addr = host;
+    if (dest->dest_port != 0 and dest->dest_port != port) {
+        throw runtime_error("All EDI UDP outputs must be to the same destination port");
+    }
+    dest->dest_port = port;
+    m_edi_conf.destinations.push_back(dest);
+}
+
+bool EDI::enabled() const
+{
+    return not m_edi_conf.destinations.empty();
+}
+
+bool EDI::write_frame(const uint8_t *buf, size_t len)
+{
+    if (not m_edi_sender) {
+        m_edi_sender = make_shared<edi::Sender>(m_edi_conf);
+    }
+
+    edi::TagStarPTR edi_tagStarPtr;
+    edi_tagStarPtr.protocol = "DSTI";
+
+    edi::TagDSTI edi_tagDSTI;
+
+    edi_tagDSTI.stihf = false;
+    edi_tagDSTI.atstf = false;
+    edi_tagDSTI.rfadf = false;
+    // DFCT is handled inside the TagDSTI
+
+    edi::TagSSm edi_tagPayload;
+    // TODO make edi_tagPayload.stid configurable
+    edi_tagPayload.istd_data = buf;
+    edi_tagPayload.istd_length = len;
+
+    // The above Tag Items will be assembled into a TAG Packet
+    edi::TagPacket edi_tagpacket(m_edi_conf.tagpacket_alignment);
+
+    // put tags *ptr, DETI and all subchannels into one TagPacket
+    edi_tagpacket.tag_items.push_back(&edi_tagStarPtr);
+    edi_tagpacket.tag_items.push_back(&edi_tagDSTI);
+    edi_tagpacket.tag_items.push_back(&edi_tagPayload);
+
+    m_edi_sender->write(edi_tagpacket);
+
+    // TODO Handle TCP disconnect
     return true;
 }
 

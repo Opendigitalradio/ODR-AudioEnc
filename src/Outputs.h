@@ -25,6 +25,10 @@
 #include <cstdio>
 #include "common.h"
 #include "zmq.hpp"
+#include "edi/TagItems.h"
+#include "edi/TagPacket.h"
+#include "edi/AFPacket.h"
+#include "edi/Transport.h"
 extern "C" {
 #include "encryption.h"
 }
@@ -109,9 +113,6 @@ class ZMQ: public Base {
         virtual bool write_frame(const uint8_t *buf, size_t len) override;
 
     private:
-        virtual bool write_toolame(const uint8_t *buf, size_t len);
-        virtual bool send_frame(const uint8_t *buf, size_t len);
-
         zmq::context_t m_ctx;
         zmq::socket_t m_sock;
 
@@ -120,7 +121,28 @@ class ZMQ: public Base {
         encoder_selection_t m_encoder = encoder_selection_t::fdk_dabplus;
         using vec_u8 = std::vector<uint8_t>;
         vec_u8 m_framebuf;
-        std::deque<uint8_t> m_toolame_buffer;
+};
+
+
+class EDI: public Base {
+    public:
+        EDI();
+        EDI(const EDI&) = delete;
+        EDI& operator=(const EDI&) = delete;
+        virtual ~EDI() override;
+
+        void add_udp_destination(const std::string& host, int port);
+        void add_tcp_destination(const std::string& host, int port);
+
+        bool enabled() const;
+
+        virtual bool write_frame(const uint8_t *buf, size_t len) override;
+
+        // TODO audio levels metadata
+
+    private:
+        edi::configuration_t m_edi_conf;
+        std::shared_ptr<edi::Sender> m_edi_sender;
 };
 
 }
