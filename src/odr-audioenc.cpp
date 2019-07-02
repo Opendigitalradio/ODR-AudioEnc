@@ -1210,7 +1210,9 @@ AudioEnc::~AudioEnc()
     file_output.reset();
     zmq_output.reset();
 
-    free_rs_char(rs_handler);
+    if (rs_handler != nullptr) {
+        free_rs_char(rs_handler);
+    }
 
     if (selected_encoder == encoder_selection_t::fdk_dabplus) {
         aacEncClose(&encoder);
