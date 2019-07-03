@@ -55,6 +55,7 @@
 #include "VLCInput.h"
 #include "SampleQueue.h"
 #include "AACDecoder.h"
+#include "StatsPublish.h"
 #include "Outputs.h"
 #include "common.h"
 #include "wavfile.h"
@@ -192,6 +193,8 @@ void usage(const char* name)
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name"
     "                                          (default: /tmp/pad.fifo).\n"
     "     -l, --level                          Show peak audio level indication.\n"
+    "     -S, --stats=SOCKET_NAME              Connect to the specified UNIX Datagram socket and send statistics.\n"
+    "                                          This allows external tools to collect audio and drift compensation stats.\n"
     "     -s, --silence=TIMEOUT                Abort encoding after TIMEOUT seconds of silence.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
@@ -460,6 +463,9 @@ public:
     /* Whether to show the 'sox'-like measurement */
     int show_level = 0;
 
+    /* If not empty, send stats over UNIX DGRAM socket */
+    string send_stats_to = "";
+
     /* Data for ZMQ CURVE authentication */
     char* keyfile = nullptr;
     char secretkey[CURVE_KEYLEN+1];
@@ -468,6 +474,7 @@ public:
 
     HANDLE_AACENCODER encoder;
     unique_ptr<AACDecoder> decoder;
+    unique_ptr<StatsPublisher> stats_publisher;
 
     AudioEnc() : queue(BYTES_PER_SAMPLE, channels, 0, drift_compensation) { }
     AudioEnc(const AudioEnc&) = delete;
@@ -696,6 +703,21 @@ int AudioEnc::run()
         }
     }
 
+    if (not send_stats_to.empty()) {
+        StatsPublisher *s = nullptr;
+        try {
+            s = new StatsPublisher(send_stats_to);
+            stats_publisher.reset(s);
+        }
+        catch (const runtime_error& e) {
+            fprintf(stderr, "Failed to initialise Stats Publisher: %s", e.what());
+            if (s != nullptr) {
+                delete s;
+            }
+            return 1;
+        }
+    }
+
     /* We assume that we need to call the encoder
      * enc_calls_per_output before it gives us one encoded audio
      * frame. This information is used when the alsa drift compensation
@@ -867,10 +889,16 @@ int AudioEnc::run()
 
             if (bytes_from_queue != input_buf.size()) {
                 status |= STATUS_UNDERRUN;
+                if (stats_publisher) {
+                    stats_publisher->notify_underrun();
+                }
             }
 
             if (overruns) {
                 status |= STATUS_OVERRUN;
+                if (stats_publisher) {
+                    stats_publisher->notify_overrun();
+                }
             }
         }
         else {
@@ -941,6 +969,10 @@ int AudioEnc::run()
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
             peak_left  = MAX(peak_left,  l);
             peak_right = MAX(peak_right, r);
+        }
+
+        if (stats_publisher) {
+            stats_publisher->update_audio_levels(peak_left, peak_right);
         }
 
         /*! \section SilenceDetection
@@ -1155,7 +1187,10 @@ int AudioEnc::run()
                 if (status & STATUS_UNDERRUN) {
                     fprintf(stderr, "U");
                 }
+            }
 
+            if (stats_publisher) {
+                stats_publisher->send_stats();
             }
 
             peak_right = 0;
@@ -1282,6 +1317,7 @@ int main(int argc, char *argv[])
         {"rate",                   required_argument,  0, 'r'},
         {"secret-key",             required_argument,  0, 'k'},
         {"silence",                required_argument,  0, 's'},
+        {"stats",                  required_argument,  0, 'S'},
         {"vlc-cache",              required_argument,  0, 'C'},
         {"vlc-gain",               required_argument,  0, 'g'},
         {"vlc-uri",                required_argument,  0, 'v'},
@@ -1323,7 +1359,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:i:j:k:L:o:r:d:p:P:s:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:i:j:k:L:o:r:d:p:P:s:S:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             audio_enc.aot = AOT_DABPLUS_AAC_LC;
@@ -1431,6 +1467,9 @@ int main(int argc, char *argv[])
                 return 1;
             }
 
+            break;
+        case 'S':
+            audio_enc.send_stats_to = optarg;
             break;
 #ifdef HAVE_VLC
         case 'v':

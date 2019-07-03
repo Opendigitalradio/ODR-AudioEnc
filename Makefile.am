@@ -95,6 +95,8 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/AACDecoder.cpp \
 						   src/AACDecoder.h \
 						   src/SampleQueue.h \
+						   src/StatsPublish.cpp \
+						   src/StatsPublish.h \
 						   src/encryption.c \
 						   src/encryption.h \
 						   src/zmq.hpp \
