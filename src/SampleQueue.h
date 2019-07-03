@@ -67,8 +67,8 @@ public:
             unsigned int channels,
             size_t max_size,
             bool drift_compensation) :
-        m_bytes_per_sample(bytes_per_sample),
         m_channels(channels),
+        m_bytes_per_sample(bytes_per_sample),
         m_max_size(max_size),
         m_push_block(not drift_compensation),
         m_overruns(0) {}

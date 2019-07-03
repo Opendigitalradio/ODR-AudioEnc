@@ -139,7 +139,7 @@ EDI::EDI() { }
 
 EDI::~EDI() { }
 
-void EDI::add_udp_destination(const std::string& host, int port)
+void EDI::add_udp_destination(const std::string& host, unsigned int port)
 {
     auto dest = make_shared<edi::udp_destination_t>();
     dest->dest_addr = host;
@@ -152,7 +152,7 @@ void EDI::add_udp_destination(const std::string& host, int port)
     // TODO make FEC configurable
 }
 
-void EDI::add_tcp_destination(const std::string& host, int port)
+void EDI::add_tcp_destination(const std::string& host, unsigned int port)
 {
     auto dest = make_shared<edi::tcp_client_t>();
     dest->dest_addr = host;

@@ -82,7 +82,7 @@ void handleStream_size_t(
 {
     VLCInput* in = (VLCInput*)p_audio_data;
 
-    assert(rate == in->getRate());
+    assert((ssize_t)rate == in->getRate());
     assert(bits_per_sample == 8*bytes_per_float_sample);
 
     // This assumes VLC always gives back the full

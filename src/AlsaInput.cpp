@@ -106,12 +106,11 @@ void AlsaInput::m_init_alsa()
 
 ssize_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
 {
-    int i;
     int err;
 
     err = snd_pcm_readi(m_alsa_handle, buf, length);
 
-    if (err != length) {
+    if (err != (ssize_t)length) {
         if (err < 0) {
             fprintf (stderr, "read from audio interface failed (%s)\n",
                     snd_strerror(err));
@@ -176,7 +175,7 @@ bool AlsaInputDirect::read_source(size_t num_bytes)
     if (ret > 0) {
         m_queue.push(buf.data(), ret * bytes_per_frame);
     }
-    return ret == num_frames;
+    return ret == (ssize_t)num_frames;
 }
 
 #endif // HAVE_ALSA

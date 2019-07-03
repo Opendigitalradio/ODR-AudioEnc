@@ -101,7 +101,7 @@ bool FileInput::read_source(size_t num_bytes)
         m_queue.push(samplebuf.data(), ret);
     }
 
-    if (ret < num_bytes) {
+    if (ret < (ssize_t)num_bytes) {
         if (m_raw_input) {
             if (ferror(m_in_fh)) {
                 return false;

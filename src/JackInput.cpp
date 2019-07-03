@@ -80,7 +80,7 @@ void JackInput::prepare()
     }
 
     /* create ports */
-    for (int i = 0; i < m_channels; i++) {
+    for (unsigned int i = 0; i < m_channels; i++) {
         std::stringstream port_name;
         port_name << "input" << i;
 
@@ -118,7 +118,7 @@ void JackInput::jack_process(jack_nframes_t nframes)
      */
     std::vector<int16_t> buffer(m_channels * nframes);
 
-    for (int chan = 0; chan < m_channels; chan++) {
+    for (unsigned int chan = 0; chan < m_channels; chan++) {
         // start offset interleaving
         int i = chan;
 

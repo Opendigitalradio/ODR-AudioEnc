@@ -909,7 +909,7 @@ int AudioEnc::run()
 
             /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
              * its job. */
-            size_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms, &overruns); // returns bytes
+            ssize_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms, &overruns); // returns bytes
 
             if (overruns) {
                 throw logic_error("Queue overrun in non-drift compensation!");
@@ -1009,7 +1009,6 @@ int AudioEnc::run()
             //
             int in_identifier[] = {IN_AUDIO_DATA, IN_ANCILLRY_DATA};
             int out_identifier = OUT_BITSTREAM_DATA;
-            const int subchannel_index = bitrate / 8;
 
             void *in_ptr[2], *out_ptr;
             int in_size[2], in_elem_size[2];
@@ -1133,7 +1132,7 @@ int AudioEnc::run()
             toolame_buffer.insert(toolame_buffer.end(), outbuf.begin(), outbuf.begin() + numOutBytes);
 
             // ODR-DabMux expects frames of length 3*bitrate
-            const auto frame_len = 3 * bitrate;
+            const size_t frame_len = 3 * bitrate;
             while (toolame_buffer.size() > frame_len) {
                 vec_u8 frame(frame_len);
                 // this is probably not very efficient

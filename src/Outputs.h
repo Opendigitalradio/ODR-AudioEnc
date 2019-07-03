@@ -131,8 +131,8 @@ class EDI: public Base {
         EDI& operator=(const EDI&) = delete;
         virtual ~EDI() override;
 
-        void add_udp_destination(const std::string& host, int port);
-        void add_tcp_destination(const std::string& host, int port);
+        void add_udp_destination(const std::string& host, unsigned int port);
+        void add_tcp_destination(const std::string& host, unsigned int port);
 
         bool enabled() const;
 
