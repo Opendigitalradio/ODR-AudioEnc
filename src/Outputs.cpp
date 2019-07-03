@@ -161,6 +161,8 @@ void EDI::add_tcp_destination(const std::string& host, int port)
     }
     dest->dest_port = port;
     m_edi_conf.destinations.push_back(dest);
+
+    m_edi_conf.dump = true;
 }
 
 bool EDI::enabled() const
@@ -177,11 +179,9 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
     edi::TagStarPTR edi_tagStarPtr;
     edi_tagStarPtr.protocol = "DSTI";
 
-    edi::TagDSTI edi_tagDSTI;
-
-    edi_tagDSTI.stihf = false;
-    edi_tagDSTI.atstf = false;
-    edi_tagDSTI.rfadf = false;
+    m_edi_tagDSTI.stihf = false;
+    m_edi_tagDSTI.atstf = false;
+    m_edi_tagDSTI.rfadf = false;
     // DFCT is handled inside the TagDSTI
 
     edi::TagSSm edi_tagPayload;
@@ -194,7 +194,7 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
 
     // put tags *ptr, DETI and all subchannels into one TagPacket
     edi_tagpacket.tag_items.push_back(&edi_tagStarPtr);
-    edi_tagpacket.tag_items.push_back(&edi_tagDSTI);
+    edi_tagpacket.tag_items.push_back(&m_edi_tagDSTI);
     edi_tagpacket.tag_items.push_back(&edi_tagPayload);
 
     m_edi_sender->write(edi_tagpacket);

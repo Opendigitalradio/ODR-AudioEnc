@@ -143,6 +143,9 @@ class EDI: public Base {
     private:
         edi::configuration_t m_edi_conf;
         std::shared_ptr<edi::Sender> m_edi_sender;
+
+        edi::TagDSTI m_edi_tagDSTI;
+
 };
 
 }
