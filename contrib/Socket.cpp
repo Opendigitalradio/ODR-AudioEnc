@@ -872,6 +872,10 @@ void TCPReceiveServer::process()
                 if (r < 0) {
                     throw logic_error("Invalid recv return value");
                 }
+                else if (r == 0) {
+                    sock.close();
+                    break;
+                }
                 else {
                     buf.resize(r);
                     m_queue.push(move(buf));
