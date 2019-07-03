@@ -21,7 +21,6 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstdio>
-#include "common.h"
 
 /*! \file StatsPublish.h
  *

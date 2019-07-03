@@ -109,7 +109,7 @@ void StatsPublisher::send_stats()
             fprintf(stderr, "Statistics send failed: %s\n", strerror(errno));
         }
     }
-    else if (ret != yamlstr.size()) {
+    else if (ret != (ssize_t)yamlstr.size()) {
         fprintf(stderr, "Statistics send incorrect length: %d bytes of %zu transmitted\n",
                 ret, yamlstr.size());
     }
