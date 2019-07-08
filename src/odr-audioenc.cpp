@@ -754,22 +754,23 @@ int AudioEnc::run()
         zmq_output->set_encoder_type(selected_encoder, bitrate);
     }
 
-    int outbuf_size;
-    vec_u8 zmqframebuf;
+    int outbuf_size = 0;
     vec_u8 outbuf;
 
-    if (selected_encoder == encoder_selection_t::fdk_dabplus) {
-        outbuf_size = bitrate/8*120;
-        outbuf.resize(24*120);
+    switch (selected_encoder) {
+        case encoder_selection_t::fdk_dabplus:
+            outbuf_size = bitrate/8*120;
+            outbuf.resize(24*120);
 
-        if(outbuf_size % 5 != 0) {
-            fprintf(stderr, "Warning: (outbuf_size mod 5) = %d\n", outbuf_size % 5);
-        }
-    }
-    else if (selected_encoder == encoder_selection_t::toolame_dab) {
-        outbuf_size = 4092;
-        outbuf.resize(outbuf_size);
-        fprintf(stderr, "Setting outbuf size to %zu\n", outbuf.size());
+            if(outbuf_size % 5 != 0) {
+                fprintf(stderr, "Warning: (outbuf_size mod 5) = %d\n", outbuf_size % 5);
+            }
+            break;
+        case encoder_selection_t::toolame_dab:
+            outbuf_size = 4092;
+            outbuf.resize(outbuf_size);
+            fprintf(stderr, "Setting outbuf size to %zu\n", outbuf.size());
+            break;
     }
 
     unsigned char pad_buf[padlen + 1];
@@ -828,8 +829,8 @@ int AudioEnc::run()
 
 
         // -------------- Read Data
-        memset(&outbuf[0], 0x00, outbuf_size);
-        memset(&input_buf[0], 0x00, input_buf.size());
+        memset(outbuf.data(), 0x00, outbuf_size);
+        memset(input_buf.data(), 0x00, input_buf.size());
 
         /*! \section DataInput
          * We read data input either in a blocking way (file input, VLC or ALSA
@@ -880,7 +881,7 @@ int AudioEnc::run()
 
         if (drift_compensation) {
             size_t overruns = 0;
-            size_t bytes_from_queue = queue.pop(&input_buf[0], input_buf.size(), &overruns); // returns bytes
+            size_t bytes_from_queue = queue.pop(input_buf.data(), input_buf.size(), &overruns); // returns bytes
             if (bytes_from_queue != input_buf.size()) {
                 expand_missing_samples(input_buf, channels, bytes_from_queue);
             }
@@ -909,7 +910,7 @@ int AudioEnc::run()
 
             /*! pop_wait() must return after a timeout, otherwise the silence detector cannot do
              * its job. */
-            ssize_t bytes_from_queue = queue.pop_wait(&input_buf[0], read_bytes, timeout_ms, &overruns); // returns bytes
+            ssize_t bytes_from_queue = queue.pop_wait(input_buf.data(), read_bytes, timeout_ms, &overruns); // returns bytes
 
             if (overruns) {
                 throw logic_error("Queue overrun in non-drift compensation!");
@@ -1014,7 +1015,7 @@ int AudioEnc::run()
             int in_size[2], in_elem_size[2];
             int out_size, out_elem_size;
 
-            in_ptr[0] = &input_buf[0];
+            in_ptr[0] = input_buf.data();
             in_ptr[1] = pad_buf + (padlen - calculated_padlen); // offset due to unused PAD bytes
             in_size[0] = read_bytes;
             in_size[1] = calculated_padlen;
@@ -1029,7 +1030,7 @@ int AudioEnc::run()
             in_buf.bufSizes = in_size;
             in_buf.bufElSizes = in_elem_size;
 
-            out_ptr = &outbuf[0];
+            out_ptr = outbuf.data();
             out_size = outbuf.size();
             out_elem_size = 1;
             out_buf.numBufs = 1;
@@ -1060,7 +1061,7 @@ int AudioEnc::run()
             short input_buffers[2][1152];
 
             if (channels == 1) {
-                memcpy(input_buffers[0], &input_buf[0], 1152 * BYTES_PER_SAMPLE);
+                memcpy(input_buffers[0], input_buf.data(), 1152 * BYTES_PER_SAMPLE);
             }
             else if (channels == 2) {
                 for (int i = 0; i < 1152; i++) {
@@ -1076,10 +1077,10 @@ int AudioEnc::run()
             }
 
             if (read_bytes) {
-                numOutBytes = toolame_encode_frame(input_buffers, pad_buf, calculated_padlen, &outbuf[0], outbuf.size());
+                numOutBytes = toolame_encode_frame(input_buffers, pad_buf, calculated_padlen, outbuf.data(), outbuf.size());
             }
             else {
-                numOutBytes = toolame_finish(&outbuf[0], outbuf.size());
+                numOutBytes = toolame_finish(outbuf.data(), outbuf.size());
             }
         }
 
