@@ -1,6 +1,6 @@
 language: c++
 sudo: required
-dist: trusty
+dist: xenial
 
 addons: &addons
   apt:
@@ -8,10 +8,10 @@ addons: &addons
       - ubuntu-toolchain-r-test
     packages: &packages
       - libzmq3-dev
-      - libzmq3
+      - libzmq5
       - automake
       - libtool
-      - libboost1.55-all-dev
+      - libboost1.58-all-dev
       - vlc-nox
       - libvlc-dev
       - libasound2
@@ -19,7 +19,7 @@ addons: &addons
       - libjack-jackd2-dev
       - jackd2
       - libmagickwand-dev
-      - g++-6
+      - g++-9
 
 compiler:
   - gcc
@@ -30,24 +30,24 @@ script:
     git clone https://github.com/Opendigitalradio/fdk-aac.git
     cd fdk-aac
     ./bootstrap
-    CC=gcc-6 CXX=g++-6 ./configure
+    CC=gcc-9 CXX=g++-9 ./configure
     make
     sudo make install
     popd
   - |
     ./bootstrap
-    CC=gcc-6 CXX=g++-6 ./configure
+    CC=gcc-9 CXX=g++-9 ./configure
     make
   - |
-    CC=gcc-6 CXX=g++-6 ./configure --enable-vlc
+    CC=gcc-9 CXX=g++-9 ./configure --enable-vlc
     make
   - |
-    CC=gcc-6 CXX=g++-6 ./configure --enable-alsa
+    CC=gcc-9 CXX=g++-9 ./configure --enable-alsa
     make
   - |
-    CC=gcc-6 CXX=g++-6 ./configure --enable-jack
+    CC=gcc-9 CXX=g++-9 ./configure --enable-jack
     make
   - |
-    CC=gcc-6 CXX=g++-6 ./configure --enable-alsa --enable-jack --enable-vlc
+    CC=gcc-9 CXX=g++-9 ./configure --enable-alsa --enable-jack --enable-vlc
     make
 
