@@ -472,7 +472,7 @@ public:
 
     SampleQueue<uint8_t> queue;
 
-    HANDLE_AACENCODER encoder;
+    HANDLE_AACENCODER encoder = nullptr;
     unique_ptr<AACDecoder> decoder;
     unique_ptr<StatsPublisher> stats_publisher;
 
@@ -1249,7 +1249,7 @@ AudioEnc::~AudioEnc()
         free_rs_char(rs_handler);
     }
 
-    if (selected_encoder == encoder_selection_t::fdk_dabplus) {
+    if (encoder != nullptr and selected_encoder == encoder_selection_t::fdk_dabplus) {
         aacEncClose(&encoder);
     }
 }
