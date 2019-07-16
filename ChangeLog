@@ -1,3 +1,10 @@
+2019-07-15: Matthias P. Braendli <matthias@mpb.li>
+	(v2.4.0):
+		Add Stats output to Unix DGRAM socket, see
+		`./example_stats_receiver.py`.
+		Internal refactoring, with ongoing EDI output work (not yet complete)
+		Avoid crashes when invalid command line options are given.
+
 2018-10-11: Matthias P. Braendli <matthias@mpb.li>
 	(v2.3.1):
 		Improve internal queue behaviour to avoid dropping data when not using
