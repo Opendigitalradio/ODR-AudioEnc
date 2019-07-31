@@ -482,7 +482,7 @@ public:
     ~AudioEnc();
 
     int run();
-    bool send_frame(const uint8_t *buf, size_t len);
+    bool send_frame(const uint8_t *buf, size_t len, int peak_left, int peak_right);
     shared_ptr<InputInterface> initialise_input();
 };
 
@@ -1140,7 +1140,7 @@ int AudioEnc::run()
                 std::copy(toolame_buffer.begin(), toolame_buffer.begin() + frame_len, frame.begin());
                 toolame_buffer.erase(toolame_buffer.begin(), toolame_buffer.begin() + frame_len);
 
-                bool success = send_frame(frame.data(), frame.size());
+                bool success = send_frame(frame.data(), frame.size(), peak_left, peak_right);
                 if (not success) {
                     fprintf(stderr, "Send error !\n");
                     send_error_count ++;
@@ -1148,7 +1148,7 @@ int AudioEnc::run()
             }
         }
         else if (numOutBytes > 0 and selected_encoder == encoder_selection_t::fdk_dabplus) {
-            bool success = send_frame(outbuf.data(), numOutBytes);
+            bool success = send_frame(outbuf.data(), numOutBytes, peak_left, peak_right);
             if (not success) {
                 fprintf(stderr, "Send error !\n");
                 send_error_count ++;
@@ -1206,15 +1206,18 @@ int AudioEnc::run()
     return retval;
 }
 
-bool AudioEnc::send_frame(const uint8_t *buf, size_t len)
+bool AudioEnc::send_frame(const uint8_t *buf, size_t len, int peak_left, int peak_right)
 {
     if (file_output) {
+        file_output->update_audio_levels(peak_left, peak_right);
         return file_output->write_frame(buf, len);
     }
     else if (zmq_output) {
+        zmq_output->update_audio_levels(peak_left, peak_right);
         return zmq_output->write_frame(buf, len);
     }
     else if (edi_output.enabled()) {
+        edi_output.update_audio_levels(peak_left, peak_right);
         switch (selected_encoder) {
             case encoder_selection_t::fdk_dabplus:
                 {
