@@ -1,3 +1,8 @@
+2019-07-31: Matthias P. Braendli <matthias@mpb.li>
+	(v2.4.1):
+		Bugfix for regression in v2.4.0: Insertion
+		of audio level metadata was broken.
+
 2019-07-15: Matthias P. Braendli <matthias@mpb.li>
 	(v2.4.0):
 		Add Stats output to Unix DGRAM socket, see
