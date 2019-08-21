@@ -119,7 +119,7 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   contrib/ThreadsafeQueue.h \
 						   contrib/edi/AFPacket.cpp \
 						   contrib/edi/AFPacket.h \
-						   contrib/edi/Config.h \
+						   contrib/edi/EDIConfig.h \
 						   contrib/edi/Interleaver.cpp \
 						   contrib/edi/Interleaver.h \
 						   contrib/edi/PFT.cpp \
