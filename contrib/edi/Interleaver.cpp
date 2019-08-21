@@ -29,7 +29,7 @@
    along with ODR-DabMux.  If not, see <http://www.gnu.org/licenses/>.
    */
 
-#include "edi/Interleaver.h"
+#include "Interleaver.h"
 #include <cassert>
 
 namespace edi {

@@ -135,7 +135,9 @@ bool ZMQ::write_frame(const uint8_t *buf, size_t len)
     return true;
 }
 
-EDI::EDI() { }
+EDI::EDI() :
+    m_clock_tai({})
+{ }
 
 EDI::~EDI() { }
 
@@ -170,19 +172,50 @@ bool EDI::enabled() const
     return not m_edi_conf.destinations.empty();
 }
 
+void EDI::set_tist(bool enable, uint32_t delay_ms)
+{
+    m_tist = enable;
+    m_delay_ms = delay_ms;
+}
+
 bool EDI::write_frame(const uint8_t *buf, size_t len)
 {
     if (not m_edi_sender) {
         m_edi_sender = make_shared<edi::Sender>(m_edi_conf);
     }
 
-    edi::TagStarPTR edi_tagStarPtr;
-    edi_tagStarPtr.protocol = "DSTI";
+    if (m_edi_time == 0) {
+        using Sec = chrono::seconds;
+        const auto now = chrono::time_point_cast<Sec>(chrono::system_clock::now());
+        m_edi_time = chrono::system_clock::to_time_t(now) + (m_delay_ms / 1000);
+
+        /* TODO we still have to see if 24ms granularity is achievable, given that
+         * one DAB+ super frame is carried over more than 1 ETI frame.
+         */
+        for (int32_t sub_ms = (m_delay_ms % 1000); sub_ms > 0; sub_ms -= 24) {
+            m_timestamp += 24 << 14; // Shift 24ms by 14 to Timestamp level 2
+        }
+
+    }
+
+    edi::TagStarPTR edi_tagStarPtr("DSTI");
 
     m_edi_tagDSTI.stihf = false;
-    m_edi_tagDSTI.atstf = false;
+    m_edi_tagDSTI.atstf = m_tist;
+
+    m_timestamp += 24 << 14; // Shift 24ms by 14 to Timestamp level 2
+    if (m_timestamp > 0xf9FFff) {
+        m_timestamp -= 0xfa0000; // Substract 16384000, corresponding to one second
+        m_edi_time += 1;
+    }
+
+    m_edi_tagDSTI.set_edi_time(m_edi_time, m_clock_tai.get_offset());
+    m_edi_tagDSTI.tsta = m_timestamp & 0xffffff;
+
     m_edi_tagDSTI.rfadf = false;
     // DFCT is handled inside the TagDSTI
+
+    // TODO invent custom TAG to carry audio levels metadata
 
     edi::TagSSm edi_tagPayload;
     // TODO make edi_tagPayload.stid configurable

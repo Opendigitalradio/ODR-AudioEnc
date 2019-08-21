@@ -14,34 +14,34 @@
 
    */
 /*
-   This file is part of ODR-DabMux.
+   This file is part of the ODR-mmbTools.
 
-   ODR-DabMux is free software: you can redistribute it and/or modify
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   ODR-DabMux is distributed in the hope that it will be useful,
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with ODR-DabMux.  If not, see <http://www.gnu.org/licenses/>.
-   */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "config.h"
 #include <vector>
 #include <list>
 #include <cstdio>
 #include <cstring>
-#include <stdint.h>
+#include <cstdint>
 #include <arpa/inet.h>
 #include <stdexcept>
 #include <sstream>
-#include <iostream>
-#include "edi/PFT.h"
+#include "PFT.h"
 #include "crc.h"
+#include "ReedSolomon.h"
 
 namespace edi {
 
@@ -61,13 +61,15 @@ PFT::PFT(const configuration_t &conf) :
     m_verbose(conf.verbose)
     {
         if (m_k > 207) {
+            etiLog.level(warn) <<
+                "EDI PFT: maximum chunk size is 207.";
             throw std::out_of_range("EDI PFT Chunk size too large.");
         }
 
         if (m_m > 5) {
-            clog <<
+            etiLog.level(warn) <<
                 "EDI PFT: high number of recoverable fragments"
-                " may lead to large overhead" << endl;
+                " may lead to large overhead";
             // See TS 102 821, 7.2.1 Known values, list entry for 'm'
         }
     }

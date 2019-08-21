@@ -41,6 +41,7 @@ Requirements
 * JACK audio connection kit (optional)
 * The alsa libraries (libasound2, optional)
 * libvlc and vlc for the plugins (optional)
+* (optional) cURL to download the TAI-UTC bulletin, needed for timestamps in EDI output.
 
 For Debian (and Ubuntu) use
 

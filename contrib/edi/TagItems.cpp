@@ -10,31 +10,39 @@
 
    */
 /*
-   This file is part of ODR-DabMux.
+   This file is part of the ODR-mmbTools.
 
-   ODR-DabMux is free software: you can redistribute it and/or modify
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   ODR-DabMux is distributed in the hope that it will be useful,
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with ODR-DabMux.  If not, see <http://www.gnu.org/licenses/>.
-   */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "config.h"
-#include "edi/TagItems.h"
+#include "TagItems.h"
 #include <vector>
 #include <iostream>
 #include <string>
-#include <stdint.h>
+#include <cstdint>
 #include <stdexcept>
 
 namespace edi {
+
+TagStarPTR::TagStarPTR(const std::string& protocol)
+    : m_protocol(protocol)
+{
+    if (m_protocol.size() != 4) {
+        throw std::runtime_error("TagStarPTR protocol invalid length");
+    }
+}
 
 std::vector<uint8_t> TagStarPTR::Assemble()
 {
@@ -47,10 +55,7 @@ std::vector<uint8_t> TagStarPTR::Assemble()
     packet.push_back(0);
     packet.push_back(0x40);
 
-    if (protocol.size() != 4) {
-        throw std::runtime_error("TagStarPTR protocol invalid length");
-    }
-    packet.insert(packet.end(), protocol.begin(), protocol.end());
+    packet.insert(packet.end(), m_protocol.begin(), m_protocol.end());
 
     // Major
     packet.push_back(0);
@@ -59,6 +64,139 @@ std::vector<uint8_t> TagStarPTR::Assemble()
     // Minor
     packet.push_back(0);
     packet.push_back(0);
+    return packet;
+}
+
+std::vector<uint8_t> TagDETI::Assemble()
+{
+    std::string pack_data("deti");
+    std::vector<uint8_t> packet(pack_data.begin(), pack_data.end());
+    packet.reserve(256);
+
+    // Placeholder for length
+    packet.push_back(0);
+    packet.push_back(0);
+    packet.push_back(0);
+    packet.push_back(0);
+
+    uint8_t fct  = dlfc % 250;
+    uint8_t fcth = dlfc / 250;
+
+
+    uint16_t detiHeader = fct | (fcth << 8) | (rfudf << 13) | (ficf << 14) | (atstf << 15);
+    packet.push_back(detiHeader >> 8);
+    packet.push_back(detiHeader & 0xFF);
+
+    uint32_t etiHeader = mnsc | (rfu << 16) | (rfa << 17) |
+                        (fp << 19) | (mid << 22) | (stat << 24);
+    packet.push_back((etiHeader >> 24) & 0xFF);
+    packet.push_back((etiHeader >> 16) & 0xFF);
+    packet.push_back((etiHeader >> 8) & 0xFF);
+    packet.push_back(etiHeader & 0xFF);
+
+    if (atstf) {
+        packet.push_back(utco);
+
+        packet.push_back((seconds >> 24) & 0xFF);
+        packet.push_back((seconds >> 16) & 0xFF);
+        packet.push_back((seconds >> 8) & 0xFF);
+        packet.push_back(seconds & 0xFF);
+
+        packet.push_back((tsta >> 16) & 0xFF);
+        packet.push_back((tsta >> 8) & 0xFF);
+        packet.push_back(tsta & 0xFF);
+    }
+
+    if (ficf) {
+        for (size_t i = 0; i < fic_length; i++) {
+            packet.push_back(fic_data[i]);
+        }
+    }
+
+    if (rfudf) {
+        packet.push_back((rfud >> 16) & 0xFF);
+        packet.push_back((rfud >> 8) & 0xFF);
+        packet.push_back(rfud & 0xFF);
+    }
+
+    // calculate and update size
+    // remove TAG name and TAG length fields and convert to bits
+    uint32_t taglength = (packet.size() - 8) * 8;
+
+    // write length into packet
+    packet[4] = (taglength >> 24) & 0xFF;
+    packet[5] = (taglength >> 16) & 0xFF;
+    packet[6] = (taglength >> 8) & 0xFF;
+    packet[7] = taglength & 0xFF;
+
+    dlfc = (dlfc+1) % 5000;
+
+    /*
+    std::cerr << "TagItem deti, packet.size " << packet.size() << std::endl;
+    std::cerr << "              fic length " << fic_length << std::endl;
+    std::cerr << "              length " << taglength / 8 << std::endl;
+    */
+    return packet;
+}
+
+void TagDETI::set_edi_time(const std::time_t t, int tai_utc_offset)
+{
+    utco = tai_utc_offset - 32;
+
+    const std::time_t posix_timestamp_1_jan_2000 = 946684800;
+
+    seconds = t - posix_timestamp_1_jan_2000 + utco;
+}
+
+std::vector<uint8_t> TagESTn::Assemble()
+{
+    std::string pack_data("est");
+    std::vector<uint8_t> packet(pack_data.begin(), pack_data.end());
+    packet.reserve(mst_length*8 + 16);
+
+    packet.push_back(id);
+
+    // Placeholder for length
+    packet.push_back(0);
+    packet.push_back(0);
+    packet.push_back(0);
+    packet.push_back(0);
+
+    if (tpl > 0x3F) {
+        throw std::runtime_error("TagESTn: invalid TPL value");
+    }
+
+    if (sad > 0x3FF) {
+        throw std::runtime_error("TagESTn: invalid SAD value");
+    }
+
+    if (scid > 0x3F) {
+        throw std::runtime_error("TagESTn: invalid SCID value");
+    }
+
+    uint32_t sstc = (scid << 18) | (sad << 8) | (tpl << 2) | rfa;
+    packet.push_back((sstc >> 16) & 0xFF);
+    packet.push_back((sstc >> 8) & 0xFF);
+    packet.push_back(sstc & 0xFF);
+
+    for (size_t i = 0; i < mst_length * 8; i++) {
+        packet.push_back(mst_data[i]);
+    }
+
+    // calculate and update size
+    // remove TAG name and TAG length fields and convert to bits
+    uint32_t taglength = (packet.size() - 8) * 8;
+
+    // write length into packet
+    packet[4] = (taglength >> 24) & 0xFF;
+    packet[5] = (taglength >> 16) & 0xFF;
+    packet[6] = (taglength >> 8) & 0xFF;
+    packet[7] = taglength & 0xFF;
+
+    /*
+    std::cerr << "TagItem ESTn, length " << packet.size() << std::endl;
+    std::cerr << "              mst_length " << mst_length << std::endl;
+    */
     return packet;
 }
 
@@ -134,6 +272,35 @@ void TagDSTI::set_edi_time(const std::time_t t, int tai_utc_offset)
     seconds = t - posix_timestamp_1_jan_2000 + utco;
 }
 
+#if 0
+/* Update the EDI time. t is in UTC, TAI offset is requested from adjtimex */
+void TagDSTI::set_edi_time(const std::time_t t)
+{
+    if (tai_offset_cache_updated_at == 0 or tai_offset_cache_updated_at + 3600 < t) {
+        struct timex timex_request;
+        timex_request.modes = 0;
+
+        int err = adjtimex(&timex_request);
+        if (err == -1) {
+            throw std::runtime_error("adjtimex failed");
+        }
+
+        if (timex_request.tai == 0) {
+            throw std::runtime_error("CLOCK_TAI is not properly set up");
+        }
+        tai_offset_cache = timex_request.tai;
+        tai_offset_cache_updated_at = t;
+
+        fprintf(stderr, "adjtimex: %d, tai %d\n", err, timex_request.tai);
+    }
+
+    utco = tai_offset_cache - 32;
+
+    const std::time_t posix_timestamp_1_jan_2000 = 946684800;
+
+    seconds = t - posix_timestamp_1_jan_2000 + utco;
+}
+#endif
 
 std::vector<uint8_t> TagSSm::Assemble()
 {
@@ -191,6 +358,7 @@ std::vector<uint8_t> TagSSm::Assemble()
     */
     return packet;
 }
+
 
 std::vector<uint8_t> TagStarDMY::Assemble()
 {

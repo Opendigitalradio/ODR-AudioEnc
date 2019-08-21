@@ -84,6 +84,16 @@ PKG_CHECK_MODULES([LIBFDKAAC], [fdk-aac])
 AC_SUBST([LIBFDKAAC_CFLAGS])
 AC_SUBST([LIBFDKAAC_LIBS])
 
+AC_CHECK_LIB(curl, curl_easy_init)
+have_curl=$ac_cv_lib_curl_curl_easy_init
+
+AS_IF([test "x$have_curl" = "xyes"],
+             [AC_DEFINE(HAVE_CURL, [1], [Define if cURL is available])])
+
+AS_IF([test "x$have_curl" = "xno"],
+             [AC_MSG_WARN([cURL not found, timestamps will not work])])
+
+
 # We need to have the ODR fdk-aac, the upstream one doesn't support DAB+
 AC_MSG_CHECKING([for DAB+ support in FDK-AAC])
 AC_COMPILE_IFELSE( [AC_LANG_PROGRAM([[#include <fdk-aac/aacenc_lib.h>]],

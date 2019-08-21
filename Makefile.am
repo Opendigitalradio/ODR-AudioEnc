@@ -104,24 +104,30 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/utils.h \
 						   src/wavfile.cpp \
 						   src/common.h \
+						   contrib/ClockTAI.cpp \
+						   contrib/ClockTAI.h \
+						   contrib/RemoteControl.cpp \
+						   contrib/RemoteControl.h \
+						   contrib/Log.cpp \
+						   contrib/Log.h \
 						   contrib/Socket.cpp \
 						   contrib/Socket.h \
+						   contrib/crc.c \
+						   contrib/crc.h \
+						   contrib/ReedSolomon.cpp \
+						   contrib/ReedSolomon.h \
+						   contrib/ThreadsafeQueue.h \
 						   contrib/edi/AFPacket.cpp \
 						   contrib/edi/AFPacket.h \
 						   contrib/edi/Config.h \
-						   contrib/edi/crc.c \
-						   contrib/edi/crc.h \
 						   contrib/edi/Interleaver.cpp \
 						   contrib/edi/Interleaver.h \
 						   contrib/edi/PFT.cpp \
 						   contrib/edi/PFT.h \
-						   contrib/edi/ReedSolomon.cpp \
-						   contrib/edi/ReedSolomon.h \
 						   contrib/edi/TagItems.cpp \
 						   contrib/edi/TagItems.h \
 						   contrib/edi/TagPacket.cpp \
 						   contrib/edi/TagPacket.h \
-						   contrib/edi/ThreadsafeQueue.h \
 						   contrib/edi/Transport.cpp \
 						   contrib/edi/Transport.h \
 						   $(FEC_SOURCES)

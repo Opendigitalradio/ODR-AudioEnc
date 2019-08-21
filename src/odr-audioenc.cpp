@@ -188,6 +188,8 @@ void usage(const char* name)
     "                                          If more than one ZMQ output is given, the socket\n"
     "                                          will be connected to all listed endpoints.\n"
     "     -e, --edi=URI                        EDI output uri, (e.g. 'tcp://localhost:7000')\n"
+    "     -T, --timestamp-delay=DELAY_MS       Enabled timestamps in EDI (requires TAI clock bulletin download) and\n"
+    "                                          add a delay (in milliseconds) to the timestamps carried in EDI\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
     "     -p, --pad=BYTES                      Enable PAD insertion and set PAD size in bytes.\n"
     "     -P, --pad-fifo=FILENAME              Set PAD data input fifo name"
@@ -431,6 +433,9 @@ public:
     shared_ptr<Output::File> file_output;
     shared_ptr<Output::ZMQ> zmq_output;
     Output::EDI edi_output;
+
+    bool tist_enabled = false;
+    uint32_t tist_delay_ms = 0;
 
     vector<string> output_uris;
     vector<string> edi_output_uris;
@@ -1310,6 +1315,7 @@ int main(int argc, char *argv[])
         {"dabpsy",                 required_argument,  0,  5 },
         {"device",                 required_argument,  0, 'd'},
         {"edi",                    required_argument,  0, 'e'},
+        {"timestamp-delay",        required_argument,  0, 'T'},
         {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
         {"input",                  required_argument,  0, 'i'},
@@ -1418,6 +1424,10 @@ int main(int argc, char *argv[])
             break;
         case 'e':
             audio_enc.edi_output_uris.push_back(optarg);
+            break;
+        case 'T':
+            audio_enc.tist_enabled = true;
+            audio_enc.tist_delay_ms = std::stoi(optarg);
             break;
         case 'f':
             if (strcmp(optarg, "raw") == 0) {

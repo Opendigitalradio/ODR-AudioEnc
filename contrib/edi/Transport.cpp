@@ -9,25 +9,23 @@
 
    */
 /*
-   This file is part of ODR-DabMux.
+   This file is part of the ODR-mmbTools.
 
-   ODR-DabMux is free software: you can redistribute it and/or modify
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   ODR-DabMux is distributed in the hope that it will be useful,
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with ODR-DabMux.  If not, see <http://www.gnu.org/licenses/>.
-   */
-
-#include "edi/Transport.h"
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Transport.h"
 #include <iterator>
-#include <iostream>
 
 using namespace std;
 
@@ -35,31 +33,31 @@ namespace edi {
 
 void configuration_t::print() const
 {
-    clog << "EDI" << endl;
-    clog << " verbose     " << verbose << endl;
+    etiLog.level(info) << "EDI";
+    etiLog.level(info) << " verbose     " << verbose;
     for (auto edi_dest : destinations) {
         if (auto udp_dest = dynamic_pointer_cast<edi::udp_destination_t>(edi_dest)) {
-            clog << " UDP to " << udp_dest->dest_addr << ":" << dest_port << endl;
+            etiLog.level(info) << " UDP to " << udp_dest->dest_addr << ":" << dest_port;
             if (not udp_dest->source_addr.empty()) {
-                clog << "  source      " << udp_dest->source_addr << endl;
-                clog << "  ttl         " << udp_dest->ttl << endl;
+                etiLog.level(info) << "  source      " << udp_dest->source_addr;
+                etiLog.level(info) << "  ttl         " << udp_dest->ttl;
             }
-            clog << "  source port " << udp_dest->source_port << endl;
+            etiLog.level(info) << "  source port " << udp_dest->source_port;
         }
         else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_server_t>(edi_dest)) {
-            clog << " TCP listening on port " << tcp_dest->listen_port << endl;
-            clog << "  max frames queued    " << tcp_dest->max_frames_queued << endl;
+            etiLog.level(info) << " TCP listening on port " << tcp_dest->listen_port;
+            etiLog.level(info) << "  max frames queued    " << tcp_dest->max_frames_queued;
         }
         else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(edi_dest)) {
-            clog << " TCP client connecting to " << tcp_dest->dest_addr << ":" << tcp_dest->dest_port << endl;
-            clog << "  max frames queued    " << tcp_dest->max_frames_queued << endl;
+            etiLog.level(info) << " TCP client connecting to " << tcp_dest->dest_addr << ":" << tcp_dest->dest_port;
+            etiLog.level(info) << "  max frames queued    " << tcp_dest->max_frames_queued;
         }
         else {
             throw logic_error("EDI destination not implemented");
         }
     }
     if (interleaver_enabled()) {
-        clog << " interleave     " << latency_frames * 24 << " ms" << endl;
+        etiLog.level(info) << " interleave     " << latency_frames * 24 << " ms";
     }
 }
 
@@ -69,7 +67,7 @@ Sender::Sender(const configuration_t& conf) :
     edi_pft(m_conf)
 {
     if (m_conf.verbose) {
-        clog << "Setup EDI" << endl;
+        etiLog.log(info, "Setup EDI");
     }
 
     for (const auto& edi_dest : m_conf.destinations) {
@@ -107,7 +105,7 @@ Sender::Sender(const configuration_t& conf) :
     }
 
     if (m_conf.verbose) {
-        clog << "EDI set up" << endl;
+        etiLog.log(info, "EDI set up");
     }
 }
 

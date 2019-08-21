@@ -19,12 +19,14 @@
 
 #pragma once
 #include <vector>
+#include <chrono>
 #include <deque>
 #include <cstdint>
 #include <cstddef>
 #include <cstdio>
 #include "common.h"
 #include "zmq.hpp"
+#include "ClockTAI.h"
 #include "edi/TagItems.h"
 #include "edi/TagPacket.h"
 #include "edi/AFPacket.h"
@@ -134,18 +136,24 @@ class EDI: public Base {
         void add_udp_destination(const std::string& host, unsigned int port);
         void add_tcp_destination(const std::string& host, unsigned int port);
 
+        void set_tist(bool enable, uint32_t delay_ms);
+
         bool enabled() const;
 
         virtual bool write_frame(const uint8_t *buf, size_t len) override;
-
-        // TODO audio levels metadata
 
     private:
         edi::configuration_t m_edi_conf;
         std::shared_ptr<edi::Sender> m_edi_sender;
 
+        uint32_t m_timestamp = 0;
+        std::time_t m_edi_time = 0;
+
         edi::TagDSTI m_edi_tagDSTI;
 
+        ClockTAI m_clock_tai;
+        bool m_tist = false;
+        uint32_t m_delay_ms = 0;
 };
 
 }
