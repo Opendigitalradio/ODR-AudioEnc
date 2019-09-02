@@ -106,6 +106,7 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/common.h \
 						   contrib/ClockTAI.cpp \
 						   contrib/ClockTAI.h \
+						   contrib/Globals.cpp \
 						   contrib/RemoteControl.cpp \
 						   contrib/RemoteControl.h \
 						   contrib/Log.cpp \
