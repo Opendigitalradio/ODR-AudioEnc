@@ -195,7 +195,6 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
         for (int32_t sub_ms = (m_delay_ms % 1000); sub_ms > 0; sub_ms -= 24) {
             m_timestamp += 24 << 14; // Shift 24ms by 14 to Timestamp level 2
         }
-
     }
 
     edi::TagStarPTR edi_tagStarPtr("DSTI");

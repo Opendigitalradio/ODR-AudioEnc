@@ -609,6 +609,10 @@ int AudioEnc::run()
         }
     }
 
+    if (not edi_output_uris.empty()) {
+        edi_output.set_tist(tist_enabled, tist_delay_ms);
+    }
+
     if (padlen != 0) {
         int flags;
         if (mkfifo(pad_fifo, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH) != 0) {
@@ -1368,7 +1372,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:i:j:k:L:o:r:d:p:P:s:S:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             audio_enc.aot = AOT_DABPLUS_AAC_LC;
