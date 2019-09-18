@@ -188,6 +188,7 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
         using Sec = chrono::seconds;
         const auto now = chrono::time_point_cast<Sec>(chrono::system_clock::now());
         m_edi_time = chrono::system_clock::to_time_t(now) + (m_delay_ms / 1000);
+        m_send_version_at_time = m_edi_time;
 
         /* TODO we still have to see if 24ms granularity is achievable, given that
          * one DAB+ super frame is carried over more than 1 ETI frame.
@@ -206,6 +207,8 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
     if (m_timestamp > 0xf9FFff) {
         m_timestamp -= 0xfa0000; // Substract 16384000, corresponding to one second
         m_edi_time += 1;
+
+        m_num_seconds_sent++;
     }
 
     m_edi_tagDSTI.set_edi_time(m_edi_time, m_clock_tai.get_offset());
@@ -214,12 +217,22 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
     m_edi_tagDSTI.rfadf = false;
     // DFCT is handled inside the TagDSTI
 
-    // TODO invent custom TAG to carry audio levels metadata
-
     edi::TagSSm edi_tagPayload;
     // TODO make edi_tagPayload.stid configurable
     edi_tagPayload.istd_data = buf;
     edi_tagPayload.istd_length = len;
+
+    edi::TagODRAudioLevels edi_tagAudioLevels(m_audio_left, m_audio_right);
+
+    stringstream ss;
+    ss << PACKAGE_NAME << " " <<
+#if defined(GITVERSION)
+        GITVERSION;
+#else
+    PACKAGE_VERSION;
+#endif
+    edi::TagODRVersion edi_tagVersion(ss.str(), m_num_seconds_sent);
+
 
     // The above Tag Items will be assembled into a TAG Packet
     edi::TagPacket edi_tagpacket(m_edi_conf.tagpacket_alignment);
@@ -228,6 +241,13 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
     edi_tagpacket.tag_items.push_back(&edi_tagStarPtr);
     edi_tagpacket.tag_items.push_back(&m_edi_tagDSTI);
     edi_tagpacket.tag_items.push_back(&edi_tagPayload);
+    edi_tagpacket.tag_items.push_back(&edi_tagAudioLevels);
+
+    // Send version information only every 10 seconds to save bandwidth
+    if (m_send_version_at_time < m_edi_time) {
+        m_send_version_at_time += 10;
+        edi_tagpacket.tag_items.push_back(&edi_tagVersion);
+    }
 
     m_edi_sender->write(edi_tagpacket);
 

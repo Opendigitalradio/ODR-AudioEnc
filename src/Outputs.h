@@ -147,7 +147,9 @@ class EDI: public Base {
         std::shared_ptr<edi::Sender> m_edi_sender;
 
         uint32_t m_timestamp = 0;
+        uint32_t m_num_seconds_sent = 0;
         std::time_t m_edi_time = 0;
+        std::time_t m_send_version_at_time = 0;
 
         edi::TagDSTI m_edi_tagDSTI;
 
