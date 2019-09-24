@@ -52,6 +52,44 @@ AC_ARG_ENABLE([jack],
 AC_ARG_ENABLE([vlc],
         AS_HELP_STRING([--enable-vlc], [Enable libvlc input]))
 
+AC_ARG_ENABLE([gst],
+        AS_HELP_STRING([--enable-gst], [Enable GStreamer input]))
+
+GST_REQUIRED=1.0.0
+
+AS_IF([test "x$enable_gst" = "xyes"],
+    [PKG_CHECK_MODULES(GST, [
+      gstreamer-1.0              >= $GST_REQUIRED
+      gstreamer-base-1.0         >= $GST_REQUIRED
+      gstreamer-controller-1.0   >= $GST_REQUIRED
+      gstreamer-audio-1.0        >= $GST_REQUIRED
+    ], [
+      AC_SUBST(GST_CFLAGS)
+      AC_SUBST(GST_LIBS)
+    ], [
+    AC_MSG_ERROR([
+      Can't find the following GStreamer development packages:
+
+        gstreamer-1.0              >= $GST_REQUIRED
+        gstreamer-base-1.0         >= $GST_REQUIRED
+        gstreamer-controller-1.0   >= $GST_REQUIRED
+        gstreamer-audio-1.0        >= $GST_REQUIRED
+
+      Please make sure you have the necessary GStreamer-1.0
+      development headers installed.
+
+      On debian/Ubuntu systems you will probably need to install the
+      'libgstreamer1.0-dev' and 'libgstreamer-plugins-base1.0-dev' packages.
+
+      On RPM-based systems you will probably need to install the
+      'gstreamer-devel-1.0' package.
+    ])
+  ])
+])
+
+AS_IF([test "x$enable_gst" = "xyes"],
+       AC_DEFINE(HAVE_GST, [1], [Define if GST input is enabled]))
+
 
 AS_IF([test "x$enable_alsa" = "xyes"],
       [AM_PATH_ALSA(1.0.25)])
@@ -130,7 +168,7 @@ echo
 echo "Features enabled:"
 enabled=""
 disabled=""
-for feature in jack vlc alsa
+for feature in jack vlc alsa gst
 do
     eval var=\$enable_$feature
     AS_IF([test "x$var" = "xyes"],

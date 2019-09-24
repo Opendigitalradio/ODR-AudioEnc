@@ -34,6 +34,7 @@
  *  Interesting starting points for the encoder
  *  - \ref odr-audioenc.cpp Main encoder file
  *  - \ref VLCInput.h VLC Input
+ *  - \ref GSTInput.h GST Input
  *  - \ref AlsaInput.h Alsa Input
  *  - \ref JackInput.h JACK Input
  *  - \ref Outputs.h ZeroMQ, file and EDI outputs
@@ -53,6 +54,7 @@
 #include "FileInput.h"
 #include "JackInput.h"
 #include "VLCInput.h"
+#include "GSTInput.h"
 #include "SampleQueue.h"
 #include "AACDecoder.h"
 #include "StatsPublish.h"
@@ -65,6 +67,7 @@ extern "C" {
 #include "utils.h"
 }
 
+#include <algorithm>
 #include <vector>
 #include <deque>
 #include <chrono>
@@ -103,7 +106,7 @@ void usage(const char* name)
     "ODR-AudioEnc %s is an audio encoder for both DAB and DAB+.\n"
     "The encoder can read from JACK, ALSA or\n"
     "a file source and encode to a ZeroMQ output for ODR-DabMux.\n"
-    "It can also use libvlc as an input.\n"
+    "It can also use libvlc and GStreamer as input.\n"
     "\n"
     "The -D option enables sound card clock drift compensation.\n"
     "A consumer sound card has a clock that is always a bit imprecise, and\n"
@@ -161,6 +164,12 @@ void usage(const char* name)
     "     -W, --write-icy-text-dl-plus         When writing the ICY Text into the file, add DL Plus information.\n"
 #else
     "     The VLC input was disabled at compile-time\n"
+#endif
+    "   For the GStreamer input:\n"
+#if HAVE_GST
+    "     -G, --gst-uri=uri                    Enable GStreamer input and use the URI given as source\n"
+#else
+    "     The GStreamer input was disabled at compile-time\n"
 #endif
     "   Drift compensation\n"
     "     -D, --drift-comp                     Enable ALSA/VLC sound card drift compensation.\n"
@@ -414,6 +423,8 @@ public:
     vector<string> vlc_additional_opts;
     unsigned verbosity = 0;
 
+    string gst_uri;
+
     string jack_name;
 
     bool drift_compensation = false;
@@ -449,8 +460,8 @@ public:
     string dab_channel_mode;
 
     /* Keep track of peaks */
-    int peak_left  = 0;
-    int peak_right = 0;
+    int16_t peak_left  = 0;
+    int16_t peak_right = 0;
 
     /* On silence, die after the silence_timeout expires */
     bool die_on_silence = false;
@@ -487,7 +498,7 @@ public:
     ~AudioEnc();
 
     int run();
-    bool send_frame(const uint8_t *buf, size_t len, int peak_left, int peak_right);
+    bool send_frame(const uint8_t *buf, size_t len, int16_t peak_left, int16_t peak_right);
     shared_ptr<InputInterface> initialise_input();
 };
 
@@ -503,6 +514,9 @@ int AudioEnc::run()
 #endif
 #if HAVE_VLC
     if (not vlc_uri.empty()) num_inputs++;
+#endif
+#if HAVE_GST
+    if (not gst_uri.empty()) num_inputs++;
 #endif
 
     if (num_inputs == 0) {
@@ -977,8 +991,8 @@ int AudioEnc::run()
         for (int i = 0; i < read_bytes; i+=4) {
             int16_t l = input_buf[i] | (input_buf[i+1] << 8);
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
-            peak_left  = MAX(peak_left,  l);
-            peak_right = MAX(peak_right, r);
+            peak_left  = std::max(peak_left,  l);
+            peak_right = std::max(peak_right, r);
         }
 
         if (stats_publisher) {
@@ -992,7 +1006,7 @@ int AudioEnc::run()
          * threshold is 0, and not configurable. The rationale is that we want to
          * guard against connection issues, not source level issues.
          */
-        if (die_on_silence && MAX(peak_left, peak_right) == 0) {
+        if (die_on_silence && std::max(peak_left, peak_right) == 0) {
             const unsigned int frame_time_msec = 1000ul *
                 read_bytes / (BYTES_PER_SAMPLE * channels * sample_rate);
 
@@ -1174,7 +1188,7 @@ int AudioEnc::run()
             if (show_level) {
                 if (channels == 1) {
                     fprintf(stderr, "\rIn: [%-6s] %1s %1s %1s",
-                            level(1, MAX(peak_right, peak_left)),
+                            level(1, std::max(peak_right, peak_left)),
                             status & STATUS_PAD_INSERTED ? "P" : " ",
                             status & STATUS_UNDERRUN ? "U" : " ",
                             status & STATUS_OVERRUN ? "O" : " ");
@@ -1215,7 +1229,7 @@ int AudioEnc::run()
     return retval;
 }
 
-bool AudioEnc::send_frame(const uint8_t *buf, size_t len, int peak_left, int peak_right)
+bool AudioEnc::send_frame(const uint8_t *buf, size_t len, int16_t peak_left, int16_t peak_right)
 {
     if (file_output) {
         file_output->update_audio_levels(peak_left, peak_right);
@@ -1287,6 +1301,11 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
                 queue);
     }
 #endif
+#if HAVE_GST
+    else if (not gst_uri.empty()) {
+        input = make_shared<GSTInput>(gst_uri, sample_rate, channels, queue);
+    }
+#endif
 #if HAVE_ALSA
     else if (drift_compensation) {
         input = make_shared<AlsaInputThreaded>(alsa_device, channels,
@@ -1322,6 +1341,7 @@ int main(int argc, char *argv[])
         {"timestamp-delay",        required_argument,  0, 'T'},
         {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
+        {"gst-uri",                required_argument,  0, 'G'},
         {"input",                  required_argument,  0, 'i'},
         {"jack",                   required_argument,  0, 'j'},
         {"output",                 required_argument,  0, 'o'},
@@ -1372,7 +1392,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:G:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             audio_enc.aot = AOT_DABPLUS_AAC_LC;
@@ -1442,6 +1462,11 @@ int main(int argc, char *argv[])
                 return 1;
             }
             break;
+#ifdef HAVE_GST
+        case 'G':
+            audio_enc.gst_uri = optarg;
+            break;
+#endif
         case 'i':
             audio_enc.infile = optarg;
             break;

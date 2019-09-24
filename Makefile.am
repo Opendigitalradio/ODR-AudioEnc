@@ -77,8 +77,10 @@ odr_audioenc_LDADD       = libtoolame-dab.la \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
-						   $(LIBVLC_LIBS) $(LIBFDKAAC_LIBS)
+						   $(LIBVLC_LIBS) $(LIBFDKAAC_LIBS) \
+						   $(GST_LIBS)
 odr_audioenc_CXXFLAGS    = $(LIBFDKAAC_CFLAGS) $(GITVERSION_FLAGS) \
+						   $(GST_CFLAGS) \
 						   -Wall -ggdb -O2 -Isrc -Icontrib
 
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
@@ -88,6 +90,8 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/AlsaInput.h \
 						   src/JackInput.cpp \
 						   src/JackInput.h \
+						   src/GSTInput.cpp \
+						   src/GSTInput.h \
 						   src/VLCInput.cpp \
 						   src/VLCInput.h \
 						   src/Outputs.cpp \
