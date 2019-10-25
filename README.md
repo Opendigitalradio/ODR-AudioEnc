@@ -4,7 +4,7 @@ ODR-AudioEnc Package
 This package contains a DAB and DAB+ encoder that integrates into the
 ODR-mmbTools.
 
-The DAB encoder is based on toolame. The DAB+ encoder uses a modified library
+The DAB encoder is based on *toolame*. The DAB+ encoder uses a modified library
 of the Fraunhofer FDK AAC code from Android, patched for 960-transform to do
 DAB+ broadcast encoding. FDK-AAC has to be supplied separately, and is available
 in the [repository](https://github.com/Opendigitalradio/fdk-aac.git).
@@ -50,7 +50,7 @@ For Debian (and Ubuntu) use
     $ sudo apt-get install libjack-jackd2-dev jackd2
     $ sudo apt-get install libasound2-dev libasound2
 
-Attention: on debian buster, you'll need `libzmq5-dev` and `vlc-plugins-base`
+**Attention**: on Debian Buster, you'll need `libzmq5-dev` and `vlc-plugins-base`
 
 Installation
 ============
@@ -104,13 +104,13 @@ check that it enables the libsamplerate resampler, and not the ugly resampler.
 
 The codecs do not behave well when your source material has peaks that go close
 to saturation, especially when you have to resample. When you see little
-exclamation marks with the -l option, it's too loud! Reduce the gain at the
+exclamation marks with the `-l` option, it's too loud! Reduce the gain at the
 source, or use the gain option if that's not possible.
 
 
 DAB+ AAC encoder configuration
 ------------------------------
-By default, when not overridden by the --aaclc, --sbr or --ps options,
+By default, when not overridden by the `--aaclc`, `--sbr` or `--ps` options,
 the encoder is configured according to bitrate and number of channels.
 
 If only one channel is used, SBR (Spectral-Band Replication, also called
@@ -124,7 +124,7 @@ ZeroMQ output
 -------------
 
 The ZeroMQ output included in ODR-AudioEnc is able to connect to
-one or several instances of ODR-DabMux. The -o option can be used
+one or several instances of ODR-DabMux. The `-o` option can be used
 more than once to achieve this.
 
 Scenario *wav file for offline processing*
@@ -150,7 +150,7 @@ To enable sound card drift compensation, add the option **-D**:
     odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -D -l
 
 You might see **U** and **O** appearing on the terminal. They correspond
-to audio underruns and overruns that happen due to the different speeds at which
+to audio **u**nderruns and **o**verruns that happen due to the different speeds at which
 the audio is captured from the soundcard, and encoded into HE-AACv2.
 
 High occurrence of these will lead to audible artifacts.
@@ -162,15 +162,15 @@ Read a webstream and send it to ODR-DabMux over ZMQ:
     odr-audioenc -v $URL -r 32000 -c 2 -o $DST -l -b $BITRATE
 
 If you need to extract the ICY-Text information, e.g. for DLS, you can use the
-**-w <filename>** option to write the ICY-Text into a file that can be read by
+`-w <filename>` option to write the ICY-Text into a file that can be read by
 *ODR-PadEnc*.
 
 If the webstream bitrate is slightly wrong (bad clock at the source), you can
-enable drift compensation with **-D**.
+enable drift compensation with `-D`.
 
 Scenario *JACK input*
 ---------------------
-JACK input: Instead of -i (file input) or -d (ALSA input), use -j *name*, where *name* specifies the JACK
+JACK input: Instead of `-i (file input)` or `-d (ALSA input)`, use `-j *name*`, where *name* specifies the JACK
 name for the encoder:
 
     odr-audioenc -j myenc -l -b $BITRATE -o $DST
@@ -216,7 +216,7 @@ alsa virtual loop soundcard *snd-aloop* in the following way:
 
     modprobe snd-aloop
 
-This creates a new audio card (usually 'hw:1' but have a look at /proc/asound/card to be sure) that
+This creates a new audio card (usually 'hw:1' but have a look at `/proc/asound/card` to be sure) that
 can then be used for the alsa encoder.
 
     ./odr-audioenc -d hw:1 -c 2 -r 32000 -b 64 -o $DST -l
@@ -226,13 +226,13 @@ Then, you can use any media player that has an alsa output to play whatever sour
     cd your/preferred/music
     mplayer -ao alsa:device=hw=1.1 -srate 32000 -format=s16le -shuffle *
 
-Important: you must specify the correct sample rate and sample format on both
+**Important**: you must specify the correct sample rate and sample format on both
 "sides" of the virtual sound card.
 
 
 Scenario *mplayer and fifo*
 ---------------------------
-*Warning*: Connection through pipes to ODR-DabMux are deprecated in favour of ZeroMQ.
+**Warning**: Connection through pipes to ODR-DabMux are deprecated in favour of ZeroMQ.
 
 Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB muxer, with FIFO to odr-dabmux
 using mplayer. If there are no data in FIFO, encoder generates silence.
@@ -241,7 +241,7 @@ using mplayer. If there are no data in FIFO, encoder generates silence.
     odr-audioenc -l -f raw --fifo-silence -i /tmp/aac.fifo -r 32000 -c 2 -b 72 -o /dev/stdout \
     mbuffer -q -m 10k -P 100 -s 1080 > station1.fifo
 
-*Note*: Do not use /dev/stdout for pcm output in mplayer. Mplayer log messages on stdout.
+**Note**: Do not use `/dev/stdout` for PCM output in mplayer. Mplayer log messages on stdout.
 
 Return values
 -------------
@@ -254,7 +254,7 @@ odr-audioenc returns:
  * 4 it the ZeroMQ send failed
  * 5 if the input had a fault
 
-The *-R* option to get ODR-AudioEnc to restart the input
+The `-R` option to get ODR-AudioEnc to restart the input
 automatically has been deprecated. As this feature does not guarantee that
 the odr-audioenc process will never die, running it under a process supervisor
 is recommended regardless of this feature being enabled or not. It will be removed
