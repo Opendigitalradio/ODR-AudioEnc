@@ -163,6 +163,7 @@ libtoolame_dab_la_SOURCES = \
 
 EXTRA_DIST = $(top_srcdir)/bootstrap \
 			 $(top_srcdir)/README.md \
+			 $(top_srcdir)/TODO.md \
 			 $(top_srcdir)/ChangeLog \
 			 $(top_srcdir)/libtoolame-dab.sym \
 			 $(top_srcdir)/Doxyfile \
