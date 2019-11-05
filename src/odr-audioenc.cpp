@@ -1523,6 +1523,12 @@ int main(int argc, char *argv[])
         }
     }
 
-    return audio_enc.run();
+    try {
+        return audio_enc.run();
+    }
+    catch (const std::runtime_error& e) {
+        fprintf(stderr, "ODR-AudioEnc failed to start: %s\n", e.what());
+        return 1;
+    }
 }
 
