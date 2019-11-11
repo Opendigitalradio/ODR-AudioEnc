@@ -41,14 +41,15 @@ Requirements
 * libvlc and vlc for the plugins (optional)
 * (optional) cURL to download the TAI-UTC bulletin, needed for timestamps in EDI output.
 
-For Debian (and Ubuntu) use
+For Debian Buster, and related systems, use
 
+    $ sudo apt-get install build-essential automake libtool git
     $ sudo apt-get install libzmq3-dev libzmq5
-    $ sudo apt-get install libvlc-dev vlc-data vlc-nox
+    $ sudo apt-get install libvlc-dev vlc-data vlc-plugins-base
     $ sudo apt-get install libjack-jackd2-dev jackd2
     $ sudo apt-get install libasound2-dev libasound2
 
-**Attention**: on Debian Buster, you'll need `libzmq5-dev` and `vlc-plugins-base`
+**Attention**: on older Debian versions, you'll need `vlc-nox` instead of `vlc-plugins-base`
 
 Installation
 ============
