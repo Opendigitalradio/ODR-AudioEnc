@@ -11,7 +11,7 @@ matrix:
       addons: &linuxaddons
         apt:
           sources: &sources
-            - ubuntu-toolchain-r-test
+            - sourceline: 'ppa:ubuntu-toolchain-r-test'
           packages: &packages
             - libzmq3-dev
             - libzmq5
@@ -19,6 +19,7 @@ matrix:
             - libtool
             - vlc-data
             - libvlc-dev
+            - vlc-plugin-base
             - libasound2
             - libasound2-dev
             - libjack-jackd2-dev
