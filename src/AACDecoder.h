@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <fdk-aac/aacdecoder_lib.h>
+#include <aacdecoder_lib.h>
 #include <cstdint>
 #include <vector>
 #include "wavfile.h"

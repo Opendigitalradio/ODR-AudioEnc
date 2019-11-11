@@ -80,7 +80,7 @@ extern "C" {
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
-#include "fdk-aac/aacenc_lib.h"
+#include "aacenc_lib.h"
 
 extern "C" {
 #include "fec/fec.h"

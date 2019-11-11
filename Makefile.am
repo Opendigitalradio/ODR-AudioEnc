@@ -1,6 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = subdir-objects
 
+SUBDIRS = fdk-aac
+
 if IS_GIT_REPO
 GITVERSION_FLAGS = -DGITVERSION="\"`git describe --dirty`\""
 else
@@ -74,12 +76,16 @@ FEC_SOURCES = contrib/fec/char.h \
 
 odr_audioenc_LDFLAGS     = -no-install
 odr_audioenc_LDADD       = libtoolame-dab.la \
+						   fdk-aac/libfdk-aac-dab.la \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
-						   $(LIBVLC_LIBS) $(LIBFDKAAC_LIBS)
-odr_audioenc_CXXFLAGS    = $(LIBFDKAAC_CFLAGS) $(GITVERSION_FLAGS) \
-						   -Wall -ggdb -O2 -Isrc -Icontrib
+						   $(LIBVLC_LIBS)
+odr_audioenc_CXXFLAGS    = $(GITVERSION_FLAGS) \
+						   -Wall -ggdb -O2 -Isrc -Icontrib \
+						   -Ifdk-aac/libSYS/include/ \
+						   -Ifdk-aac/libAACenc/include/ \
+						   -Ifdk-aac/libAACdec/include/
 
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/FileInput.cpp \

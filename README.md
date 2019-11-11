@@ -6,8 +6,7 @@ ODR-mmbTools.
 
 The DAB encoder is based on *toolame*. The DAB+ encoder uses a modified library
 of the Fraunhofer FDK AAC code from Android, patched for 960-transform to do
-DAB+ broadcast encoding. FDK-AAC has to be supplied separately, and is available
-in the [repository](https://github.com/Opendigitalradio/fdk-aac.git).
+DAB+ broadcast encoding. Both encoders are part of this repository.
 
 The main tool is the *odr-audioenc* encoder, which can read audio from
 a file (raw or wav), from an ALSA source, from JACK or using libVLC,
@@ -36,7 +35,6 @@ Requirements
 ============
 
 * A C++11 compiler
-* [FDK-AAC](https://github.com/Opendigitalradio/fdk-aac.git) (already contains the DAB+ patches)
 * ZeroMQ 4.0.4 or more recent
 * JACK audio connection kit (optional)
 * The alsa libraries (libasound2, optional)
@@ -282,8 +280,10 @@ The ODR-AudioEnc project contains
  - The code for odr-audioenc in src/ licensed under the Apache Licence v2.0. See
    http://www.apache.org/licenses/LICENSE-2.0
  - libtoolame-dab, derived from TooLAME, licensed under LGPL v2.1 or later. See
-   libtoolame-dab/LGPL.txt. This is built into a shared library.
+   `libtoolame-dab/LGPL.txt`. This is built into a shared library.
  - EDI output (files in src/edi) are GPLv3+
+ - The FDK-AAC encoder, patched for DAB+ support, licensed under the terms in
+   `fdk-aac/NOTICE`, built into a shared library.
 
 The odr-audioenc binary is linked against the libtoolame-dab and fdk-aac
 shared libraries.

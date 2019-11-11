@@ -80,9 +80,6 @@ AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
 AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
 
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
-PKG_CHECK_MODULES([LIBFDKAAC], [fdk-aac])
-AC_SUBST([LIBFDKAAC_CFLAGS])
-AC_SUBST([LIBFDKAAC_LIBS])
 
 AC_CHECK_LIB(curl, curl_easy_init)
 have_curl=$ac_cv_lib_curl_curl_easy_init
@@ -93,19 +90,23 @@ AS_IF([test "x$have_curl" = "xyes"],
 AS_IF([test "x$have_curl" = "xno"],
              [AC_MSG_WARN([cURL not found, timestamps will not work])])
 
+AM_EXTRA_RECURSIVE_TARGETS([fdk-aac])
 
-# We need to have the ODR fdk-aac, the upstream one doesn't support DAB+
-AC_MSG_CHECKING([for DAB+ support in FDK-AAC])
-AC_COMPILE_IFELSE( [AC_LANG_PROGRAM([[#include <fdk-aac/aacenc_lib.h>]],
-                                    [[char dummy[TT_DABPLUS];]])],
-                   [
-                      AC_MSG_RESULT([yes])
-                    ],
-                    [
-                      AC_MSG_RESULT([no])
-                      AC_MSG_ERROR(["Your FDK-AAC does not support DAB+, make sure you have installed the ODR version!"])
-                    ]
-                 )
+#PKG_CHECK_MODULES([LIBFDKAAC], [fdk-aac])
+#AC_SUBST([LIBFDKAAC_CFLAGS])
+#AC_SUBST([LIBFDKAAC_LIBS])
+## We need to have the ODR fdk-aac, the upstream one doesn't support DAB+
+#AC_MSG_CHECKING([for DAB+ support in FDK-AAC])
+#AC_COMPILE_IFELSE( [AC_LANG_PROGRAM([[#include <fdk-aac/aacenc_lib.h>]],
+#                                    [[char dummy[TT_DABPLUS];]])],
+#                   [
+#                      AC_MSG_RESULT([yes])
+#                    ],
+#                    [
+#                      AC_MSG_RESULT([no])
+#                      AC_MSG_ERROR(["Your FDK-AAC does not support DAB+, make sure you have installed the ODR version!"])
+#                    ]
+#                 )
 
 
 
@@ -113,15 +114,19 @@ dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as
 dnl current.age.revision
 LIBTOOLAME_DAB_VERSION=0:1:0
+FDK_AAC_VERSION=2:0:0
 
 AS_IF([test x$enable_shared = xyes], [LIBS_PRIVATE=$LIBS], [LIBS_PUBLIC=$LIBS])
+AC_SUBST(FDK_AAC_VERSION)
 AC_SUBST(LIBTOOLAME_DAB_VERSION)
 AC_SUBST(LIBS_PUBLIC)
 AC_SUBST(LIBS_PRIVATE)
 
 AM_CONDITIONAL([IS_GIT_REPO], [test -d '.git'])
 
-AC_CONFIG_FILES([Makefile])
+AM_CONDITIONAL([EXAMPLE], [false])
+
+AC_CONFIG_FILES([Makefile fdk-aac/Makefile])
 AC_OUTPUT
 
 echo
