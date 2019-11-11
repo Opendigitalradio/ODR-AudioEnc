@@ -11,7 +11,7 @@ matrix:
       addons: &linuxaddons
         apt:
           sources: &sources
-            - sourceline: 'ppa:ubuntu-toolchain-r-test'
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
           packages: &packages
             - libzmq3-dev
             - libzmq5
