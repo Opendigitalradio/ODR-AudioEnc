@@ -51,6 +51,13 @@ StatsPublisher::StatsPublisher(const string& socket_path) :
     }
 }
 
+StatsPublisher::~StatsPublisher()
+{
+    if (m_sock != -1) {
+        close(m_sock);
+    }
+}
+
 void StatsPublisher::update_audio_levels(int16_t audiolevel_left, int16_t audiolevel_right)
 {
     m_audio_left = audiolevel_left;

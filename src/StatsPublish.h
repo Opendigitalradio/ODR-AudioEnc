@@ -34,6 +34,9 @@
 class StatsPublisher {
     public:
         StatsPublisher(const std::string& socket_path);
+        StatsPublisher(const StatsPublisher& other) = delete;
+        StatsPublisher& operator=(const StatsPublisher& other) = delete;
+        ~StatsPublisher();
 
         /*! Update peak audio level information */
         void update_audio_levels(int16_t audiolevel_left, int16_t audiolevel_right);
