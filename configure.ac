@@ -69,6 +69,14 @@ AS_IF([test "x$enable_vlc" = "xyes"], [
     AC_SUBST([LIBVLC_CFLAGS])
     AC_SUBST([LIBVLC_LIBS]) ] )
 
+PKG_CHECK_MODULES([LIBAVFILTER], [libavfilter])
+AC_SUBST([LIBAVFILTER_CFLAGS])
+AC_SUBST([LIBAVFILTER_LIBS])
+
+PKG_CHECK_MODULES([LIBAVUTIL], [libavutil])
+AC_SUBST([LIBAVUTIL_CFLAGS])
+AC_SUBST([LIBAVUTIL_LIBS])
+
 AS_IF([test "x$enable_vlc" = "xyes"],
        AC_DEFINE(HAVE_VLC, [1], [Define if VLC input is enabled]))
 

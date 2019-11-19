@@ -80,14 +80,17 @@ odr_audioenc_LDADD       = libtoolame-dab.la \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
-						   $(LIBVLC_LIBS)
+						   $(LIBVLC_LIBS) $(LIBAVFILTER_LIBS) $(LIBAVUTIL_LIBS)
 odr_audioenc_CXXFLAGS    = $(GITVERSION_FLAGS) \
+						   $(LIBVLC_CFLAGS) $(LIBAVFILTER_CFLAGS) $(LIBAVUTIL_CFLAGS) \
 						   -Wall -ggdb -O2 -Isrc -Icontrib \
 						   -Ifdk-aac/libSYS/include/ \
 						   -Ifdk-aac/libAACenc/include/ \
 						   -Ifdk-aac/libAACdec/include/
 
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
+						   src/Filter.cpp \
+						   src/Filter.h \
 						   src/FileInput.cpp \
 						   src/FileInput.h \
 						   src/AlsaInput.cpp \

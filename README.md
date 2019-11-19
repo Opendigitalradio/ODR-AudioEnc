@@ -282,7 +282,9 @@ The ODR-AudioEnc project contains
    http://www.apache.org/licenses/LICENSE-2.0
  - libtoolame-dab, derived from TooLAME, licensed under LGPL v2.1 or later. See
    `libtoolame-dab/LGPL.txt`. This is built into a shared library.
- - EDI output (files in src/edi) are GPLv3+
+ - The FFMPEG filtering is derived from LGPLv2.1+ code, and also links against
+   ffmpeg.
+ - EDI output (files in src/edi) are GPLv3+.
  - The FDK-AAC encoder, patched for DAB+ support, licensed under the terms in
    `fdk-aac/NOTICE`, built into a shared library.
 

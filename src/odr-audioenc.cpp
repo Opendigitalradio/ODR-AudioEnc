@@ -59,6 +59,7 @@
 #include "Outputs.h"
 #include "common.h"
 #include "wavfile.h"
+#include "Filter.h"
 
 extern "C" {
 #include "encryption.h"
@@ -477,6 +478,9 @@ public:
 
     SampleQueue<uint8_t> queue;
 
+    string filter_description;
+    unique_ptr<Filter> filter;
+
     HANDLE_AACENCODER encoder = nullptr;
     unique_ptr<AACDecoder> decoder;
     unique_ptr<StatsPublisher> stats_publisher;
@@ -633,6 +637,9 @@ int AudioEnc::run()
         }
     }
 
+    if (not filter_description.empty()) {
+        filter.reset(new Filter(filter_description));
+    }
 
     vec_u8 input_buf;
 
@@ -967,6 +974,14 @@ int AudioEnc::run()
         }
 #endif
 
+        /*! \section Filtering
+         * Run the audio through the ffmpeg/libavfilter
+         */
+        const size_t input_buf_size = input_buf.size();
+        auto filtered_buf = filter ? filter->filter(input_buf) : move(input_buf);
+        input_buf.resize(input_buf_size);
+
+
         /*! \section AudioLevel
          * Audio level measurement is always done assuming we have two
          * channels, and is formally wrong in mono, but still gives
@@ -974,9 +989,9 @@ int AudioEnc::run()
          *
          * \todo fix level measurement in mono
          */
-        for (int i = 0; i < read_bytes; i+=4) {
-            int16_t l = input_buf[i] | (input_buf[i+1] << 8);
-            int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
+        for (size_t i = 0; i < filtered_buf.size(); i+=4) {
+            int16_t l = filtered_buf[i] | (filtered_buf[i+1] << 8);
+            int16_t r = filtered_buf[i+2] | (filtered_buf[i+3] << 8);
             peak_left  = MAX(peak_left,  l);
             peak_right = MAX(peak_right, r);
         }
@@ -994,7 +1009,7 @@ int AudioEnc::run()
          */
         if (die_on_silence && MAX(peak_left, peak_right) == 0) {
             const unsigned int frame_time_msec = 1000ul *
-                read_bytes / (BYTES_PER_SAMPLE * channels * sample_rate);
+                filtered_buf.size() / (BYTES_PER_SAMPLE * channels * sample_rate);
 
             measured_silence_ms += frame_time_msec;
 
@@ -1010,7 +1025,7 @@ int AudioEnc::run()
         }
 
         int numOutBytes = 0;
-        if (read_bytes and
+        if (filtered_buf.size() and
                 selected_encoder == encoder_selection_t::fdk_dabplus) {
             AACENC_BufDesc in_buf = { 0 }, out_buf = { 0 };
             AACENC_InArgs in_args = { 0 };
@@ -1024,13 +1039,13 @@ int AudioEnc::run()
             int in_size[2], in_elem_size[2];
             int out_size, out_elem_size;
 
-            in_ptr[0] = input_buf.data();
+            in_ptr[0] = filtered_buf.data();
             in_ptr[1] = pad_buf + (padlen - calculated_padlen); // offset due to unused PAD bytes
-            in_size[0] = read_bytes;
+            in_size[0] = filtered_buf.size();
             in_size[1] = calculated_padlen;
             in_elem_size[0] = BYTES_PER_SAMPLE;
             in_elem_size[1] = sizeof(uint8_t);
-            in_args.numInSamples = input_buf.size()/BYTES_PER_SAMPLE;
+            in_args.numInSamples = filtered_buf.size()/BYTES_PER_SAMPLE;
             in_args.numAncBytes = calculated_padlen;
 
             in_buf.numBufs = calculated_padlen ? 2 : 1;    // Samples + Data / Samples
@@ -1065,17 +1080,17 @@ int AudioEnc::run()
         }
         else if (selected_encoder == encoder_selection_t::toolame_dab) {
             /*! \note toolame expects the audio to be in another shape as
-             * we have in input_buf, and we need to convert first
+             * we have in filtered_buf, and we need to convert first
              */
             short input_buffers[2][1152];
 
             if (channels == 1) {
-                memcpy(input_buffers[0], input_buf.data(), 1152 * BYTES_PER_SAMPLE);
+                memcpy(input_buffers[0], filtered_buf.data(), 1152 * BYTES_PER_SAMPLE);
             }
             else if (channels == 2) {
                 for (int i = 0; i < 1152; i++) {
-                    int16_t l = input_buf[4*i]   | (input_buf[4*i+1] << 8);
-                    int16_t r = input_buf[4*i+2] | (input_buf[4*i+3] << 8);
+                    int16_t l = filtered_buf[4*i]   | (filtered_buf[4*i+1] << 8);
+                    int16_t r = filtered_buf[4*i+2] | (filtered_buf[4*i+3] << 8);
 
                     input_buffers[0][i] = l;
                     input_buffers[1][i] = r;
@@ -1085,7 +1100,7 @@ int AudioEnc::run()
                 fprintf(stderr, "INTERNAL ERROR! invalid number of channels\n");
             }
 
-            if (read_bytes) {
+            if (filtered_buf.size()) {
                 numOutBytes = toolame_encode_frame(input_buffers, pad_buf, calculated_padlen, outbuf.data(), outbuf.size());
             }
             else {
@@ -1319,6 +1334,7 @@ int main(int argc, char *argv[])
         {"dabpsy",                 required_argument,  0,  5 },
         {"device",                 required_argument,  0, 'd'},
         {"edi",                    required_argument,  0, 'e'},
+        {"ffmpeg-filter",          required_argument,  0, 'F'},
         {"timestamp-delay",        required_argument,  0, 'T'},
         {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
@@ -1372,7 +1388,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:F:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             audio_enc.aot = AOT_DABPLUS_AAC_LC;
@@ -1441,6 +1457,9 @@ int main(int argc, char *argv[])
                 usage(argv[0]);
                 return 1;
             }
+            break;
+        case 'F':
+            audio_enc.filter_description = optarg;
             break;
         case 'i':
             audio_enc.infile = optarg;
