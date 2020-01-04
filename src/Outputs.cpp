@@ -164,7 +164,7 @@ void EDI::add_tcp_destination(const std::string& host, unsigned int port)
     dest->dest_port = port;
     m_edi_conf.destinations.push_back(dest);
 
-    m_edi_conf.dump = true;
+    m_edi_conf.dump = false;
 }
 
 bool EDI::enabled() const
