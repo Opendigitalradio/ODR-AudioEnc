@@ -18,6 +18,7 @@
 
 #pragma once
 #include <string>
+#include <vector>
 #include <cstdint>
 #include <cstddef>
 #include <cstdio>
@@ -41,6 +42,9 @@ class StatsPublisher {
         /*! Update peak audio level information */
         void update_audio_levels(int16_t audiolevel_left, int16_t audiolevel_right);
 
+        /*! Update decoded AAC frame. Audio is in S16 interleaved raw format */
+        void update_decoded_audio(const std::vector<uint8_t>& audio, int samplerate, int channels);
+
         /*! Increments the underrun counter */
         void notify_underrun();
 
@@ -62,6 +66,10 @@ class StatsPublisher {
 
         size_t m_num_underruns = 0;
         size_t m_num_overruns = 0;
+
+        int m_samplerate = 0;
+        int m_channels = 0;
+        std::vector<uint8_t> m_audio;
 
         bool m_destination_available = true;
 };

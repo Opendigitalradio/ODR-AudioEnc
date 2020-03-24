@@ -982,6 +982,7 @@ int AudioEnc::run()
         }
 
         if (stats_publisher) {
+            stats_publisher->update_decoded_audio(input_buf, sample_rate, channels);
             stats_publisher->update_audio_levels(peak_left, peak_right);
         }
 

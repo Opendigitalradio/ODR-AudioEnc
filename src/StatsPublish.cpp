@@ -23,6 +23,7 @@
 #include <cstring>
 #include <cerrno>
 #include <cassert>
+#include <iterator>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -64,6 +65,18 @@ void StatsPublisher::update_audio_levels(int16_t audiolevel_left, int16_t audiol
     m_audio_right = audiolevel_right;
 }
 
+void StatsPublisher::update_decoded_audio(const std::vector<uint8_t>& audio, int samplerate, int channels)
+{
+    copy(audio.cbegin(), audio.cend(), back_inserter(m_audio));
+
+    if ((m_samplerate != 0 and samplerate != m_samplerate) or
+        (m_channels != 0 and channels != m_channels)) {
+        m_audio.clear();
+    }
+    m_samplerate = samplerate;
+    m_channels = channels;
+}
+
 void StatsPublisher::notify_underrun()
 {
     m_num_underruns++;
@@ -89,15 +102,23 @@ void StatsPublisher::send_stats()
             << "\n";
     yaml << "audiolevels: { left: " << m_audio_left << ", right: " << m_audio_right << "}\n";
     yaml << "driftcompensation: { underruns: " << m_num_underruns << ", overruns: " << m_num_overruns << "}\n";
+    yaml << "samplerate: " << m_samplerate << "\n";
+    yaml << "channels: " << m_channels << "\n";
 
+    yaml << "...\n";
     const auto yamlstr = yaml.str();
+
+    vector<uint8_t> packet(yamlstr.size());
+    copy(yamlstr.cbegin(), yamlstr.cend(), packet.begin());
+    copy(m_audio.begin(), m_audio.end(), back_inserter(packet));
+    m_audio.clear();
 
     struct sockaddr_un claddr;
     memset(&claddr, 0, sizeof(struct sockaddr_un));
     claddr.sun_family = AF_UNIX;
     snprintf(claddr.sun_path, sizeof(claddr.sun_path), "%s", m_socket_path.c_str());
 
-    int ret = sendto(m_sock, yamlstr.data(), yamlstr.size(), 0,
+    int ret = sendto(m_sock, packet.data(), packet.size(), 0,
             (struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         // This suppresses the -Wlogical-op warning
@@ -116,9 +137,9 @@ void StatsPublisher::send_stats()
             fprintf(stderr, "Statistics send failed: %s\n", strerror(errno));
         }
     }
-    else if (ret != (ssize_t)yamlstr.size()) {
+    else if (ret != (ssize_t)packet.size()) {
         fprintf(stderr, "Statistics send incorrect length: %d bytes of %zu transmitted\n",
-                ret, yamlstr.size());
+                ret, packet.size());
     }
     else if (not m_destination_available) {
         fprintf(stderr, "Stats destination is now available at %s\n", m_socket_path.c_str());
