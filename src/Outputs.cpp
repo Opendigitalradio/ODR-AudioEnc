@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2019 Matthias P. Braendli
+ * Copyright (C) 2020 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -141,6 +141,11 @@ EDI::EDI() :
 
 EDI::~EDI() { }
 
+void EDI::set_odr_version_tag(const std::string& odr_version_tag)
+{
+    m_odr_version_tag = odr_version_tag;
+}
+
 void EDI::add_udp_destination(const std::string& host, unsigned int port)
 {
     auto dest = make_shared<edi::udp_destination_t>();
@@ -224,15 +229,7 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
 
     edi::TagODRAudioLevels edi_tagAudioLevels(m_audio_left, m_audio_right);
 
-    stringstream ss;
-    ss << PACKAGE_NAME << " " <<
-#if defined(GITVERSION)
-        GITVERSION;
-#else
-    PACKAGE_VERSION;
-#endif
-    edi::TagODRVersion edi_tagVersion(ss.str(), m_num_seconds_sent);
-
+    edi::TagODRVersion edi_tagVersion(m_odr_version_tag, m_num_seconds_sent);
 
     // The above Tag Items will be assembled into a TAG Packet
     edi::TagPacket edi_tagpacket(m_edi_conf.tagpacket_alignment);

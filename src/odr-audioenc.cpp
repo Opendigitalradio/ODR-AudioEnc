@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2019 Matthias P. Braendli
+ * Copyright (C) 2020 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -182,6 +182,7 @@ void usage(const char* name)
     "     -B, --bandwidth=VALUE                Set the AAC encoder bandwidth to VALUE [Hz].\n"
     "         --decode=FILE                    Decode the AAC back to a wav file (loopback test).\n"
     "   Output and PAD parameters:\n"
+    "         --identifier=ID                  An identifier string that is sent in the ODRv EDI TAG. Max 32 characters length.\n"
     "     -o, --output=URI                     Output ZMQ uri. (e.g. 'tcp://localhost:9000')\n"
     "                                     -or- Output file uri. (e.g. 'file.dabp')\n"
     "                                     -or- a single dash '-' to denote stdout\n"
@@ -433,6 +434,7 @@ public:
     shared_ptr<Output::File> file_output;
     shared_ptr<Output::ZMQ> zmq_output;
     Output::EDI edi_output;
+    string identifier;
 
     bool tist_enabled = false;
     uint32_t tist_delay_ms = 0;
@@ -611,6 +613,16 @@ int AudioEnc::run()
 
     if (not edi_output_uris.empty()) {
         edi_output.set_tist(tist_enabled, tist_delay_ms);
+
+        stringstream ss;
+        ss << PACKAGE_NAME << " " <<
+#if defined(GITVERSION)
+            GITVERSION <<
+#else
+            PACKAGE_VERSION <<
+#endif
+            " " << identifier;
+        edi_output.set_odr_version_tag(ss.str());
     }
 
     if (padlen != 0) {
@@ -1322,6 +1334,7 @@ int main(int argc, char *argv[])
         {"timestamp-delay",        required_argument,  0, 'T'},
         {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
+        {"identifier",             required_argument,  0,  7 },
         {"input",                  required_argument,  0, 'i'},
         {"jack",                   required_argument,  0, 'j'},
         {"output",                 required_argument,  0, 'o'},
@@ -1404,6 +1417,16 @@ int main(int argc, char *argv[])
             break;
         case 6: // Enable loopback decoder for AAC
             audio_enc.decode_wavfilename = optarg;
+            break;
+        case 7: // Identifier for in-band version information
+            audio_enc.identifier = optarg;
+            /* The 32 character length restriction is arbitrary, but guarantees
+             * that the EDI packet will not grow too large */
+            if (audio_enc.identifier.size() > 32) {
+                fprintf(stderr, "Output Identifier too long!\n");
+                usage(argv[0]);
+                return 1;
+            }
             break;
         case 'a':
             audio_enc.selected_encoder = encoder_selection_t::toolame_dab;
