@@ -91,8 +91,8 @@ struct zmq_frame_header_t
     /* Data follows this header */
 } __attribute__ ((packed));
 
-#define ZMQ_ENCODER_FDK 1
-#define ZMQ_ENCODER_TOOLAME 2
+#define ZMQ_ENCODER_AACPLUS 1
+#define ZMQ_ENCODER_MPEG_L2 2
 
 #define ZMQ_HEADER_SIZE sizeof(struct zmq_frame_header_t)
 

@@ -108,10 +108,10 @@ bool ZMQ::write_frame(const uint8_t *buf, size_t len)
     try {
         switch (m_encoder) {
             case encoder_selection_t::fdk_dabplus:
-                zmq_frame_header->encoder = ZMQ_ENCODER_FDK;
+                zmq_frame_header->encoder = ZMQ_ENCODER_AACPLUS;
                 break;
             case encoder_selection_t::toolame_dab:
-                zmq_frame_header->encoder = ZMQ_ENCODER_TOOLAME;
+                zmq_frame_header->encoder = ZMQ_ENCODER_MPEG_L2;
                 break;
         }
 
