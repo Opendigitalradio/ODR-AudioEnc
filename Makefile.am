@@ -82,6 +82,9 @@ odr_audioenc_LDADD       = libtoolame-dab.la \
 						   $(odr_audioenc_LDADD_ALSA) \
 						   $(LIBVLC_LIBS) $(GST_LIBS)
 odr_audioenc_CXXFLAGS    = $(GST_CFLAGS) $(GITVERSION_FLAGS) \
+						   -Ifdk-aac/libSYS/include/ \
+						   -Ifdk-aac/libAACenc/include/ \
+						   -Ifdk-aac/libAACdec/include/ \
 						   -Wall -ggdb -O2 -Isrc -Icontrib
 
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
@@ -105,7 +108,7 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   src/encryption.c \
 						   src/encryption.h \
 						   src/zmq.hpp \
-						   src/utils.c \
+						   src/utils.cpp \
 						   src/utils.h \
 						   src/wavfile.cpp \
 						   src/common.h \

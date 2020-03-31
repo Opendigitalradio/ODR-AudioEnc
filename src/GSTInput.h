@@ -27,6 +27,8 @@
 #if HAVE_GST
 
 #include <string>
+#include <atomic>
+#include <thread>
 #include <vector>
 #include <cstddef>
 #include <cstdint>
@@ -36,10 +38,7 @@
 #include "SampleQueue.h"
 #include "common.h"
 #include "InputInterface.h"
-
-extern "C" {
 #include "utils.h"
-}
 
 struct GSTData {
     GSTData(SampleQueue<uint8_t>& samplequeue);
@@ -47,11 +46,11 @@ struct GSTData {
     GstElement *pipeline = nullptr;
     GstElement *uridecodebin = nullptr;
     GstElement *audio_convert = nullptr;
+    GstElement *audio_resample = nullptr;
     GstElement *caps_filter = nullptr;
     GstElement *app_sink = nullptr;
 
     GstBus *bus = nullptr;
-    GMainLoop *main_loop = nullptr;
 
     SampleQueue<uint8_t>& samplequeue;
 };
@@ -72,9 +71,11 @@ class GSTInput : public InputInterface
 
         virtual bool read_source(size_t num_bytes) override;
 
+        ICY_TEXT_t get_icy_text() const;
+
         int getRate() { return m_rate; }
 
-        virtual bool fault_detected(void) const override { return false; };
+        virtual bool fault_detected(void) const override { return m_fault; };
     private:
         std::string m_uri;
         unsigned m_channels;
@@ -82,7 +83,13 @@ class GSTInput : public InputInterface
 
         GSTData m_gst_data;
 
-        SampleQueue<uint8_t>& m_samplequeue;
+        mutable std::mutex m_nowplaying_mutex;
+        ICY_TEXT_t m_nowplaying;
+
+        void process();
+        std::atomic<bool> m_fault = ATOMIC_VAR_INIT(false);
+        std::atomic<bool> m_running;
+        std::thread m_thread;
 };
 
 #endif // HAVE_GST

@@ -59,6 +59,7 @@ AS_IF([test "x$enable_gst" = "xyes"],
     [PKG_CHECK_MODULES(GST, [
       gstreamer-1.0              >= $GST_REQUIRED
       gstreamer-base-1.0         >= $GST_REQUIRED
+      gstreamer-app-1.0          >= $GST_REQUIRED
       gstreamer-controller-1.0   >= $GST_REQUIRED
       gstreamer-audio-1.0        >= $GST_REQUIRED
     ], [
@@ -70,6 +71,7 @@ AS_IF([test "x$enable_gst" = "xyes"],
 
         gstreamer-1.0              >= $GST_REQUIRED
         gstreamer-base-1.0         >= $GST_REQUIRED
+        gstreamer-app-1.0          >= $GST_REQUIRED
         gstreamer-controller-1.0   >= $GST_REQUIRED
         gstreamer-audio-1.0        >= $GST_REQUIRED
 

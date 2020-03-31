@@ -431,91 +431,17 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
     return err;
 }
 
-const std::string VLCInput::ICY_TEXT_SEPARATOR = " - ";
 
-/*! Write the corresponding text to a file readable by ODR-PadEnc, with optional
- * DL+ information. The text is passed as a copy because we actually use the
- * m_nowplaying variable which is also accessed in another thread, so better
- * make a copy.
- *
- * \return false on failure
- */
-bool write_icy_to_file(const ICY_TEXT_T text, const std::string& filename, bool dl_plus)
+ICY_TEXT_t VLCInput::get_icy_text() const
 {
-    FILE* fd = fopen(filename.c_str(), "wb");
-    if (fd) {
-        bool ret = true;
-        bool artist_title_used = !text.artist.empty() and !text.title.empty();
-
-        // if desired, prepend DL Plus information
-        if (dl_plus) {
-            std::stringstream ss;
-            ss << "##### parameters { #####\n";
-            ss << "DL_PLUS=1\n";
-
-            // if non-empty text, add tag
-            if (artist_title_used) {
-                size_t artist_len = strlen_utf8(text.artist.c_str());
-                size_t title_start = artist_len + strlen_utf8(VLCInput::ICY_TEXT_SEPARATOR.c_str());
-
-                // ITEM.ARTIST
-                ss << "DL_PLUS_TAG=4 0 " << (artist_len - 1) << "\n";   // -1 !
-
-                // ITEM.TITLE
-                ss << "DL_PLUS_TAG=1 " << title_start << " " << (strlen_utf8(text.title.c_str()) - 1) << "\n";   // -1 !
-            } else if (!text.now_playing.empty()) {
-                // PROGRAMME.NOW
-                ss << "DL_PLUS_TAG=33 0 " << (strlen_utf8(text.now_playing.c_str()) - 1) << "\n";   // -1 !
-            }
-
-            ss << "##### parameters } #####\n";
-            ret &= fputs(ss.str().c_str(), fd) >= 0;
-        }
-
-        if (artist_title_used) {
-            ret &= fputs(text.artist.c_str(), fd) >= 0;
-            ret &= fputs(VLCInput::ICY_TEXT_SEPARATOR.c_str(), fd) >= 0;
-            ret &= fputs(text.title.c_str(), fd) >= 0;
-        }
-        else {
-            ret &= fputs(text.now_playing.c_str(), fd) >= 0;
-        }
-        fclose(fd);
-
-        return ret;
-    }
-
-    return false;
-}
-
-void VLCInput::write_icy_text(const std::string& filename, bool dl_plus)
-{
-    if (icy_text_written.valid()) {
-        auto status = icy_text_written.wait_for(std::chrono::microseconds(1));
-        if (status == std::future_status::ready) {
-            if (not icy_text_written.get()) {
-                fprintf(stderr, "Failed to write ICY Text to file!\n");
-            }
-        }
-    }
-
-    else {
+    ICY_TEXT_t now_playing;
+    {
         std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
-
-        if (m_nowplaying_previous != m_nowplaying) {
-            /*! We write the ICY text in a separate task because
-             * we do not want to have a delay due to IO
-             */
-            icy_text_written = std::async(std::launch::async,
-                    std::bind(write_icy_to_file, m_nowplaying, filename, dl_plus));
-
-        }
-
-        m_nowplaying_previous = m_nowplaying;
+        now_playing = m_nowplaying;
     }
+
+    return now_playing;
 }
-
-
 
 /*! How many samples we insert into the queue each call
  * 10 samples @ 32kHz = 3.125ms

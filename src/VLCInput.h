@@ -41,41 +41,11 @@
 #include "SampleQueue.h"
 #include "common.h"
 #include "InputInterface.h"
-
-extern "C" {
 #include "utils.h"
-}
 
 /*! Common functionality for the direct libvlc input and the
  *  threaded libvlc input
  */
-
-struct ICY_TEXT_T {
-    std::string artist;
-    std::string title;
-    std::string now_playing;
-
-    bool operator==(const ICY_TEXT_T& other) const {
-        return
-            artist == other.artist and
-            title == other.title and
-            now_playing == other.now_playing;
-    }
-    bool operator!=(const ICY_TEXT_T& other) const {
-        return !(*this == other);
-    }
-    void useArtistTitle(const std::string& artist, const std::string& title) {
-        this->artist = artist;
-        this->title = title;
-        now_playing = "";
-    }
-    void useNowPlaying(const std::string& now_playing) {
-        artist = "";
-        title = "";
-        this->now_playing = now_playing;
-    }
-};
-
 
 class VLCInput : public InputInterface
 {
@@ -114,7 +84,7 @@ class VLCInput : public InputInterface
         /*! Write the last received ICY-Text to the
          * file.
          */
-        void write_icy_text(const std::string& filename, bool dl_plus);
+        ICY_TEXT_t get_icy_text() const;
 
         //! Callbacks for VLC
 
@@ -135,10 +105,6 @@ class VLCInput : public InputInterface
         int getRate() { return m_rate; }
 
         virtual bool fault_detected(void) const override { return m_fault; };
-
-        /*! Separator string used when artist/title are written
-         */
-        static const std::string ICY_TEXT_SEPARATOR;
     private:
         /*! Stop the player and release resources
          */
@@ -178,10 +144,8 @@ class VLCInput : public InputInterface
         /*! VLC can give us the ICY-Text from an Icecast stream,
          * which we optionally write into a text file for ODR-PadEnc
          */
-        std::future<bool> icy_text_written;
-        std::mutex m_nowplaying_mutex;
-        ICY_TEXT_T m_nowplaying;
-        ICY_TEXT_T m_nowplaying_previous;
+        mutable std::mutex m_nowplaying_mutex;
+        ICY_TEXT_t m_nowplaying;
 
         // VLC pointers
         libvlc_instance_t     *m_vlc;

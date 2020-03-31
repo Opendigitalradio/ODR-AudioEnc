@@ -61,10 +61,10 @@
 #include "Outputs.h"
 #include "common.h"
 #include "wavfile.h"
+#include "utils.h"
 
 extern "C" {
 #include "encryption.h"
-#include "utils.h"
 }
 
 #include <algorithm>
@@ -98,9 +98,7 @@ using vec_u8 = std::vector<uint8_t>;
 
 using namespace std;
 
-
-
-void usage(const char* name)
+static void usage(const char* name)
 {
     fprintf(stderr,
     "ODR-AudioEnc %s is an audio encoder for both DAB and DAB+.\n"
@@ -160,8 +158,6 @@ void usage(const char* name)
     "                                          multiple times)\n"
     "     -L OPTION                            Give an additional options to VLC (can be given\n"
     "                                          multiple times)\n"
-    "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that ODR-PadEnc can read it.\n"
-    "     -W, --write-icy-text-dl-plus         When writing the ICY Text into the file, add DL Plus information.\n"
 #else
     "     The VLC input was disabled at compile-time\n"
 #endif
@@ -171,6 +167,8 @@ void usage(const char* name)
 #else
     "     The GStreamer input was disabled at compile-time\n"
 #endif
+    "     -w, --write-icy-text=filename        Write the ICY Text into the file, so that ODR-PadEnc can read it.\n"
+    "     -W, --write-icy-text-dl-plus         When writing the ICY Text into the file, add DL Plus information.\n"
     "   Drift compensation\n"
     "     -D, --drift-comp                     Enable ALSA/VLC sound card drift compensation.\n"
     "   Encoder parameters:\n"
@@ -407,6 +405,9 @@ public:
     int sample_rate=48000;
     int channels=2;
 
+    string icytext_file;
+    bool icytext_dlplus = false;
+
     // For the ALSA input
     string alsa_device;
 
@@ -417,13 +418,12 @@ public:
 
     // For the VLC input
     string vlc_uri;
-    string vlc_icytext_file;
-    bool vlc_icytext_dlplus = false;
     string vlc_gain;
     string vlc_cache;
     vector<string> vlc_additional_opts;
     unsigned verbosity = 0;
 
+    // For the GST input
     string gst_uri;
 
     string jack_name;
@@ -985,13 +985,32 @@ int AudioEnc::run()
          * The VLC input is the only input that can also give us metadata, which
          * we can hand over to ODR-PadEnc.
          */
+        if (not icytext_file.empty()) {
+            ICY_TEXT_t text;
+
+            if (false) {}
 #if HAVE_VLC
-        if (not vlc_uri.empty() and not vlc_icytext_file.empty()) {
             // Using std::dynamic_pointer_cast would be safer, but is C++17
-            VLCInput *vlc_input = (VLCInput*)(input.get());
-            vlc_input->write_icy_text(vlc_icytext_file, vlc_icytext_dlplus);
-        }
+            else if (not vlc_uri.empty()) {
+                VLCInput *vlc_input = (VLCInput*)(input.get());
+                text = vlc_input->get_icy_text();
+            }
 #endif
+#if HAVE_GST
+            else if (not gst_uri.empty()) {
+                GSTInput *gst_input = (GSTInput*)(input.get());
+                text = gst_input->get_icy_text();
+            }
+#endif
+
+            if (text) {
+                bool success = write_icy_to_file(text, icytext_file, icytext_dlplus);
+
+                if (not success) {
+                    fprintf(stderr, "Failed to write ICY Text\n");
+                }
+            }
+        }
 
         /*! \section AudioLevel
          * Audio level measurement is always done assuming we have two
@@ -1536,15 +1555,15 @@ int main(int argc, char *argv[])
         case 'S':
             audio_enc.send_stats_to = optarg;
             break;
+        case 'w':
+            audio_enc.icytext_file = optarg;
+            break;
+        case 'W':
+            audio_enc.icytext_dlplus = true;
+            break;
 #ifdef HAVE_VLC
         case 'v':
             audio_enc.vlc_uri = optarg;
-            break;
-        case 'w':
-            audio_enc.vlc_icytext_file = optarg;
-            break;
-        case 'W':
-            audio_enc.vlc_icytext_dlplus = true;
             break;
         case 'g':
             audio_enc.vlc_gain = optarg;
