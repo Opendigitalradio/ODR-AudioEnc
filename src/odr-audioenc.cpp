@@ -1576,7 +1576,6 @@ int main(int argc, char *argv[])
             break;
 #else
         case 'v':
-        case 'w':
             fprintf(stderr, "VLC input not enabled at compile time!\n");
             return 1;
 #endif
