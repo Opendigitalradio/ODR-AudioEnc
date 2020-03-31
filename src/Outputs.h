@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2019 Matthias P. Braendli
+ * Copyright (C) 2020 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,8 +91,8 @@ struct zmq_frame_header_t
     /* Data follows this header */
 } __attribute__ ((packed));
 
-#define ZMQ_ENCODER_FDK 1
-#define ZMQ_ENCODER_TOOLAME 2
+#define ZMQ_ENCODER_AACPLUS 1
+#define ZMQ_ENCODER_MPEG_L2 2
 
 #define ZMQ_HEADER_SIZE sizeof(struct zmq_frame_header_t)
 
@@ -133,6 +133,8 @@ class EDI: public Base {
         EDI& operator=(const EDI&) = delete;
         virtual ~EDI() override;
 
+        void set_odr_version_tag(const std::string& odr_version_tag);
+
         void add_udp_destination(const std::string& host, unsigned int port);
         void add_tcp_destination(const std::string& host, unsigned int port);
 
@@ -143,6 +145,8 @@ class EDI: public Base {
         virtual bool write_frame(const uint8_t *buf, size_t len) override;
 
     private:
+        std::string m_odr_version_tag;
+
         edi::configuration_t m_edi_conf;
         std::shared_ptr<edi::Sender> m_edi_sender;
 

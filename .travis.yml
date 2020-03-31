@@ -1,53 +1,75 @@
 language: c++
-sudo: required
-dist: xenial
 
-addons: &addons
-  apt:
-    sources: &sources
-      - ubuntu-toolchain-r-test
-    packages: &packages
-      - libzmq3-dev
-      - libzmq5
-      - automake
-      - libtool
-      - libboost1.58-all-dev
-      - vlc-nox
-      - libvlc-dev
-      - libasound2
-      - libasound2-dev
-      - libjack-jackd2-dev
-      - jackd2
-      - libmagickwand-dev
-      - g++-9
+matrix:
+  include:
+    - env: CONF=""
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: &linuxaddons
+        apt:
+          sources: &sources
+            - sourceline: 'ppa:ubuntu-toolchain-r/test'
+          packages: &packages
+            - libzmq3-dev
+            - libzmq5
+            - automake
+            - libtool
+            - vlc-data
+            - libvlc-dev
+            - vlc-plugin-base
+            - libasound2
+            - libasound2-dev
+            - libjack-jackd2-dev
+            - jackd2
+            - libmagickwand-dev
+            - g++-9
 
-compiler:
-  - gcc
+    - env: CONF="--enable-alsa"
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
+
+    - env: CONF="--enable-jack"
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
+
+    - env: CONF="--enable-vlc"
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
+
+    - env: CONF="--enable-alsa --enable-jack --enable-vlc"
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
+
+    - env: CONF="--enable-alsa --enable-jack --enable-vlc"
+      os: linux
+      arch: arm64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
 
 script:
   - |
-    pushd /tmp
-    git clone https://github.com/Opendigitalradio/fdk-aac.git
-    cd fdk-aac
     ./bootstrap
-    CC=gcc-9 CXX=g++-9 ./configure
-    make
-    sudo make install
-    popd
-  - |
-    ./bootstrap
-    CC=gcc-9 CXX=g++-9 ./configure
-    make
-  - |
-    CC=gcc-9 CXX=g++-9 ./configure --enable-vlc
-    make
-  - |
-    CC=gcc-9 CXX=g++-9 ./configure --enable-alsa
-    make
-  - |
-    CC=gcc-9 CXX=g++-9 ./configure --enable-jack
-    make
-  - |
-    CC=gcc-9 CXX=g++-9 ./configure --enable-alsa --enable-jack --enable-vlc
+    CC=gcc-9 CXX=g++-9 ./configure $CONF
     make
 

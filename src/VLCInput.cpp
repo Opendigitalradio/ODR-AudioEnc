@@ -291,13 +291,18 @@ void VLCInput::preRender_cb(uint8_t** pp_pcm_buffer, size_t size)
 
 void VLCInput::exit_cb()
 {
-    std::lock_guard<std::mutex> lock(m_queue_mutex);
+    if (m_running) {
+        std::lock_guard<std::mutex> lock(m_queue_mutex);
 
-    fprintf(stderr, "VLC exit, restarting...\n");
+        fprintf(stderr, "VLC exit, restarting...\n");
 
-    cleanup();
-    m_current_buf.clear();
-    prepare();
+        cleanup();
+        m_current_buf.clear();
+        prepare();
+    }
+    else {
+        fprintf(stderr, "VLC exit.\n");
+    }
 }
 
 void VLCInput::cleanup()

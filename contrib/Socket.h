@@ -50,7 +50,7 @@
 namespace Socket {
 
 struct InetAddress {
-    struct sockaddr_storage addr;
+    struct sockaddr_storage addr = {};
 
     struct sockaddr *as_sockaddr() { return reinterpret_cast<sockaddr*>(&addr); };
 
@@ -258,7 +258,7 @@ class TCPDataDispatcher
 
         size_t m_max_queue_size;
 
-        std::atomic<bool> m_running;
+        std::atomic<bool> m_running = ATOMIC_VAR_INIT(false);
         std::string m_exception_data;
         std::thread m_listener_thread;
         TCPSocket m_listener_socket;
@@ -285,7 +285,7 @@ class TCPReceiveServer {
 
         size_t m_blocksize = 0;
         ThreadsafeQueue<std::vector<uint8_t> > m_queue;
-        std::atomic<bool> m_running;
+        std::atomic<bool> m_running = ATOMIC_VAR_INIT(false);
         std::string m_exception_data;
         std::thread m_listener_thread;
         TCPSocket m_listener_socket;

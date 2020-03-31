@@ -1,7 +1,7 @@
 dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([ODR-AudioEnc], [2.4.1], [http://opendigitalradio.org/])
+AC_INIT([ODR-AudioEnc], [2.5.0], [http://opendigitalradio.org/])
 AC_CONFIG_AUX_DIR(.)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([tar-ustar foreign])
@@ -30,7 +30,6 @@ AX_CHECK_COMPILE_FLAG([-Wduplicated-cond], [CFLAGS="$CFLAGS -Wduplicated-cond"],
 AX_CHECK_COMPILE_FLAG([-Wduplicated-branches], [CFLAGS="$CFLAGS -Wduplicated-branches"], [], ["-Werror"])
 AX_CHECK_COMPILE_FLAG([-Wlogical-op], [CFLAGS="$CFLAGS -Wlogical-op"], [], ["-Werror"])
 AX_CHECK_COMPILE_FLAG([-Wrestrict], [CFLAGS="$CFLAGS -Wrestrict"], [], ["-Werror"])
-AX_CHECK_COMPILE_FLAG([-Wdouble-promotion], [CFLAGS="$CFLAGS -Wdouble-promotion"], [], ["-Werror"])
 AX_CHECK_COMPILE_FLAG(["-Wformat=2"], [CFLAGS="$CFLAGS -Wformat=2"], [], ["-Werror"])
 
 AC_LANG_PUSH([C++])
@@ -38,7 +37,6 @@ AX_CHECK_COMPILE_FLAG([-Wduplicated-cond], [CXXFLAGS="$CXXFLAGS -Wduplicated-con
 AX_CHECK_COMPILE_FLAG([-Wduplicated-branches], [CXXFLAGS="$CXXFLAGS -Wduplicated-branches"], [], ["-Werror"])
 AX_CHECK_COMPILE_FLAG([-Wlogical-op], [CXXFLAGS="$CXXFLAGS -Wlogical-op"], [], ["-Werror"])
 AX_CHECK_COMPILE_FLAG([-Wrestrict], [CXXFLAGS="$CXXFLAGS -Wrestrict"], [], ["-Werror"])
-AX_CHECK_COMPILE_FLAG([-Wdouble-promotion], [CXXFLAGS="$CXXFLAGS -Wdouble-promotion"], [], ["-Werror"])
 AX_CHECK_COMPILE_FLAG(["-Wformat=2"], [CXXFLAGS="$CXXFLAGS -Wformat=2"], [], ["-Werror"])
 AC_LANG_POP([C++])
 
@@ -118,9 +116,6 @@ AM_CONDITIONAL([HAVE_JACK], [ test "x$enable_jack" = "xyes" ])
 AM_CONDITIONAL([HAVE_ALSA], [ test "x$enable_alsa" = "xyes" ])
 
 AC_CHECK_LIB(zmq, zmq_init, , AC_MSG_ERROR(ZeroMQ libzmq is required))
-PKG_CHECK_MODULES([LIBFDKAAC], [fdk-aac])
-AC_SUBST([LIBFDKAAC_CFLAGS])
-AC_SUBST([LIBFDKAAC_LIBS])
 
 AC_CHECK_LIB(curl, curl_easy_init)
 have_curl=$ac_cv_lib_curl_curl_easy_init
@@ -131,19 +126,23 @@ AS_IF([test "x$have_curl" = "xyes"],
 AS_IF([test "x$have_curl" = "xno"],
              [AC_MSG_WARN([cURL not found, timestamps will not work])])
 
+AM_EXTRA_RECURSIVE_TARGETS([fdk-aac])
 
-# We need to have the ODR fdk-aac, the upstream one doesn't support DAB+
-AC_MSG_CHECKING([for DAB+ support in FDK-AAC])
-AC_COMPILE_IFELSE( [AC_LANG_PROGRAM([[#include <fdk-aac/aacenc_lib.h>]],
-                                    [[char dummy[TT_DABPLUS];]])],
-                   [
-                      AC_MSG_RESULT([yes])
-                    ],
-                    [
-                      AC_MSG_RESULT([no])
-                      AC_MSG_ERROR(["Your FDK-AAC does not support DAB+, make sure you have installed the ODR version!"])
-                    ]
-                 )
+#PKG_CHECK_MODULES([LIBFDKAAC], [fdk-aac])
+#AC_SUBST([LIBFDKAAC_CFLAGS])
+#AC_SUBST([LIBFDKAAC_LIBS])
+## We need to have the ODR fdk-aac, the upstream one doesn't support DAB+
+#AC_MSG_CHECKING([for DAB+ support in FDK-AAC])
+#AC_COMPILE_IFELSE( [AC_LANG_PROGRAM([[#include <fdk-aac/aacenc_lib.h>]],
+#                                    [[char dummy[TT_DABPLUS];]])],
+#                   [
+#                      AC_MSG_RESULT([yes])
+#                    ],
+#                    [
+#                      AC_MSG_RESULT([no])
+#                      AC_MSG_ERROR(["Your FDK-AAC does not support DAB+, make sure you have installed the ODR version!"])
+#                    ]
+#                 )
 
 
 
@@ -151,15 +150,19 @@ dnl soname version to use
 dnl goes by ‘current[:revision[:age]]’ with the soname ending up as
 dnl current.age.revision
 LIBTOOLAME_DAB_VERSION=0:1:0
+FDK_AAC_VERSION=2:0:0
 
 AS_IF([test x$enable_shared = xyes], [LIBS_PRIVATE=$LIBS], [LIBS_PUBLIC=$LIBS])
+AC_SUBST(FDK_AAC_VERSION)
 AC_SUBST(LIBTOOLAME_DAB_VERSION)
 AC_SUBST(LIBS_PUBLIC)
 AC_SUBST(LIBS_PRIVATE)
 
 AM_CONDITIONAL([IS_GIT_REPO], [test -d '.git'])
 
-AC_CONFIG_FILES([Makefile])
+AM_CONDITIONAL([EXAMPLE], [false])
+
+AC_CONFIG_FILES([Makefile fdk-aac/Makefile])
 AC_OUTPUT
 
 echo

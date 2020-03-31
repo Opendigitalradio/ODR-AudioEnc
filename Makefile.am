@@ -1,6 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = subdir-objects
 
+SUBDIRS = fdk-aac
+
 if IS_GIT_REPO
 GITVERSION_FLAGS = -DGITVERSION="\"`git describe --dirty`\""
 else
@@ -74,13 +76,12 @@ FEC_SOURCES = contrib/fec/char.h \
 
 odr_audioenc_LDFLAGS     = -no-install
 odr_audioenc_LDADD       = libtoolame-dab.la \
+						   fdk-aac/libfdk-aac-dab.la \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
-						   $(LIBVLC_LIBS) $(LIBFDKAAC_LIBS) \
-						   $(GST_LIBS)
-odr_audioenc_CXXFLAGS    = $(LIBFDKAAC_CFLAGS) $(GITVERSION_FLAGS) \
-						   $(GST_CFLAGS) \
+						   $(LIBVLC_LIBS) $(GST_LIBS)
+odr_audioenc_CXXFLAGS    = $(GST_CFLAGS) $(GITVERSION_FLAGS) \
 						   -Wall -ggdb -O2 -Isrc -Icontrib
 
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
@@ -167,6 +168,7 @@ libtoolame_dab_la_SOURCES = \
 
 EXTRA_DIST = $(top_srcdir)/bootstrap \
 			 $(top_srcdir)/README.md \
+			 $(top_srcdir)/TODO.md \
 			 $(top_srcdir)/ChangeLog \
 			 $(top_srcdir)/libtoolame-dab.sym \
 			 $(top_srcdir)/Doxyfile \

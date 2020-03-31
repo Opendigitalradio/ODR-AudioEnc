@@ -69,7 +69,8 @@ void InetAddress::resolveUdpDestination(const std::string& destination, int port
 UDPPacket::UDPPacket() { }
 
 UDPPacket::UDPPacket(size_t initSize) :
-    buffer(initSize)
+    buffer(initSize),
+    address()
 { }
 
 
@@ -490,6 +491,11 @@ void TCPSocket::listen(int port, const string& name)
             continue;
         }
 
+        int reuse_setting = 1;
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &reuse_setting, sizeof(reuse_setting)) == -1) {
+            throw runtime_error("Can't reuse address");
+        }
+
         if (::bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
             m_sock = sfd;
             break;
@@ -644,7 +650,7 @@ ssize_t TCPSocket::recv(void *buffer, size_t length, int flags, int timeout_ms)
         std::string errstr(strerror(errno));
         throw std::runtime_error("TCP receive with poll() error: " + errstr);
     }
-    else if (retval > 0 and (fds[0].revents | POLLIN)) {
+    else if (retval > 0 and (fds[0].revents & POLLIN)) {
         ssize_t ret = ::recv(m_sock, buffer, length, flags);
         if (ret == -1) {
             if (errno == ECONNREFUSED) {
