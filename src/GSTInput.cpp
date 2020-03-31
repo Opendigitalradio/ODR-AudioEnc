@@ -25,14 +25,14 @@
 #include <cstdio>
 #include <cstring>
 
-#include <gst/audio/audio.h>
-#include <gst/app/gstappsink.h>
-
 #include "GSTInput.h"
 
 #include "config.h"
 
 #if HAVE_GST
+
+#include <gst/audio/audio.h>
+#include <gst/app/gstappsink.h>
 
 using namespace std;
 
