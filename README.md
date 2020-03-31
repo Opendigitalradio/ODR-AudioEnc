@@ -9,11 +9,14 @@ of the Fraunhofer FDK AAC code from Android, patched for 960-transform to do
 DAB+ broadcast encoding. Both encoders are part of this repository.
 
 The main tool is the *odr-audioenc* encoder, which can read audio from
-a file (raw or wav), from an ALSA source, from JACK or using libVLC,
-and encode to a file, a pipe, to a ZeroMQ or EDI output compatible with ODR-DabMux.
+a file (raw or wav), from an ALSA source, from JACK or using libVLC or
+GStreamer, and encode to a file, a pipe, to an EDI or ZeroMQ output compatible
+with ODR-DabMux.
 
 The libVLC input allows the encoder to use all inputs supported by VLC, and
 therefore also webstreams and other network sources.
+
+The GStreamer input is an alternative to read from various sources.
 
 The ALSA and libVLC inputs support sound card clock drift
 compensation, that can compensate for imprecise sound card clocks.
@@ -39,6 +42,7 @@ Requirements
 * JACK audio connection kit (optional)
 * The alsa libraries (libasound2, optional)
 * libvlc and vlc for the plugins (optional)
+* gstreamer-1.0 (optional)
 * (optional) cURL to download the TAI-UTC bulletin, needed for timestamps in EDI output.
 
 For Debian Buster, and related systems, use
@@ -66,9 +70,9 @@ Configure the project
     $ ./bootstrap
     $ ./configure
 
-If you want to use ALSA, JACK and libVLC inputs, please use
+If you want to use ALSA, JACK, libVLC and GStreamer inputs, please use
 
-    $ ./configure --enable-alsa --enable-jack --enable-vlc
+    $ ./configure --enable-alsa --enable-jack --enable-vlc --enable-gst
 
     $ make
     $ sudo make install
