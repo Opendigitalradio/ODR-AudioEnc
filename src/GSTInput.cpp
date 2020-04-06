@@ -209,28 +209,42 @@ void GSTInput::process()
                     gst_message_parse_tag(msg, &tags);
                     //fprintf(stderr, "Got tags from element %s\n", GST_OBJECT_NAME(msg->src));
 
-                    string new_title;
+                    struct user_data_t {
+                        string new_artist;
+                        string new_title;
+                    } user_data;
 
                     auto extract_title = [](const GstTagList *list, const gchar *tag, void *user_data) {
                         GValue val = { 0, };
 
-                        auto new_title = (string*)user_data;
+                        auto data = (user_data_t*)user_data;
 
                         gst_tag_list_copy_value(&val, list, tag);
 
-                        if (strcmp(tag, "title") == 0 and G_VALUE_HOLDS_STRING(&val)) {
-                            *new_title = g_value_dup_string(&val);
+                        if (G_VALUE_HOLDS_STRING(&val)) {
+                            if (strcmp(tag, "title") == 0) {
+                                data->new_title = g_value_get_string(&val);
+                            }
+                            else if (strcmp(tag, "artist") == 0) {
+                                data->new_artist = g_value_get_string(&val);
+                            }
                         }
 
                         g_value_unset(&val);
                     };
 
-                    gst_tag_list_foreach(tags, extract_title, &new_title);
+                    gst_tag_list_foreach(tags, extract_title, &user_data);
 
                     gst_tag_list_unref(tags);
+
                     {
                         std::lock_guard<std::mutex> lock(m_nowplaying_mutex);
-                        m_nowplaying.useNowPlaying(new_title);
+                        if (user_data.new_artist.empty()) {
+                            m_nowplaying.useNowPlaying(user_data.new_title);
+                        }
+                        else {
+                            m_nowplaying.useArtistTitle(user_data.new_artist, user_data.new_title);
+                        }
                     }
                     break;
                 }
