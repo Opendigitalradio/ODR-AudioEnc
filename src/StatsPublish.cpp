@@ -30,6 +30,51 @@
 
 using namespace std;
 
+namespace base64
+{
+    constexpr char encodeLookup[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    constexpr char padCharacter = '=';
+
+    std::string encode(const std::vector<uint8_t>& input)
+    {
+        std::string encoded;
+        encoded.reserve(((input.size() / 3) + (input.size() % 3 > 0)) * 4);
+
+        uint32_t temp = 0;
+        auto it = input.begin();
+
+        for (std::size_t i = 0; i < input.size() / 3; ++i) {
+            temp  = (*it++) << 16;
+            temp += (*it++) << 8;
+            temp += (*it++);
+            encoded.append(1, encodeLookup[(temp & 0x00FC0000) >> 18]);
+            encoded.append(1, encodeLookup[(temp & 0x0003F000) >> 12]);
+            encoded.append(1, encodeLookup[(temp & 0x00000FC0) >> 6 ]);
+            encoded.append(1, encodeLookup[(temp & 0x0000003F)      ]);
+        }
+
+        switch(input.size() % 3) {
+            case 1:
+                temp = (*it++) << 16;
+                encoded.append(1, encodeLookup[(temp & 0x00FC0000) >> 18]);
+                encoded.append(1, encodeLookup[(temp & 0x0003F000) >> 12]);
+                encoded.append(2, padCharacter);
+                break;
+            case 2:
+                temp  = (*it++) << 16;
+                temp += (*it++) << 8;
+                encoded.append(1, encodeLookup[(temp & 0x00FC0000) >> 18]);
+                encoded.append(1, encodeLookup[(temp & 0x0003F000) >> 12]);
+                encoded.append(1, encodeLookup[(temp & 0x00000FC0) >> 6 ]);
+                encoded.append(1, padCharacter);
+                break;
+        }
+
+        return encoded;
+    }
+}
+
+
 StatsPublisher::StatsPublisher(const string& socket_path) :
     m_socket_path(socket_path)
 {
@@ -105,6 +150,16 @@ void StatsPublisher::send_stats()
     yaml << "samplerate: " << m_samplerate << "\n";
     yaml << "channels: " << m_channels << "\n";
 
+#if 1
+    const auto audio_b64 = base64::encode(m_audio);
+    m_audio.clear();
+    // YAML linters might complain about the very long line, but the spec also says
+    // "The content is not restricted to lines of 76 characters or less."
+    //  (https://yaml.org/type/binary.html)
+    yaml << "audio: !!binary |\n  " << audio_b64 << "\n";
+    yaml << "...\n";
+    const auto packet = yaml.str();
+#else
     yaml << "...\n";
     const auto yamlstr = yaml.str();
 
@@ -112,6 +167,7 @@ void StatsPublisher::send_stats()
     copy(yamlstr.cbegin(), yamlstr.cend(), packet.begin());
     copy(m_audio.begin(), m_audio.end(), back_inserter(packet));
     m_audio.clear();
+#endif
 
     struct sockaddr_un claddr;
     memset(&claddr, 0, sizeof(struct sockaddr_un));
