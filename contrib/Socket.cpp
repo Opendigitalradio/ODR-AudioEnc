@@ -925,13 +925,13 @@ TCPSendClient::~TCPSendClient()
     }
 }
 
-void TCPSendClient::sendall(std::vector<uint8_t>&& buffer)
+void TCPSendClient::sendall(const std::vector<uint8_t>& buffer)
 {
     if (not m_running) {
         throw runtime_error(m_exception_data);
     }
 
-    m_queue.push(move(buffer));
+    m_queue.push(buffer);
 }
 
 void TCPSendClient::process()

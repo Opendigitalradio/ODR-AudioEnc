@@ -300,7 +300,7 @@ class TCPSendClient {
 
         /* Throws a runtime_error on error
          */
-        void sendall(std::vector<uint8_t>&& buffer);
+        void sendall(const std::vector<uint8_t>& buffer);
 
     private:
         void process();

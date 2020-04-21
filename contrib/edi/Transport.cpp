@@ -149,7 +149,7 @@ void Sender::write(const TagPacket& tagpacket)
                     tcp_dispatchers.at(tcp_dest.get())->write(edi_frag);
                 }
                 else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(dest)) {
-                    tcp_senders.at(tcp_dest.get())->sendall(move(edi_frag));
+                    tcp_senders.at(tcp_dest.get())->sendall(edi_frag);
                 }
                 else {
                     throw logic_error("EDI destination not implemented");
@@ -175,7 +175,7 @@ void Sender::write(const TagPacket& tagpacket)
                 tcp_dispatchers.at(tcp_dest.get())->write(af_packet);
             }
             else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(dest)) {
-                tcp_senders.at(tcp_dest.get())->sendall(move(af_packet));
+                tcp_senders.at(tcp_dest.get())->sendall(af_packet);
             }
             else {
                 throw logic_error("EDI destination not implemented");

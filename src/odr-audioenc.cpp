@@ -1262,15 +1262,19 @@ int AudioEnc::run()
 
 bool AudioEnc::send_frame(const uint8_t *buf, size_t len, int16_t peak_left, int16_t peak_right)
 {
+    // The file output is mutually exclusive to the other outputs
     if (file_output) {
         file_output->update_audio_levels(peak_left, peak_right);
         return file_output->write_frame(buf, len);
     }
-    else if (zmq_output) {
+
+    bool success = true;
+    if (zmq_output) {
         zmq_output->update_audio_levels(peak_left, peak_right);
-        return zmq_output->write_frame(buf, len);
+        success &= zmq_output->write_frame(buf, len);
     }
-    else if (edi_output.enabled()) {
+
+    if (edi_output.enabled()) {
         edi_output.update_audio_levels(peak_left, peak_right);
         switch (selected_encoder) {
             case encoder_selection_t::fdk_dabplus:
@@ -1283,18 +1287,19 @@ bool AudioEnc::send_frame(const uint8_t *buf, size_t len, int16_t peak_left, int
 
                     const size_t blocksize = len/5;
                     for (size_t i = 0; i < 5; i++) {
-                        bool success = edi_output.write_frame(buf + i * blocksize, blocksize);
+                        success &= edi_output.write_frame(buf + i * blocksize, blocksize);
                         if (not success) {
-                            return false;
+                            break;
                         }
                     }
-                    return true;
                 }
+                break;
             case encoder_selection_t::toolame_dab:
-                return edi_output.write_frame(buf, len);
+                success &= edi_output.write_frame(buf, len);
+                break;
         }
     }
-    return false;
+    return success;
 }
 
 AudioEnc::~AudioEnc()
