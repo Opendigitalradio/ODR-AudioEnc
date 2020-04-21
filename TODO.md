@@ -4,21 +4,27 @@ to some degree.
 
 Unless written, no activity has been started on the topics.
 
+Write ICY Text from ogg streams using libvlc
+--------------------------------------------
+
+Apparently there is something wrong with this combination.
+
+
 Sample rate conversion
 ----------------------
 
 It's impossible to encode from a JACK, ALSA or file source that does not carry
 audio at the desired output sample rate.
 
-Implementing libsamplerate or libsoxr integration would enable this.
+Implementing libsamplerate or libsoxr integration would enable this, but maybe it'd
+be better to converge towards using GStreamer.
 
 
 Drift compenstation statistics
 ------------------------------
 
-Insert drift compensation statistics into ZeroMQ metadata. This would maybe
-need a new protocol version and adaptations in ODR-DabMux, but ideally should
-be done in a backward-compatible way.
+Insert drift compensation statistics into EDI metadata.
+
 
 GStreamer input and AES67
 -------------------------

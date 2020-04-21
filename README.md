@@ -83,7 +83,7 @@ If you want to use ALSA, JACK, libVLC and GStreamer inputs, please use
 How to use
 ==========
 
-We assume that you have a ODR-DabMux configured for an ZeroMQ
+We assume that you have a ODR-DabMux configured for an EDI
 input on port 9000.
 
     ALSASRC="default"
@@ -123,12 +123,12 @@ If two channels are used, PS (Parametric Stereo, also called HE-AAC v2)
 is enabled up to 48kbps. Between 56kbps and 80kbps, SBR is enabled. 88kbps
 and higher are using AAC-LC.
 
-ZeroMQ output
--------------
+EDI output
+----------
 
-The ZeroMQ output included in ODR-AudioEnc is able to connect to
-one or several instances of ODR-DabMux. The `-o` option can be used
-more than once to achieve this.
+The EDI output included in ODR-AudioEnc is able to connect to
+one or several instances of ODR-DabMux. The `-e` option can be used
+more than once to achieve this. The same goes for the ZeroMQ output (`-o` option).
 
 Scenario *wav file for offline processing*
 ------------------------------------------
@@ -144,13 +144,13 @@ If you want to input a file through libvlc, you need to give an absolute path:
 
 Scenario *ALSA*
 ---------------
-Live Stream from ALSA sound card at 32kHz, with ZMQ output for ODR-DabMux:
+Live Stream from ALSA sound card at 32kHz, with EDI output for ODR-DabMux:
 
-    odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -l
+    odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -e $DST -l
 
 To enable sound card drift compensation, add the option **-D**:
 
-    odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -o $DST -D -l
+    odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -e $DST -D -l
 
 You might see **U** and **O** appearing on the terminal. They correspond
 to audio **u**nderruns and **o**verruns that happen due to the different speeds at which
@@ -158,15 +158,18 @@ the audio is captured from the soundcard, and encoded into HE-AACv2.
 
 High occurrence of these will lead to audible artifacts.
 
-Scenario *libVLC input for a webstream*
+Scenario *encode a webstream*
 ---------------------------------------
-Read a webstream and send it to ODR-DabMux over ZMQ:
+You can use either GStreamer with the `-G` option or libVLC with `-v`.
 
-    odr-audioenc -v $URL -r 32000 -c 2 -o $DST -l -b $BITRATE
+Read a webstream and send it to ODR-DabMux over EDI:
+
+    odr-audioenc -G $URL -r 32000 -c 2 -e $DST -l -b $BITRATE
 
 If you need to extract the ICY-Text information, e.g. for DLS, you can use the
 `-w <filename>` option to write the ICY-Text into a file that can be read by
-*ODR-PadEnc*.
+*ODR-PadEnc*. This does apparently not work for all ogg source streams when using
+libVLC.
 
 If the webstream bitrate is slightly wrong (bad clock at the source), you can
 enable drift compensation with `-D`.
@@ -176,12 +179,12 @@ Scenario *JACK input*
 JACK input: Instead of `-i (file input)` or `-d (ALSA input)`, use `-j *name*`, where *name* specifies the JACK
 name for the encoder:
 
-    odr-audioenc -j myenc -l -b $BITRATE -o $DST
+    odr-audioenc -j myenc -l -b $BITRATE -e $DST
 
 The JACK server must run at the samplerate of the encoder (32kHz or 48kHz). If that is not possible,
 one workaround is to access JACK through VLC, which will resample accordingly:
 
-    odr-audioenc -l -v jack://dab -b $BITRATE -o $DST
+    odr-audioenc -l -v jack://dab -b $BITRATE -e $DST
 
 Scenario *LiveWire* or *AES67*
 ------------------------------
@@ -190,7 +193,7 @@ When audio data is available on the network as a multicast stream, it can be enc
 
     rtpdump -F payload 239.192.1.1/5004 | \
     sox -t raw -e signed-integer -r 48000 -c 2 -b 24 -B /dev/stdin -t raw --no-dither -r 48000 -c 2 -b 16 -L /dev/stdout gain 4 | \
-    odr-audioenc -f raw -b $BITRATE -i /dev/stdin -o $DST
+    odr-audioenc -f raw -b $BITRATE -i /dev/stdin -e $DST
 
 It is also possible to use the libvlc input, where you need to create an SDP file with the following contents:
 
@@ -207,10 +210,14 @@ Replace the IP address in the `o=` field by the one corresponding to your
 source node IP address, and the IP in `c=` by the multicast IP of your stream.
 Then use this SDP file as input for the VLC input.
 
+This could maybe also work with GStreamer, but needs more testing. Help would be appreciated
+in improving the GStreamer input code to also support more advanced features, some pointers are
+in *TODO.md*
+
 
 Scenario *local file through snd-aloop*
 ---------------------------------------
-Play some local audio source from a file, with ZMQ output for ODR-DabMux. The problem with
+Play some local audio source from a file, with EDI or ZMQ output for ODR-DabMux. The problem with
 playing a file is that *odr-audioenc* cannot directly be used, because ODR-DabMux
 does not back-pressure the encoder, which will therefore encode much faster than realtime.
 
@@ -222,7 +229,7 @@ alsa virtual loop soundcard *snd-aloop* in the following way:
 This creates a new audio card (usually 'hw:1' but have a look at `/proc/asound/card` to be sure) that
 can then be used for the alsa encoder.
 
-    ./odr-audioenc -d hw:1 -c 2 -r 32000 -b 64 -o $DST -l
+    ./odr-audioenc -d hw:1 -c 2 -r 32000 -b 64 -e $DST -l
 
 Then, you can use any media player that has an alsa output to play whatever source it supports:
 
@@ -235,7 +242,7 @@ Then, you can use any media player that has an alsa output to play whatever sour
 
 Scenario *mplayer and fifo*
 ---------------------------
-**Warning**: Connection through pipes to ODR-DabMux are deprecated in favour of ZeroMQ.
+**Warning**: Connection through pipes to ODR-DabMux are deprecated in favour of EDI.
 
 Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB muxer, with FIFO to odr-dabmux
 using mplayer. If there are no data in FIFO, encoder generates silence.
@@ -244,7 +251,7 @@ using mplayer. If there are no data in FIFO, encoder generates silence.
     odr-audioenc -l -f raw --fifo-silence -i /tmp/aac.fifo -r 32000 -c 2 -b 72 -o /dev/stdout \
     mbuffer -q -m 10k -P 100 -s 1080 > station1.fifo
 
-**Note**: Do not use `/dev/stdout` for PCM output in mplayer. Mplayer log messages on stdout.
+**Note**: Do not use `/dev/stdout` for PCM output in mplayer. Mplayer logs messages to stdout.
 
 Return values
 -------------
@@ -254,7 +261,7 @@ odr-audioenc returns:
  * 1 if some options were not understood, or encoder initialisation failed
  * 2 if the silence timeout was reached
  * 3 if the AAC encoder failed
- * 4 it the ZeroMQ send failed
+ * 4 it sending data over the network failed
  * 5 if the input had a fault
 
 The `-R` option to get ODR-AudioEnc to restart the input
