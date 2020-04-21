@@ -14,7 +14,7 @@ AC_PROG_CXX
 AC_PROG_LIBTOOL
 LT_INIT
 
-AX_CXX_COMPILE_STDCXX_11(noext,mandatory)
+AX_CXX_COMPILE_STDCXX(11,noext,mandatory)
 
 # std::thread requires pthread
 AX_PTHREAD( [
