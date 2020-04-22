@@ -407,6 +407,7 @@ public:
 
     string icytext_file;
     bool icytext_dlplus = false;
+    ICY_TEXT_t previous_text;
 
     // For the ALSA input
     string alsa_device;
@@ -1003,13 +1004,15 @@ int AudioEnc::run()
             }
 #endif
 
-            if (text) {
+            if (previous_text != text) {
                 bool success = write_icy_to_file(text, icytext_file, icytext_dlplus);
 
                 if (not success) {
                     fprintf(stderr, "Failed to write ICY Text\n");
                 }
             }
+
+            previous_text = text;
         }
 
         /*! \section AudioLevel
