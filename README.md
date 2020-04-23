@@ -47,11 +47,12 @@ Requirements
 
 For Debian Buster, and related systems, use
 
-    $ sudo apt-get install build-essential automake libtool git
-    $ sudo apt-get install libzmq3-dev libzmq5
-    $ sudo apt-get install libvlc-dev vlc-data vlc-plugins-base
-    $ sudo apt-get install libjack-jackd2-dev jackd2
-    $ sudo apt-get install libasound2-dev libasound2
+    $ sudo apt install build-essential automake libtool git
+    $ sudo apt install libzmq3-dev libzmq5
+    $ sudo apt install libvlc-dev vlc-data vlc-plugins-base
+    $ sudo apt install libjack-jackd2-dev jackd2
+    $ sudo apt install libasound2-dev libasound2
+    $ sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly libgstreamer-plugins-bad1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-ugly1.0-dev libgstreamer1.0-dev
 
 **Attention**: on older Debian versions, you'll need `vlc-nox` instead of `vlc-plugins-base`
 

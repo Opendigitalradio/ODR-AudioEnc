@@ -1,3 +1,10 @@
+2020-04-23: Matthias P. Braendli <matthias@mpb.li>
+	(v2.6.0):
+		Add GStreamer-based input.
+		Add --identifier option for EDI output.
+		Handle TCP connection automatically for EDI output and fix
+		multi-output functionality.
+
 2020-02-11: Matthias P. Braendli <matthias@mpb.li>
 	(v2.5.0):
 		Integrate FDK-AAC into this repository. This removes the external
