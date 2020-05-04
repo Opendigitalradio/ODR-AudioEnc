@@ -462,10 +462,6 @@ public:
 
     string dab_channel_mode;
 
-    /* Keep track of peaks */
-    int16_t peak_left  = 0;
-    int16_t peak_right = 0;
-
     /* On silence, die after the silence_timeout expires */
     bool die_on_silence = false;
     int silence_timeout = 0;
@@ -1022,6 +1018,8 @@ int AudioEnc::run()
          *
          * \todo fix level measurement in mono
          */
+        int16_t peak_left  = 0;
+        int16_t peak_right = 0;
         for (int i = 0; i < read_bytes; i+=4) {
             int16_t l = input_buf[i] | (input_buf[i+1] << 8);
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
@@ -1249,9 +1247,6 @@ int AudioEnc::run()
             if (stats_publisher) {
                 stats_publisher->send_stats();
             }
-
-            peak_right = 0;
-            peak_left = 0;
 
             status = 0;
         }
