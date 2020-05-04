@@ -125,6 +125,9 @@ VLCInput::~VLCInput()
 {
     m_running = false;
 
+    // Ensures push() doesn't get blocked
+    m_samplequeue.clear();
+
     if (m_thread.joinable()) {
         m_thread.join();
     }

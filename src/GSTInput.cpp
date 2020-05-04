@@ -271,6 +271,10 @@ void GSTInput::process()
 GSTInput::~GSTInput()
 {
     m_running = false;
+
+    // Ensures push() doesn't get blocked
+    m_gst_data.samplequeue.clear();
+
     if (m_thread.joinable()) {
         m_thread.join();
     }

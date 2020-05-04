@@ -31,6 +31,9 @@ using namespace std;
 
 AlsaInput::~AlsaInput()
 {
+    // Ensures push() doesn't get blocked
+    m_queue.clear();
+
     if (m_alsa_handle) {
         snd_pcm_close(m_alsa_handle);
         m_alsa_handle = nullptr;
@@ -121,6 +124,18 @@ ssize_t AlsaInput::m_read(uint8_t* buf, snd_pcm_uframes_t length)
     }
 
     return err;
+}
+
+AlsaInputThreaded::~AlsaInputThreaded()
+{
+    m_running = false;
+
+    // Ensures push() doesn't get blocked
+    m_queue.clear();
+
+    if (m_thread.joinable()) {
+        m_thread.join();
+    }
 }
 
 void AlsaInputThreaded::prepare()

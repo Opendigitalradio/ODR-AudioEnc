@@ -27,6 +27,9 @@ using namespace std;
 
 FileInput::~FileInput()
 {
+    // Ensures push() doesn't get blocked
+    m_queue.clear();
+
     if (m_raw_input and m_in_fh) {
         fclose(m_in_fh);
     }

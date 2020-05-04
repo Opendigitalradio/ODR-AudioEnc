@@ -111,13 +111,7 @@ class AlsaInputThreaded : public AlsaInput
             m_fault(false),
             m_running(false) { }
 
-        virtual ~AlsaInputThreaded()
-        {
-            if (m_running) {
-                m_running = false;
-                m_thread.join();
-            }
-        }
+        virtual ~AlsaInputThreaded();
 
         /*! Start the ALSA thread that fills the queue */
         virtual void prepare(void) override;

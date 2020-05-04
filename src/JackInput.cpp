@@ -34,6 +34,9 @@ using namespace std;
 
 JackInput::~JackInput()
 {
+    // Ensures push() doesn't get blocked
+    m_queue.clear();
+
     if (m_client) {
         jack_client_close(m_client);
     }

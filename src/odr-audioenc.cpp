@@ -491,7 +491,7 @@ public:
     unique_ptr<AACDecoder> decoder;
     unique_ptr<StatsPublisher> stats_publisher;
 
-    AudioEnc() : queue(BYTES_PER_SAMPLE, channels, 0, drift_compensation) { }
+    AudioEnc() : queue(BYTES_PER_SAMPLE) { }
     AudioEnc(const AudioEnc&) = delete;
     AudioEnc& operator=(const AudioEnc&) = delete;
     ~AudioEnc();
@@ -764,7 +764,7 @@ int AudioEnc::run()
     /*! The SampleQueue \c queue is given to the inputs, so that they
      * can fill it.
      */
-    queue.set_max_size(max_size);
+    queue.configure(max_size, not drift_compensation, channels);
 
     /* symsize=8, gfpoly=0x11d, fcr=0, prim=1, nroots=10, pad=135 */
     rs_handler = init_rs_char(8, 0x11d, 0, 1, 10, 135);
@@ -1319,20 +1319,17 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
     shared_ptr<InputInterface> input;
 
     if (not infile.empty()) {
-        input = make_shared<FileInput>(infile, raw_input, sample_rate,
-                continue_after_eof, queue);
+        input = make_shared<FileInput>(infile, raw_input, sample_rate, continue_after_eof, queue);
     }
 #if HAVE_JACK
     else if (not jack_name.empty()) {
-        input = make_shared<JackInput>(jack_name, channels, sample_rate,
-                queue);
+        input = make_shared<JackInput>(jack_name, channels, sample_rate, queue);
     }
 #endif
 #if HAVE_VLC
     else if (not vlc_uri.empty()) {
-        input = make_shared<VLCInput>(vlc_uri, sample_rate, channels,
-                verbosity, vlc_gain, vlc_cache, vlc_additional_opts,
-                queue);
+        input = make_shared<VLCInput>(vlc_uri, sample_rate, channels, verbosity,
+                vlc_gain, vlc_cache, vlc_additional_opts, queue);
     }
 #endif
 #if HAVE_GST
@@ -1342,12 +1339,10 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
 #endif
 #if HAVE_ALSA
     else if (drift_compensation) {
-        input = make_shared<AlsaInputThreaded>(alsa_device, channels,
-                sample_rate, queue);
+        input = make_shared<AlsaInputThreaded>(alsa_device, channels, sample_rate, queue);
     }
     else {
-        input = make_shared<AlsaInputDirect>(alsa_device, channels,
-                sample_rate, queue);
+        input = make_shared<AlsaInputDirect>(alsa_device, channels, sample_rate, queue);
     }
 #endif
 

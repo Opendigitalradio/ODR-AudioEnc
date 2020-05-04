@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 Matthias P. Braendli
+ * Copyright (C) 2020 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,15 +63,15 @@ template<typename T>
 class SampleQueue
 {
 public:
-    SampleQueue(unsigned int bytes_per_sample,
-            unsigned int channels,
-            size_t max_size,
-            bool drift_compensation) :
-        m_channels(channels),
-        m_bytes_per_sample(bytes_per_sample),
-        m_max_size(max_size),
-        m_push_block(not drift_compensation),
-        m_overruns(0) {}
+    SampleQueue(unsigned int bytes_per_sample) :
+        m_bytes_per_sample(bytes_per_sample) {}
+
+    void configure(size_t max_size, bool push_block, unsigned int channels)
+    {
+        m_max_size = max_size;
+        m_push_block = push_block;
+        m_channels = channels;
+    }
 
 
     /*! Push a bunch of samples into the buffer
@@ -275,9 +275,16 @@ public:
         return ret;
     }
 
-    void set_max_size(size_t max_size)
+    void clear()
     {
-        m_max_size = max_size;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_queue.clear();
+#if DEBUG_SAMPLE_QUEUE
+            fprintf(stdout, "clear\n");
+#endif
+        }
+        m_pop_notification.notify_all();
     }
 
 private:
@@ -286,15 +293,15 @@ private:
     std::condition_variable m_push_notification;
     std::condition_variable m_pop_notification;
 
-    unsigned int m_channels;
     unsigned int m_bytes_per_sample;
-    size_t m_max_size;
-    bool m_push_block;
+    unsigned int m_channels = 2;
+    size_t m_max_size = 1;
+    bool m_push_block = true;
 
     /*! Counter to keep track of number of overruns between calls
      * to pop()
      */
-    size_t m_overruns;
+    size_t m_overruns = 0;
 };
 
 #endif
