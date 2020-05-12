@@ -17,9 +17,6 @@ AM_CPPFLAGS = \
     -I./libPCMutils/include
 
 AM_CXXFLAGS = -fno-exceptions -fno-rtti
-libfdk_aac_dab_la_LINK = $(LINK) $(libfdk_aac_dab_la_LDFLAGS)
-# Mention a dummy pure C file to trigger generation of the $(LINK) variable
-nodist_EXTRA_libfdk_aac_dab_la_SOURCES = dummy.c
 
 fdk_aac_dabincludedir = $(includedir)/fdk-aac-dab
 fdk_aac_dabinclude_HEADERS = \
@@ -30,22 +27,7 @@ fdk_aac_dabinclude_HEADERS = \
     ./libAACenc/include/aacenc_lib.h \
     ./libAACdec/include/aacdecoder_lib.h
 
-#pkgconfigdir = $(libdir)/pkgconfig
-#pkgconfig_DATA = fdk-aac.pc
-
-lib_LTLIBRARIES = libfdk-aac-dab.la
-
-libfdk_aac_dab_la_LDFLAGS = -version-info @FDK_AAC_VERSION@ -no-undefined \
-    -export-symbols ./fdk-aac.sym
-
-if EXAMPLE
-bin_PROGRAMS = aac-enc$(EXEEXT)
-
-aac_enc_LDADD = libfdk-aac-dab.la
-aac_enc_SOURCES = aac-enc.c wavreader.c
-
-noinst_HEADERS = wavreader.h
-endif
+noinst_LIBRARIES = libfdk-aac-dab.a
 
 AACDEC_SRC = \
     libAACdec/src/FDK_delay.cpp \
@@ -245,7 +227,7 @@ SYS_SRC = \
     libSYS/src/genericStds.cpp \
     libSYS/src/syslib_channelMapDescr.cpp
 
-libfdk_aac_dab_la_SOURCES = \
+libfdk_aac_dab_a_SOURCES = \
     $(AACDEC_SRC) $(AACENC_SRC) \
     $(ARITHCODING_SRC) \
     $(DRCDEC_SRC) \

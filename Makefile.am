@@ -9,9 +9,6 @@ else
 GITVERSION_FLAGS =
 endif
 
-libtoolame_dab_la_LINK = $(LINK) $(libtoolame_dab_la_LDFLAGS)
-# Mention a dummy pure C file to trigger generation of the $(LINK) variable
-
 toolame_dabincludedir = $(includedir)/libtoolame-dab
 toolame_dabinclude_HEADERS = \
 	$(top_srcdir)/libtoolame-dab/absthr.h \
@@ -45,14 +42,35 @@ toolame_dabinclude_HEADERS = \
 	$(top_srcdir)/libtoolame-dab/toolame.h \
 	$(top_srcdir)/libtoolame-dab/utils.h
 
+noinst_LIBRARIES = libtoolame-dab.a
+
+libtoolame_dab_a_SOURCES = \
+							libtoolame-dab/common.c \
+							libtoolame-dab/encode.c \
+							libtoolame-dab/ieeefloat.c \
+							libtoolame-dab/toolame.c \
+							libtoolame-dab/portableio.c \
+							libtoolame-dab/psycho_n1.c \
+							libtoolame-dab/psycho_0.c \
+							libtoolame-dab/psycho_1.c \
+							libtoolame-dab/psycho_2.c \
+							libtoolame-dab/psycho_3.c \
+							libtoolame-dab/psycho_4.c \
+							libtoolame-dab/fft.c \
+							libtoolame-dab/subband.c \
+							libtoolame-dab/bitstream.c \
+							libtoolame-dab/mem.c \
+							libtoolame-dab/crc.c \
+							libtoolame-dab/tables.c \
+							libtoolame-dab/availbits.c \
+							libtoolame-dab/ath.c \
+							libtoolame-dab/encode_new.c \
+							libtoolame-dab/utils.c
+
+
+libtoolame_dab_a_CFLAGS  = -fomit-frame-pointer -DNEWENCODE -std=c99
+
 pkgconfigdir = $(libdir)/pkgconfig
-
-lib_LTLIBRARIES = libtoolame-dab.la
-
-libtoolame_dab_la_CFLAGS  = -fomit-frame-pointer -DNEWENCODE -std=c99
-libtoolame_dab_la_LDFLAGS = -version-info @LIBTOOLAME_DAB_VERSION@ \
-							-no-undefined \
-							-export-symbols $(top_srcdir)/libtoolame-dab.sym
 
 if HAVE_JACK
 odr_audioenc_LDADD_JACK  = -ljack
@@ -74,9 +92,8 @@ FEC_SOURCES = contrib/fec/char.h \
 			  contrib/fec/rs-common.h
 
 
-odr_audioenc_LDFLAGS     = -no-install
-odr_audioenc_LDADD       = libtoolame-dab.la \
-						   fdk-aac/libfdk-aac-dab.la \
+odr_audioenc_LDADD       = libtoolame-dab.a \
+						   fdk-aac/libfdk-aac-dab.a \
 						   -lzmq \
 						   $(odr_audioenc_LDADD_JACK) \
 						   $(odr_audioenc_LDADD_ALSA) \
@@ -144,30 +161,6 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 bin_PROGRAMS =  odr-audioenc$(EXEEXT)
 
 noinst_HEADERS = src/wavfile.h
-
-libtoolame_dab_la_SOURCES = \
-							libtoolame-dab/common.c \
-							libtoolame-dab/encode.c \
-							libtoolame-dab/ieeefloat.c \
-							libtoolame-dab/toolame.c \
-							libtoolame-dab/portableio.c \
-							libtoolame-dab/psycho_n1.c \
-							libtoolame-dab/psycho_0.c \
-							libtoolame-dab/psycho_1.c \
-							libtoolame-dab/psycho_2.c \
-							libtoolame-dab/psycho_3.c \
-							libtoolame-dab/psycho_4.c \
-							libtoolame-dab/fft.c \
-							libtoolame-dab/subband.c \
-							libtoolame-dab/bitstream.c \
-							libtoolame-dab/mem.c \
-							libtoolame-dab/crc.c \
-							libtoolame-dab/tables.c \
-							libtoolame-dab/availbits.c \
-							libtoolame-dab/ath.c \
-							libtoolame-dab/encode_new.c \
-							libtoolame-dab/utils.c
-
 
 EXTRA_DIST = $(top_srcdir)/bootstrap \
 			 $(top_srcdir)/README.md \
