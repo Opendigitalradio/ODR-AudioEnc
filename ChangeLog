@@ -1,3 +1,11 @@
+2020-05-26: Matthias P. Braendli <matthias@mpb.li>
+	(v2.6.1):
+		Add --version option.
+		Do not build toolame-dab and fdk-aac dynamic libraries,
+		but link those statically into odr-audioenc.
+		Improve silence detection.
+		Minor changes in EDI output.
+
 2020-04-23: Matthias P. Braendli <matthias@mpb.li>
 	(v2.6.0):
 		Add GStreamer-based input.

@@ -298,8 +298,8 @@ The ODR-AudioEnc project contains
  - The FDK-AAC encoder, patched for DAB+ support, licensed under the terms in
    `fdk-aac/NOTICE`, built into a shared library.
 
-The odr-audioenc binary is linked against the libtoolame-dab and fdk-aac
-shared libraries.
+The odr-audioenc binary is statically linked against the libtoolame-dab and fdk-aac
+libraries.
 
 Whether it is legal or not to distribute compiled binaries from these sources
 is unclear to me. Please seek legal advice to answer this question.
