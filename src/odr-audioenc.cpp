@@ -206,6 +206,7 @@ static void usage(const char* name)
     "     -S, --stats=SOCKET_NAME              Connect to the specified UNIX Datagram socket and send statistics.\n"
     "                                          This allows external tools to collect audio and drift compensation stats.\n"
     "     -s, --silence=TIMEOUT                Abort encoding after TIMEOUT seconds of silence.\n"
+    "         --version                        Show version and quit.\n"
     "\n"
     "Only the tcp:// zeromq transport has been tested until now,\n"
     " but epgm://, pgm:// and ipc:// are also accepted\n"
@@ -1357,8 +1358,6 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
 
 int main(int argc, char *argv[])
 {
-    AudioEnc audio_enc;
-
     const struct option longopts[] = {
         {"bitrate",                required_argument,  0, 'b'},
         {"bandwidth",              required_argument,  0, 'B'},
@@ -1401,6 +1400,17 @@ int main(int argc, char *argv[])
         {0, 0, 0, 0},
     };
 
+    if (argc == 2 and strcmp(argv[1], "--version") == 0) {
+        fprintf(stdout, "%s\n",
+#if defined(GITVERSION)
+                GITVERSION
+#else
+                PACKAGE_VERSION
+#endif
+               );
+        return 0;
+    }
+
     fprintf(stderr,
             "Welcome to %s %s, compiled at %s, %s",
             PACKAGE_NAME,
@@ -1418,6 +1428,8 @@ int main(int argc, char *argv[])
         usage(argv[0]);
         return 1;
     }
+
+    AudioEnc audio_enc;
 
     int ch=0;
     int index;
