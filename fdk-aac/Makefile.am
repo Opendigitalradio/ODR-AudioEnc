@@ -18,14 +18,6 @@ AM_CPPFLAGS = \
 
 AM_CXXFLAGS = -fno-exceptions -fno-rtti
 
-fdk_aac_dabincludedir = $(includedir)/fdk-aac-dab
-fdk_aac_dabinclude_HEADERS = \
-    ./libSYS/include/machine_type.h \
-    ./libSYS/include/genericStds.h \
-    ./libSYS/include/FDK_audio.h \
-    ./libSYS/include/syslib_channelMapDescr.h \
-    ./libAACenc/include/aacenc_lib.h \
-    ./libAACdec/include/aacdecoder_lib.h
 
 noinst_LIBRARIES = libfdk-aac-dab.a
 
@@ -60,6 +52,8 @@ AACDEC_SRC = \
     libAACdec/src/usacdec_rom.cpp
 
 AACENC_SRC = \
+    libAACenc/include/aacenc_lib.h \
+    libAACdec/include/aacdecoder_lib.h \
     libAACenc/src/aacEnc_ram.cpp \
     libAACenc/src/aacEnc_rom.cpp \
     libAACenc/src/aacenc.cpp \
@@ -225,7 +219,11 @@ SBRENC_SRC = \
 
 SYS_SRC = \
     libSYS/src/genericStds.cpp \
-    libSYS/src/syslib_channelMapDescr.cpp
+    libSYS/src/syslib_channelMapDescr.cpp \
+    libSYS/include/machine_type.h \
+    libSYS/include/genericStds.h \
+    libSYS/include/FDK_audio.h \
+    libSYS/include/syslib_channelMapDescr.h
 
 libfdk_aac_dab_a_SOURCES = \
     $(AACDEC_SRC) $(AACENC_SRC) \

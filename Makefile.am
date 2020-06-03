@@ -9,39 +9,6 @@ else
 GITVERSION_FLAGS =
 endif
 
-toolame_dabincludedir = $(includedir)/libtoolame-dab
-toolame_dabinclude_HEADERS = \
-	$(top_srcdir)/libtoolame-dab/absthr.h \
-	$(top_srcdir)/libtoolame-dab/ath.h \
-	$(top_srcdir)/libtoolame-dab/availbits.h \
-	$(top_srcdir)/libtoolame-dab/bitstream.h \
-	$(top_srcdir)/libtoolame-dab/common.h \
-	$(top_srcdir)/libtoolame-dab/crc.h \
-	$(top_srcdir)/libtoolame-dab/critband.h \
-	$(top_srcdir)/libtoolame-dab/encode.h \
-	$(top_srcdir)/libtoolame-dab/encode_new.h \
-	$(top_srcdir)/libtoolame-dab/encoder.h \
-	$(top_srcdir)/libtoolame-dab/enwindow.h \
-	$(top_srcdir)/libtoolame-dab/fft.h \
-	$(top_srcdir)/libtoolame-dab/freqtable.h \
-	$(top_srcdir)/libtoolame-dab/ieeefloat.h \
-	$(top_srcdir)/libtoolame-dab/mem.h \
-	$(top_srcdir)/libtoolame-dab/musicin.h \
-	$(top_srcdir)/libtoolame-dab/options.h \
-	$(top_srcdir)/libtoolame-dab/portableio.h \
-	$(top_srcdir)/libtoolame-dab/psycho_0.h \
-	$(top_srcdir)/libtoolame-dab/psycho_1.h \
-	$(top_srcdir)/libtoolame-dab/psycho_1_priv.h \
-	$(top_srcdir)/libtoolame-dab/psycho_2.h \
-	$(top_srcdir)/libtoolame-dab/psycho_3.h \
-	$(top_srcdir)/libtoolame-dab/psycho_3priv.h \
-	$(top_srcdir)/libtoolame-dab/psycho_4.h \
-	$(top_srcdir)/libtoolame-dab/psycho_n1.h \
-	$(top_srcdir)/libtoolame-dab/subband.h \
-	$(top_srcdir)/libtoolame-dab/tables.h \
-	$(top_srcdir)/libtoolame-dab/toolame.h \
-	$(top_srcdir)/libtoolame-dab/utils.h
-
 noinst_LIBRARIES = libtoolame-dab.a
 
 libtoolame_dab_a_SOURCES = \
@@ -65,7 +32,37 @@ libtoolame_dab_a_SOURCES = \
 							libtoolame-dab/availbits.c \
 							libtoolame-dab/ath.c \
 							libtoolame-dab/encode_new.c \
-							libtoolame-dab/utils.c
+							libtoolame-dab/utils.c \
+							libtoolame-dab/absthr.h \
+							libtoolame-dab/ath.h \
+							libtoolame-dab/availbits.h \
+							libtoolame-dab/bitstream.h \
+							libtoolame-dab/common.h \
+							libtoolame-dab/crc.h \
+							libtoolame-dab/critband.h \
+							libtoolame-dab/encode.h \
+							libtoolame-dab/encode_new.h \
+							libtoolame-dab/encoder.h \
+							libtoolame-dab/enwindow.h \
+							libtoolame-dab/fft.h \
+							libtoolame-dab/freqtable.h \
+							libtoolame-dab/ieeefloat.h \
+							libtoolame-dab/mem.h \
+							libtoolame-dab/musicin.h \
+							libtoolame-dab/options.h \
+							libtoolame-dab/portableio.h \
+							libtoolame-dab/psycho_0.h \
+							libtoolame-dab/psycho_1.h \
+							libtoolame-dab/psycho_1_priv.h \
+							libtoolame-dab/psycho_2.h \
+							libtoolame-dab/psycho_3.h \
+							libtoolame-dab/psycho_3priv.h \
+							libtoolame-dab/psycho_4.h \
+							libtoolame-dab/psycho_n1.h \
+							libtoolame-dab/subband.h \
+							libtoolame-dab/tables.h \
+							libtoolame-dab/toolame.h \
+							libtoolame-dab/utils.h
 
 
 libtoolame_dab_a_CFLAGS  = -fomit-frame-pointer -DNEWENCODE -std=c99
