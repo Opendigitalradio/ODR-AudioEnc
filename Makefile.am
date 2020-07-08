@@ -102,6 +102,8 @@ odr_audioenc_CXXFLAGS    = $(GST_CFLAGS) $(GITVERSION_FLAGS) \
 						   -Wall -ggdb -O2 -Isrc -Icontrib
 
 odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
+						   src/PadInterface.cpp \
+						   src/PadInterface.h \
 						   src/FileInput.cpp \
 						   src/FileInput.h \
 						   src/AlsaInput.cpp \
