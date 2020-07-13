@@ -201,7 +201,7 @@ static void usage(const char* name)
     "                                          add a delay (in milliseconds) to the timestamps carried in EDI\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
     "     -p, --pad=BYTES                      Enable PAD insertion and set PAD size in bytes.\n"
-    "     -P, --pad-socket=IDENTIFIER          Use the given identifier to communicate with ODR-PadEnc."
+    "     -P, --pad-socket=IDENTIFIER          Use the given identifier to communicate with ODR-PadEnc.\n"
     "     -l, --level                          Show peak audio level indication.\n"
     "     -S, --stats=SOCKET_NAME              Connect to the specified UNIX Datagram socket and send statistics.\n"
     "                                          This allows external tools to collect audio and drift compensation stats.\n"
