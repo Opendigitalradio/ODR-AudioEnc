@@ -27,9 +27,12 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-using namespace std;
+#if __APPLE__
+#include <fcntl.h>
+#define SOCK_NONBLOCK O_NONBLOCK
+#endif
 
-StatsPublisher::StatsPublisher(const string& socket_path) :
+StatsPublisher::StatsPublisher(const std::string& socket_path) :
     m_socket_path(socket_path)
 {
     // The client socket binds to a socket whose name depends on PID, and connects to
@@ -37,7 +40,7 @@ StatsPublisher::StatsPublisher(const string& socket_path) :
 
     m_sock = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     if (m_sock == -1) {
-        throw runtime_error("Stats socket creation failed: " + string(strerror(errno)));
+        throw std::runtime_error("Stats socket creation failed: " + std::string(strerror(errno)));
     }
 
     struct sockaddr_un claddr;
@@ -47,7 +50,7 @@ StatsPublisher::StatsPublisher(const string& socket_path) :
 
     int ret = bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
-        throw runtime_error("Stats socket bind failed " + string(strerror(errno)));
+        throw std::runtime_error("Stats socket bind failed " + std::string(strerror(errno)));
     }
 }
 
@@ -77,7 +80,7 @@ void StatsPublisher::notify_overrun()
 void StatsPublisher::send_stats()
 {
     // Manually build YAML, as it's quite easy.
-    stringstream yaml;
+    std::stringstream yaml;
     yaml << "---\n";
     yaml << "program: " << PACKAGE_NAME << "\n";
     yaml << "version: " <<
