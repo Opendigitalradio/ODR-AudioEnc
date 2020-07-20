@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2019 Matthias P. Braendli
+ * Copyright (C) 2020 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -35,9 +36,20 @@ StatsPublisher::StatsPublisher(const string& socket_path) :
     // The client socket binds to a socket whose name depends on PID, and connects to
     // `socket_path`
 
-    m_sock = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    m_sock = ::socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_sock == -1) {
         throw runtime_error("Stats socket creation failed: " + string(strerror(errno)));
+    }
+
+    int flags = fcntl(m_sock, F_GETFL);
+    if (flags == -1) {
+        std::string errstr(strerror(errno));
+        throw std::runtime_error("Stats socket: Could not get socket flags: " + errstr);
+    }
+
+    if (fcntl(m_sock, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::string errstr(strerror(errno));
+        throw std::runtime_error("Stats socket: Could not set O_NONBLOCK: " + errstr);
     }
 
     struct sockaddr_un claddr;
@@ -45,7 +57,7 @@ StatsPublisher::StatsPublisher(const string& socket_path) :
     claddr.sun_family = AF_UNIX;
     snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/odr-audioenc.%ld", (long) getpid());
 
-    int ret = bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
+    int ret = ::bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         throw runtime_error("Stats socket bind failed " + string(strerror(errno)));
     }
@@ -54,7 +66,7 @@ StatsPublisher::StatsPublisher(const string& socket_path) :
 StatsPublisher::~StatsPublisher()
 {
     if (m_sock != -1) {
-        close(m_sock);
+        ::close(m_sock);
     }
 }
 
@@ -97,7 +109,7 @@ void StatsPublisher::send_stats()
     claddr.sun_family = AF_UNIX;
     snprintf(claddr.sun_path, sizeof(claddr.sun_path), "%s", m_socket_path.c_str());
 
-    int ret = sendto(m_sock, yamlstr.data(), yamlstr.size(), 0,
+    int ret = ::sendto(m_sock, yamlstr.data(), yamlstr.size(), 0,
             (struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         // This suppresses the -Wlogical-op warning
