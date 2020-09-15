@@ -121,7 +121,11 @@ void GSTInput::prepare()
     m_gst_data.audio_resample = gst_element_factory_make("audioresample", "audio_resample");
     assert(m_gst_data.audio_resample != nullptr);
     g_object_set(m_gst_data.audio_resample,
+#if (GST_VERSION_MAJOR == 1 && GST_VERSION_MINOR >= 10) || GST_VERSION_MAJOR > 1
             "sinc-filter-mode", GST_AUDIO_RESAMPLER_FILTER_MODE_FULL,
+#else
+#warning "GStreamer version is too old to set GST_AUDIO_RESAMPLER_FILTER_MODE_FULL" GST_VERSION_MAJOR
+#endif
             "quality", 6, // between 0 and 10, 10 being best
             /* default audio-resampler-method: GST_AUDIO_RESAMPLER_METHOD_KAISER */
             NULL);
