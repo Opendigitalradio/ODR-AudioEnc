@@ -29,7 +29,7 @@ matrix:
             - libasound2-dev
             - libjack-jackd2-dev
             - jackd2
-            - libmagickwand-dev
+            - libgstreamer1.0-dev
             - g++-9
 
     - env: CONF="--enable-alsa"
@@ -56,7 +56,7 @@ matrix:
       compiler: gcc
       addons: *linuxaddons
 
-    - env: CONF="--enable-alsa --enable-jack --enable-vlc"
+    - env: CONF="--enable-gst"
       os: linux
       arch: amd64
       dist: bionic
@@ -64,7 +64,15 @@ matrix:
       compiler: gcc
       addons: *linuxaddons
 
-    - env: CONF="--enable-alsa --enable-jack --enable-vlc"
+    - env: CONF="--enable-alsa --enable-jack --enable-vlc --enable-gst"
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
+
+    - env: CONF="--enable-alsa --enable-jack --enable-vlc --enable-gst"
       os: linux
       arch: arm64
       dist: bionic
