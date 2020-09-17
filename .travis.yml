@@ -3,6 +3,11 @@ language: c++
 matrix:
   include:
     - env: CONF=""
+      os: osx
+      osx_image: xcode11
+      compiler: clang
+
+    - env: CONF=""
       os: linux
       arch: amd64
       dist: bionic
@@ -24,7 +29,7 @@ matrix:
             - libasound2-dev
             - libjack-jackd2-dev
             - jackd2
-            - libmagickwand-dev
+            - libgstreamer1.0-dev
             - g++-9
 
     - env: CONF="--enable-alsa"
@@ -51,7 +56,7 @@ matrix:
       compiler: gcc
       addons: *linuxaddons
 
-    - env: CONF="--enable-alsa --enable-jack --enable-vlc"
+    - env: CONF="--enable-gst"
       os: linux
       arch: amd64
       dist: bionic
@@ -59,7 +64,15 @@ matrix:
       compiler: gcc
       addons: *linuxaddons
 
-    - env: CONF="--enable-alsa --enable-jack --enable-vlc"
+    - env: CONF="--enable-alsa --enable-jack --enable-vlc --enable-gst"
+      os: linux
+      arch: amd64
+      dist: bionic
+      sudo: required
+      compiler: gcc
+      addons: *linuxaddons
+
+    - env: CONF="--enable-alsa --enable-jack --enable-vlc --enable-gst"
       os: linux
       arch: arm64
       dist: bionic
@@ -67,9 +80,21 @@ matrix:
       compiler: gcc
       addons: *linuxaddons
 
+before_install:
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+    brew update
+    brew install automake || true
+    brew install zeromq || true
+    fi
+
 script:
   - |
     ./bootstrap
-    CC=gcc-9 CXX=g++-9 ./configure $CONF
+    if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
+    export CC=gcc-9
+    export CXX=g++-9
+    fi
+    ./configure $CONF
     make
 
