@@ -1,3 +1,10 @@
+2020-09-23: Matthias P. Braendli <matthias@mpb.li>
+	(v3.0.0):
+		Replacement of PAD fifo with a socket, offering bidirectional
+		communication with ODR-PadEnc. This is a breaking change,
+		modifying also the command line options.
+		Update the fdk-aac library to 2.0.1.
+
 2020-05-26: Matthias P. Braendli <matthias@mpb.li>
 	(v2.6.1):
 		Add --version option.

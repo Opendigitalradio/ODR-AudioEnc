@@ -26,7 +26,7 @@ at the rate defined by the system clock, and therefore sound
 card clock drift compensation is also used.
 
 *odr-audioenc* can insert Programme-Associated Data, that can be generated with
-ODR-PadEnc.
+ODR-PadEnc. ODR-AudioEnc v3 is compatible with ODR-PadEnc v3.
 
 For detailed usage, see the usage screen of the tool with the *-h* option.
 
