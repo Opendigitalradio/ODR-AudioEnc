@@ -469,7 +469,7 @@ public:
     /* For MOT Slideshow and DLS insertion */
     string pad_ident = "";
     PadInterface pad_intf;
-    int padlen = 0;
+    int padlen = 6;
 
     /* Encoder status, see the above STATUS macros */
     int status = 0;
@@ -635,9 +635,17 @@ int AudioEnc::run()
         edi_output.set_odr_version_tag(ss.str());
     }
 
+    if (pad_ident.empty()) {
+        // Override both default value and user-configured value if no ident given
+        padlen = 0;
+    }
+
     if (padlen != 0 and not pad_ident.empty()) {
         pad_intf.open(pad_ident);
         fprintf(stderr, "PAD socket opened\n");
+    }
+    else {
+        fprintf(stderr, "PAD disabled because neither PAD length nor PAD identifier given\n");
     }
 
     vec_u8 input_buf;
