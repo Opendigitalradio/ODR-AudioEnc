@@ -1,22 +1,19 @@
-language: c++
+language: cpp
+dist: focal
 
-matrix:
+jobs:
   include:
     - env: CONF=""
       os: osx
-      osx_image: xcode11
+      osx_image: xcode12.2
       compiler: clang
 
     - env: CONF=""
       os: linux
       arch: amd64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: &linuxaddons
         apt:
-          sources: &sources
-            - sourceline: 'ppa:ubuntu-toolchain-r/test'
           packages: &packages
             - libzmq3-dev
             - libzmq5
@@ -30,53 +27,43 @@ matrix:
             - libjack-jackd2-dev
             - jackd2
             - libgstreamer1.0-dev
-            - g++-9
+            - gstreamer1.0-plugins
+            - libgstreamer-plugins-base1.0-dev
+            - g++-10
 
     - env: CONF="--enable-alsa"
       os: linux
       arch: amd64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: *linuxaddons
 
     - env: CONF="--enable-jack"
       os: linux
       arch: amd64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: *linuxaddons
 
     - env: CONF="--enable-vlc"
       os: linux
       arch: amd64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: *linuxaddons
 
     - env: CONF="--enable-gst"
       os: linux
       arch: amd64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: *linuxaddons
 
     - env: CONF="--enable-alsa --enable-jack --enable-vlc --enable-gst"
       os: linux
       arch: amd64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: *linuxaddons
 
     - env: CONF="--enable-alsa --enable-jack --enable-vlc --enable-gst"
       os: linux
       arch: arm64
-      dist: bionic
-      sudo: required
       compiler: gcc
       addons: *linuxaddons
 
@@ -92,8 +79,8 @@ script:
   - |
     ./bootstrap
     if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
-    export CC=gcc-9
-    export CXX=g++-9
+    export CC=gcc-10
+    export CXX=g++-10
     fi
     ./configure $CONF
     make
