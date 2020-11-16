@@ -37,7 +37,7 @@ void PadInterface::open(const std::string& pad_ident)
 {
     m_pad_ident = pad_ident;
 
-    m_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+    m_sock = ::socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_sock == -1) {
         throw runtime_error("PAD socket creation failed: " + string(strerror(errno)));
     }
@@ -61,7 +61,7 @@ void PadInterface::open(const std::string& pad_ident)
         fprintf(stderr, "Unlinking of socket %s failed: %s\n", claddr.sun_path, strerror(errno));
     }
 
-    int ret = bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
+    int ret = ::bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         throw runtime_error("PAD socket bind failed " + string(strerror(errno)));
     }
@@ -86,7 +86,7 @@ vector<uint8_t> PadInterface::request(uint8_t padlen)
     claddr.sun_family = AF_UNIX;
     snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/%s.padenc", m_pad_ident.c_str());
 
-    ssize_t ret = sendto(m_sock, packet, sizeof(packet), 0, (struct sockaddr*)&claddr, sizeof(struct sockaddr_un));
+    ssize_t ret = ::sendto(m_sock, packet, sizeof(packet), 0, (struct sockaddr*)&claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         // This suppresses the -Wlogical-op warning
         if (errno == EAGAIN
@@ -116,7 +116,7 @@ vector<uint8_t> PadInterface::request(uint8_t padlen)
     vector<uint8_t> buffer(2048);
 
     while (true) {
-        ret = recvfrom(m_sock, buffer.data(), buffer.size(), 0, nullptr, nullptr);
+        ret = ::recvfrom(m_sock, buffer.data(), buffer.size(), 0, nullptr, nullptr);
 
         if (ret == -1) {
             // This suppresses the -Wlogical-op warning
