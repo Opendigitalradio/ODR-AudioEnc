@@ -61,7 +61,7 @@ void PadInterface::open(const std::string& pad_ident)
         fprintf(stderr, "Unlinking of socket %s failed: %s\n", claddr.sun_path, strerror(errno));
     }
 
-    int ret = ::bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
+    const auto ret = ::bind(m_sock, (const struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         throw runtime_error("PAD socket bind failed " + string(strerror(errno)));
     }
