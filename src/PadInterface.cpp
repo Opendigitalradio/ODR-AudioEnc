@@ -25,6 +25,7 @@
 #include <cassert>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #define MESSAGE_REQUEST 1
@@ -32,13 +33,24 @@
 
 using namespace std;
 
-void PadInterface::open(const std::string &pad_ident)
+void PadInterface::open(const std::string& pad_ident)
 {
     m_pad_ident = pad_ident;
 
-    m_sock = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    m_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (m_sock == -1) {
         throw runtime_error("PAD socket creation failed: " + string(strerror(errno)));
+    }
+
+    int flags = fcntl(m_sock, F_GETFL);
+    if (flags == -1) {
+        std::string errstr(strerror(errno));
+        throw std::runtime_error("TCP: Could not get socket flags: " + errstr);
+    }
+
+    if (fcntl(m_sock, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::string errstr(strerror(errno));
+        throw std::runtime_error("TCP: Could not set O_NONBLOCK: " + errstr);
     }
 
     struct sockaddr_un claddr;
