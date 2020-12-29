@@ -138,6 +138,9 @@ class EDI: public Base {
         void add_udp_destination(const std::string& host, unsigned int port);
         void add_tcp_destination(const std::string& host, unsigned int port);
 
+        // Enables PFT layer and sets FEC
+        void set_fec(int fec);
+
         void set_tist(bool enable, uint32_t delay_ms);
 
         bool enabled() const;

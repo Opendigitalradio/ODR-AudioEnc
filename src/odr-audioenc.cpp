@@ -197,6 +197,7 @@ static void usage(const char* name)
     "                                          If more than one ZMQ output is given, the socket\n"
     "                                          will be connected to all listed endpoints.\n"
     "     -e, --edi=URI                        EDI output uri, (e.g. 'tcp://localhost:7000')\n"
+    "         --fec=FEC                        Set EDI output FEC\n"
     "     -T, --timestamp-delay=DELAY_MS       Enabled timestamps in EDI (requires TAI clock bulletin download) and\n"
     "                                          add a delay (in milliseconds) to the timestamps carried in EDI\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
@@ -1356,6 +1357,7 @@ int main(int argc, char *argv[])
         {"dabpsy",                 required_argument,  0,  5 },
         {"device",                 required_argument,  0, 'd'},
         {"edi",                    required_argument,  0, 'e'},
+        {"fec",                    required_argument,  0,  8 },
         {"timestamp-delay",        required_argument,  0, 'T'},
         {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
@@ -1466,6 +1468,9 @@ int main(int argc, char *argv[])
                 usage(argv[0]);
                 return 1;
             }
+            break;
+        case 8: // EDI output FEC
+            audio_enc.edi_output.set_fec(std::stoi(optarg));
             break;
         case 'a':
             audio_enc.selected_encoder = encoder_selection_t::toolame_dab;
