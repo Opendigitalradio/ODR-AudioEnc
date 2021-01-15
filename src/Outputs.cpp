@@ -124,8 +124,9 @@ bool ZMQ::write_frame(const uint8_t *buf, size_t len)
 
         memcpy(ZMQ_FRAME_DATA(zmq_frame_header), buf, len);
 
-        m_sock.send(m_framebuf.data(), ZMQ_FRAME_SIZE(zmq_frame_header),
-                ZMQ_DONTWAIT);
+        m_sock.send(
+                zmq::const_buffer{m_framebuf.data(), ZMQ_FRAME_SIZE(zmq_frame_header)},
+                zmq::send_flags::dontwait);
     }
     catch (zmq::error_t& e) {
         fprintf(stderr, "ZeroMQ send error !\n");
