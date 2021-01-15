@@ -142,19 +142,19 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   contrib/ReedSolomon.cpp \
 						   contrib/ReedSolomon.h \
 						   contrib/ThreadsafeQueue.h \
-						   contrib/edi/AFPacket.cpp \
-						   contrib/edi/AFPacket.h \
-						   contrib/edi/EDIConfig.h \
-						   contrib/edi/Interleaver.cpp \
-						   contrib/edi/Interleaver.h \
-						   contrib/edi/PFT.cpp \
-						   contrib/edi/PFT.h \
-						   contrib/edi/TagItems.cpp \
-						   contrib/edi/TagItems.h \
-						   contrib/edi/TagPacket.cpp \
-						   contrib/edi/TagPacket.h \
-						   contrib/edi/Transport.cpp \
-						   contrib/edi/Transport.h \
+						   contrib/edioutput/AFPacket.cpp \
+						   contrib/edioutput/AFPacket.h \
+						   contrib/edioutput/EDIConfig.h \
+						   contrib/edioutput/Interleaver.cpp \
+						   contrib/edioutput/Interleaver.h \
+						   contrib/edioutput/PFT.cpp \
+						   contrib/edioutput/PFT.h \
+						   contrib/edioutput/TagItems.cpp \
+						   contrib/edioutput/TagItems.h \
+						   contrib/edioutput/TagPacket.cpp \
+						   contrib/edioutput/TagPacket.h \
+						   contrib/edioutput/Transport.cpp \
+						   contrib/edioutput/Transport.h \
 						   $(FEC_SOURCES)
 
 bin_PROGRAMS =  odr-audioenc$(EXEEXT)

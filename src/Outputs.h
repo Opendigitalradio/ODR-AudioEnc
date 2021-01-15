@@ -27,10 +27,10 @@
 #include "common.h"
 #include "zmq.hpp"
 #include "ClockTAI.h"
-#include "edi/TagItems.h"
-#include "edi/TagPacket.h"
-#include "edi/AFPacket.h"
-#include "edi/Transport.h"
+#include "edioutput/TagItems.h"
+#include "edioutput/TagPacket.h"
+#include "edioutput/AFPacket.h"
+#include "edioutput/Transport.h"
 extern "C" {
 #include "encryption.h"
 }
