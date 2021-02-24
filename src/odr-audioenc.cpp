@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2020 Matthias P. Braendli
+ * Copyright (C) 2021 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,6 +200,7 @@ static void usage(const char* name)
     "         --fec=FEC                        Set EDI output FEC\n"
     "     -T, --timestamp-delay=DELAY_MS       Enabled timestamps in EDI (requires TAI clock bulletin download) and\n"
     "                                          add a delay (in milliseconds) to the timestamps carried in EDI\n"
+    "         --startup-check=SCRIPT_PATH      Before starting, run the given script, and only start if it returns 0.\n"
     "     -k, --secret-key=FILE                Enable ZMQ encryption with the given secret key.\n"
     "     -p, --pad=BYTES                      Enable PAD insertion and set PAD size in bytes.\n"
     "     -P, --pad-socket=IDENTIFIER          Use the given identifier to communicate with ODR-PadEnc.\n"
@@ -1371,6 +1372,7 @@ int main(int argc, char *argv[])
         {"rate",                   required_argument,  0, 'r'},
         {"secret-key",             required_argument,  0, 'k'},
         {"silence",                required_argument,  0, 's'},
+        {"startup-check",          required_argument,  0,  9 },
         {"stats",                  required_argument,  0, 'S'},
         {"vlc-cache",              required_argument,  0, 'C'},
         {"vlc-gain",               required_argument,  0, 'g'},
@@ -1423,6 +1425,8 @@ int main(int argc, char *argv[])
 
     AudioEnc audio_enc;
 
+    std::string startupcheck;
+
     int ch=0;
     int index;
     while(ch != -1) {
@@ -1471,6 +1475,9 @@ int main(int argc, char *argv[])
             break;
         case 8: // EDI output FEC
             audio_enc.edi_output.set_fec(std::stoi(optarg));
+            break;
+        case 9: // --startup-check
+            startupcheck = optarg;
             break;
         case 'a':
             audio_enc.selected_encoder = encoder_selection_t::toolame_dab;
@@ -1590,6 +1597,25 @@ int main(int argc, char *argv[])
         case '?':
         case 'h':
             usage(argv[0]);
+            return 1;
+        }
+    }
+
+    if (not startupcheck.empty()) {
+        etiLog.level(info) << "Running startup check '" << startupcheck << "'";
+        int wstatus = system(startupcheck.c_str());
+
+        if (WIFEXITED(wstatus)) {
+            if (WEXITSTATUS(wstatus) == 0) {
+                etiLog.level(info) << "Startup check ok";
+            }
+            else {
+                etiLog.level(error) << "Startup check failed, returned " << WEXITSTATUS(wstatus);
+                return 1;
+            }
+        }
+        else {
+            etiLog.level(error) << "Startup check failed, child didn't terminate normally";
             return 1;
         }
     }
