@@ -1,16 +1,21 @@
 dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([ODR-AudioEnc], [3.0.0], [http://opendigitalradio.org/])
-AC_CONFIG_AUX_DIR(.)
+AC_PREREQ([2.69])
+AC_INIT([ODR-AudioEnc],[3.0.0],[http://opendigitalradio.org/])
+AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE([tar-ustar foreign])
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
-AC_CONFIG_HEADER([config.h])
+AC_CANONICAL_TARGET
+AM_INIT_AUTOMAKE([-Wall foreign subdir-objects])
+AM_SILENT_RULES([yes])
+AC_CONFIG_SRCDIR([src/odr-audioenc.cpp])
+AC_CONFIG_HEADERS([config.h])
 
 dnl Checks for programs.
-AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_CC
+AM_PROG_CC_C_O
+AC_PROG_INSTALL
 AC_PROG_RANLIB
 AM_PROG_AR
 
