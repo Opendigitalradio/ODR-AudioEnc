@@ -145,8 +145,6 @@ odr_audioenc_SOURCES     = src/odr-audioenc.cpp \
 						   contrib/edioutput/AFPacket.cpp \
 						   contrib/edioutput/AFPacket.h \
 						   contrib/edioutput/EDIConfig.h \
-						   contrib/edioutput/Interleaver.cpp \
-						   contrib/edioutput/Interleaver.h \
 						   contrib/edioutput/PFT.cpp \
 						   contrib/edioutput/PFT.h \
 						   contrib/edioutput/TagItems.cpp \
