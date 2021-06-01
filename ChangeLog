@@ -1,3 +1,9 @@
+2021-06-01: Matthias P. Braendli <matthias@mpb.li>
+	(v3.1.0):
+		Update the fdk-aac library to 2.0.2.
+		Improve EDI output.
+		Add startupcheck.
+
 2020-09-23: Matthias P. Braendli <matthias@mpb.li>
 	(v3.0.0):
 		Replacement of PAD fifo with a socket, offering bidirectional
