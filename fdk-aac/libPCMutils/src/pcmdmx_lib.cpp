@@ -585,7 +585,6 @@ static PCMDMX_ERROR getChannelMode(
 
     if (channelIndices[ch] >= numCh[channelType[ch] >> 4][chGrp])
       return PCMDMX_INVALID_CH_CONFIG;
-
     spkrPos[ch] = getSpeakerPos(channelType[ch], channelIndices[ch],
                                 numCh[channelType[ch] >> 4][chGrp]);
 

@@ -110,9 +110,9 @@ amm-info@iis.fraunhofer.de
 /* Encoder library info */
 #define AACENCODER_LIB_VL0 4
 #define AACENCODER_LIB_VL1 0
-#define AACENCODER_LIB_VL2 0
+#define AACENCODER_LIB_VL2 1
 #define AACENCODER_LIB_TITLE "AAC Encoder"
-#ifdef __ANDROID__
+#ifdef SUPPRESS_BUILD_DATE_INFO
 #define AACENCODER_LIB_BUILD_DATE ""
 #define AACENCODER_LIB_BUILD_TIME ""
 #else
@@ -449,6 +449,24 @@ static SBR_PS_SIGNALING getSbrSignalingMode(
   }
 
   return sbrSignaling;
+}
+
+static inline INT getAssociatedChElement(SBR_ELEMENT_INFO *elInfoSbr,
+                                         CHANNEL_MAPPING *channelMapping) {
+  ELEMENT_INFO *elInfo = channelMapping->elInfo;
+  INT nElements = channelMapping->nElements;
+  INT associatedChElement = -1;
+  int i;
+
+  for (i = 0; i < nElements; i++) {
+    if (elInfoSbr->elType == elInfo[i].elType &&
+        elInfoSbr->instanceTag == elInfo[i].instanceTag) {
+      associatedChElement = i;
+      break;
+    }
+  }
+
+  return associatedChElement;
 }
 
 /****************************************************************************
@@ -1055,6 +1073,13 @@ static AACENC_ERROR FDKaacEnc_AdjustEncSettings(HANDLE_AACENCODER hAacEncoder,
     case AACENC_BR_MODE_VBR_3:
     case AACENC_BR_MODE_VBR_4:
     case AACENC_BR_MODE_VBR_5:
+      /* Adjust bitrate mode in case given peak bitrate is lower than expected
+       * VBR bitrate. */
+      if ((INT)config->userPeakBitrate != -1) {
+        hAacConfig->bitrateMode = FDKaacEnc_AdjustVBRBitrateMode(
+            hAacConfig->bitrateMode, config->userPeakBitrate,
+            hAacConfig->channelMode);
+      }
       /* Get bitrate in VBR configuration */
       /* In VBR mode; SBR-modul depends on bitrate, core encoder on bitrateMode.
        */
@@ -1982,7 +2007,15 @@ AACENC_ERROR aacEncEncode(const HANDLE_AACENCODER hAacEncoder,
           {
             hAacEncoder->extPayload[nExtensions].dataSize =
                 hAacEncoder->pSbrPayload->dataSize[nPayload][i];
-            hAacEncoder->extPayload[nExtensions].associatedChElement = i;
+            hAacEncoder->extPayload[nExtensions].associatedChElement =
+                getAssociatedChElement(
+                    &hAacEncoder->hEnvEnc->sbrElement[i]->elInfo,
+                    &hAacEncoder->hAacEnc->channelMapping);
+            if (hAacEncoder->extPayload[nExtensions].associatedChElement ==
+                -1) {
+              err = AACENC_ENCODE_ERROR;
+              goto bail;
+            }
           }
           hAacEncoder->extPayload[nExtensions].dataType =
               EXT_SBR_DATA; /* Once SBR Encoder supports SBR CRC set
