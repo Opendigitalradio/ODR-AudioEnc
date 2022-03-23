@@ -168,6 +168,8 @@ EXTRA_DIST = $(top_srcdir)/bootstrap \
 			 $(top_srcdir)/contrib/fec/LICENSE \
 			 $(top_srcdir)/contrib/fec/README.md
 
+man_MANS = $(top_srcdir)/man/odr-audioenc.1
+
 doc: export PROJECT_NUMBER:=$(shell git describe --dirty)
 
 .PHONY: doc
