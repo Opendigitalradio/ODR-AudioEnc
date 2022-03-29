@@ -1,12 +1,13 @@
-.TH ODR-AUDIOENC "1" "March 2022" "odr-audioenc 3.1.1" "ODR-mmbTools"
+.TH ODR-AUDIOENC "1" "March 2022" "odr-audioenc 3.2.0" "ODR-mmbTools"
 .SH NAME
 odr-audioenc \- DAB and DAB+ audio encoder
 .SH SYNOPSIS
-odr-audioenc [OPTION...] 
+odr-audioenc [OPTION...]
 .SH DESCRIPTION
-ODR\-AudioEnc is an audio encoder for both DAB and DAB+.
+ODR\-AudioEnc is an audio encoder for both DAB and DAB+ that integrates into the ODR-mmbTools.
 The encoder can read from JACK, ALSA, a file source,
-libvlc or GStreamer and encode to a ZeroMQ output for ODR\-DabMux.
+libvlc or GStreamer and encode to an EDI and ZeroMQ output compatible with ODR\-DabMux.
+Several usage scenarios are outlined in the README located in /usr/share/doc/odr-audioenc.
 .PP
 The \fB\-D\fR option enables sound card clock drift compensation.
 A consumer sound card has a clock that is always a bit imprecise, and
