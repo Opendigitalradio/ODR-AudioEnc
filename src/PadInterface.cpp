@@ -45,12 +45,12 @@ void PadInterface::open(const std::string& pad_ident)
     int flags = fcntl(m_sock, F_GETFL);
     if (flags == -1) {
         std::string errstr(strerror(errno));
-        throw std::runtime_error("TCP: Could not get socket flags: " + errstr);
+        throw std::runtime_error("PAD socket: Could not get socket flags: " + errstr);
     }
 
     if (fcntl(m_sock, F_SETFL, flags | O_NONBLOCK) == -1) {
         std::string errstr(strerror(errno));
-        throw std::runtime_error("TCP: Could not set O_NONBLOCK: " + errstr);
+        throw std::runtime_error("PAD socket: Could not set O_NONBLOCK: " + errstr);
     }
 
     struct sockaddr_un claddr;
