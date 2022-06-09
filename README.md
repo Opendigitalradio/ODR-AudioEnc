@@ -1,5 +1,4 @@
-ODR-AudioEnc Package
-========================
+# ODR-AudioEnc Package
 
 This package contains a DAB and DAB+ encoder that integrates into the
 ODR-mmbTools.
@@ -33,56 +32,89 @@ For detailed usage, see the usage screen of the tool with the *-h* option.
 More information is available on the
 [Opendigitalradio wiki](http://opendigitalradio.org)
 
+# Installation
+You have 3 ways to install odr-audioenc on your host:
 
-Requirements
-============
+## Using binary debian packages
+If your host is running a debian-based OS and its cpu is one of amd64, arm64 or arm/v7, then you can install odr-audioenc using the standard debian packaging system:
+1. Update the debian apt repository list:
+   ```
+   curl -fsSL http://debian.opendigitalradio.org/odr.asc | sudo tee /etc/apt/trusted.gpg.d/odr.asc 1>/dev/null
+   curl -fsSL http://debian.opendigitalradio.org/odr.list | sudo tee /etc/apt/sources.list.d/odr.list 1>/dev/null
+   ```
+1. Refresh the debian packages list:
+   ```
+   apt update
+   ```
+1. Install odr-audioenc:
+   ```
+   sudo apt install --yes odr-audioenc
+   ```
 
-* A C++11 compiler
-* ZeroMQ 4.0.4 or more recent
-* JACK audio connection kit (optional)
-* The alsa libraries (libasound2, optional)
-* libvlc and vlc for the plugins (optional)
-* gstreamer-1.0 (optional)
-* (optional) cURL to download the TAI-UTC bulletin, needed for timestamps in EDI output.
+## Using the dab-scripts
+You can compile odr-audioenc as well as the other main components of the mmbTools set with an installation script:
+1. Clone the dab-scripts repository:
+   ```
+   git clone https://github.com/opendigitalradio/dab-scripts.git
+   ```
+1. Follow the [instructions](https://github.com/Opendigitalradio/dab-scripts/tree/master/install)
 
-For Debian Buster, and related systems, use
+## Compiling manually
+Unlike the 2 previous options, this one allows you to compile odr-audioenc with the features you really need.
 
-    $ sudo apt install build-essential automake libtool git
-    $ sudo apt install libzmq3-dev libzmq5
-    $ sudo apt install libvlc-dev vlc-data vlc-plugin-base
-    $ sudo apt install libjack-jackd2-dev jackd2
-    $ sudo apt install libasound2-dev libasound2
-    $ sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly libgstreamer-plugins-bad1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev
+### Requirements
+For Debian Bullseye-based OS, run the following commands:
+```
+# Required packages
+## C++11 compiler
+sudo apt-get install --yes build-essential automake libtool
 
-**Attention**: on older Debian versions, you'll need `vlc-nox` instead of `vlc-plugin-base`
+## ZeroMQ
+sudo apt-get install --yes libzmq3-dev libzmq5
 
-Installation
-============
+# optional packages
+## alsa libraries
+sudo apt-get install --yes libasound2-dev
 
-    $ git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git
+## JACK audio connection kit
+sudo apt-get install --yes libjack-jackd2-dev
 
-If you want to clone the next branch (under development) use
+## libvlc and vlc for the plugins
+sudo apt-get install --yes libvlc-dev
 
-    $ git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git -b next
+## gstreamer-1.0
+sudo apt-get install --yes libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 
-Configure the project
+## cURL to download the TAI-UTC bulletin, needed for timestamps in EDI output
+sudo apt-get install --yes libcurl4-openssl-dev
+```
 
-    $ cd ODR-AudioEnc/
-    $ ./bootstrap
-    $ ./configure
+**Attention**: on versions older than Debian Buster, you'll need `vlc-nox` instead of `vlc-plugin-base`
 
-If you want to use ALSA, JACK, libVLC and GStreamer inputs, please use
+### Compilation
+1. Clone this repository:
+   ```
+   # stable version:
+   git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git
 
-    $ ./configure --enable-alsa --enable-jack --enable-vlc --enable-gst
+   # or development version (at your own risk):
+   git clone https://github.com/Opendigitalradio/ODR-AudioEnc.git -b next
+   ```
+1. Configure the project
+   ```
+   cd ODR-AudioEnc
+   ./bootstrap
 
-    $ make
-    $ sudo make install
+   # Select the features you need:
+   ./configure --enable-alsa --enable-jack --enable-vlc --enable-gst
+   ```
+1. Compile and install:
+   ```
+   make
+   sudo make install
+   ```
 
-* See the possible scenarios below on how to use the tools
-
-
-How to use
-==========
+# How to use
 
 We assume that you have a ODR-DabMux configured for an EDI
 input on port 9000.
@@ -91,8 +123,7 @@ input on port 9000.
     DST="tcp://yourserver:9000"
     BITRATE=64
 
-General remarks
----------------
+## General remarks
 
 Avoid using sources that are already encoded with a low bitrate, because
 encoder cascading will noticeably reduce audio quality. Best are sources
@@ -112,8 +143,7 @@ exclamation marks with the `-l` option, it's too loud! Reduce the gain at the
 source, or use the gain option if that's not possible.
 
 
-DAB+ AAC encoder configuration
-------------------------------
+## DAB+ AAC encoder configuration
 By default, when not overridden by the `--aaclc`, `--sbr` or `--ps` options,
 the encoder is configured according to bitrate and number of channels.
 
@@ -124,27 +154,23 @@ If two channels are used, PS (Parametric Stereo, also called HE-AAC v2)
 is enabled up to 48kbps. Between 56kbps and 80kbps, SBR is enabled. 88kbps
 and higher are using AAC-LC.
 
-EDI output
-----------
+## EDI output
 
 The EDI output included in ODR-AudioEnc is able to connect to
 one or several instances of ODR-DabMux. The `-e` option can be used
 more than once to achieve this. The same goes for the ZeroMQ output (`-o` option).
 
-Scenario *wav file for offline processing*
-------------------------------------------
+## Scenario *wav file for offline processing*
 Wave file encoding, for non-realtime processing
 
     odr-audioenc -b $BITRATE -i wave_file.wav -o station1.dabp
 
-Scenario *file that VLC supports*
----------------------------------
+## Scenario *file that VLC supports*
 If you want to input a file through libvlc, you need to give an absolute path:
 
     odr-audioenc -b $BITRATE -v file:///home/odr/audio/source.mp3 -o station1.dabp
 
-Scenario *ALSA*
----------------
+## Scenario *ALSA*
 Live Stream from ALSA sound card at 32kHz, with EDI output for ODR-DabMux:
 
     odr-audioenc -d $ALSASRC -c 2 -r 32000 -b $BITRATE -e $DST -l
@@ -159,8 +185,7 @@ the audio is captured from the soundcard, and encoded into HE-AACv2.
 
 High occurrence of these will lead to audible artifacts.
 
-Scenario *encode a webstream*
----------------------------------------
+## Scenario *encode a webstream*
 You can use either GStreamer with the `-G` option or libVLC with `-v`.
 
 Read a webstream and send it to ODR-DabMux over EDI:
@@ -175,8 +200,7 @@ libVLC.
 If the webstream bitrate is slightly wrong (bad clock at the source), you can
 enable drift compensation with `-D`.
 
-Scenario *JACK input*
----------------------
+## Scenario *JACK input*
 JACK input: Instead of `-i (file input)` or `-d (ALSA input)`, use `-j *name*`, where *name* specifies the JACK
 name for the encoder:
 
@@ -187,8 +211,7 @@ one workaround is to access JACK through VLC, which will resample accordingly:
 
     odr-audioenc -l -v jack://dab -b $BITRATE -e $DST
 
-Scenario *LiveWire* or *AES67*
-------------------------------
+## Scenario *LiveWire* or *AES67*
 
 When audio data is available on the network as a multicast stream, it can be encoded using the following pipeline:
 
@@ -216,8 +239,7 @@ in improving the GStreamer input code to also support more advanced features, so
 in *TODO.md*
 
 
-Scenario *local file through snd-aloop*
----------------------------------------
+## Scenario *local file through snd-aloop*
 Play some local audio source from a file, with EDI or ZMQ output for ODR-DabMux. The problem with
 playing a file is that *odr-audioenc* cannot directly be used, because ODR-DabMux
 does not back-pressure the encoder, which will therefore encode much faster than realtime.
@@ -241,8 +263,7 @@ Then, you can use any media player that has an alsa output to play whatever sour
 "sides" of the virtual sound card.
 
 
-Scenario *mplayer and fifo*
----------------------------
+## Scenario *mplayer and fifo*
 **Warning**: Connection through pipes to ODR-DabMux are deprecated in favour of EDI.
 
 Live Stream resampling (to 32KHz) and encoding from FIFO and preparing for DAB muxer, with FIFO to odr-dabmux
@@ -254,8 +275,7 @@ using mplayer. If there are no data in FIFO, encoder generates silence.
 
 **Note**: Do not use `/dev/stdout` for PCM output in mplayer. Mplayer logs messages to stdout.
 
-Return values
--------------
+## Return values
 odr-audioenc returns:
 
  * 0 if it encoded the whole input file
@@ -272,8 +292,7 @@ is recommended regardless of this feature being enabled or not. It will be remov
 in a future version.
 
 
-Known Limitations
------------------
+## Known Limitations
 The gain option for libVLC enables the VLC audio compressor with default
 settings. This has more impact than just changing the volume of the audio.
 
@@ -285,8 +304,7 @@ v0.7.0 fixes most issues, and PAD now works much more reliably.
 Version 0.4.0 of the encoder changed the ZeroMQ framing. It will only work with
 ODR-DabMux v0.7.0 and later.
 
-LICENCE
-=======
+# LICENCE
 
 The ODR-AudioEnc project contains
 
