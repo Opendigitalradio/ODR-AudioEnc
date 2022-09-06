@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2018 Matthias P. Braendli
+ * Copyright (C) 2022 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -169,10 +169,6 @@ void VLCInput::prepare()
         vlc_args.push_back("--network-caching=" + m_cache);
     }
 
-    if (not m_gain.empty()) {
-        vlc_args.push_back("--compressor-makeup=" + m_gain);
-    }
-
     copy(m_additional_opts.begin(), m_additional_opts.end(),
             back_inserter(vlc_args));
 
@@ -204,9 +200,6 @@ void VLCInput::prepare()
     std::stringstream transcode_options_ss;
     transcode_options_ss << "acodec=fl32";
     transcode_options_ss << ",samplerate=" << m_rate;
-    if (not m_gain.empty()) {
-        transcode_options_ss << ",afilter=compressor";
-    }
     string transcode_options = transcode_options_ss.str();
 
     char smem_options[512];

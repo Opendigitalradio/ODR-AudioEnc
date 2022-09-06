@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
- * Copyright (C) 2017 Matthias P. Braendli
+ * Copyright (C) 2022 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,6 @@ class VLCInput : public InputInterface
                  int rate,
                  unsigned channels,
                  unsigned verbosity,
-                 std::string& gain,
                  std::string& cache,
                  std::vector<std::string>& additional_opts,
                  SampleQueue<uint8_t>& queue) :
@@ -64,7 +63,6 @@ class VLCInput : public InputInterface
             m_rate(rate),
             m_cache(cache),
             m_additional_opts(additional_opts),
-            m_gain(gain),
             m_vlc(nullptr),
             m_mp(nullptr),
             m_fault(false),
@@ -135,11 +133,6 @@ class VLCInput : public InputInterface
 
         //! Given as-is to libvlc, useful for additional arguments
         std::vector<std::string> m_additional_opts;
-
-        /*! value for the VLC compressor filter --compressor-makeup
-         * setting. Many more compressor settings could be set.
-         */
-        std::string m_gain;
 
         /*! VLC can give us the ICY-Text from an Icecast stream,
          * which we optionally write into a text file for ODR-PadEnc

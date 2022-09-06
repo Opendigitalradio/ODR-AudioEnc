@@ -17,7 +17,7 @@ therefore also webstreams and other network sources.
 
 The GStreamer input is an alternative to read from various sources.
 
-The ALSA and libVLC inputs support sound card clock drift
+The ALSA, libVLC and GStreamer inputs support sound card clock drift
 compensation, that can compensate for imprecise sound card clocks.
 
 The JACK input does not automatically connect to anything. The encoder runs
@@ -293,9 +293,6 @@ in a future version.
 
 
 ## Known Limitations
-The gain option for libVLC enables the VLC audio compressor with default
-settings. This has more impact than just changing the volume of the audio.
-
 Some receivers did not decode audio anymore between v0.3.0 and v0.5.0, because of
 a change implemented to get PAD to work. The change was subsequently reverted in
 v0.5.1 because it was deemed essential that audio decoding works on all receivers.

@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2021 Matthias P. Braendli
+ * Copyright (C) 2022 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -152,9 +152,6 @@ static void usage(const char* name)
 #if HAVE_VLC
     "     -v, --vlc-uri=uri                    Enable VLC input and use the URI given as source\n"
     "     -C, --vlc-cache=ms                   Specify VLC network cache length.\n"
-    "     -g, --vlc-gain=db                    Enable VLC audio compressor, with given compressor-makeup value.\n"
-    "                                          Use this as a workaround to correct the gain for streams that are\n"
-    "                                          much too loud.\n"
     "     -V                                   Increase the VLC verbosity by one (can be given \n"
     "                                          multiple times)\n"
     "     -L OPTION                            Give an additional options to VLC (can be given\n"
@@ -176,6 +173,9 @@ static void usage(const char* name)
     "     -b, --bitrate={ 8, 16, ..., 192 }    Output bitrate in kbps. Must be a multiple of 8.\n"
     "     -c, --channels={ 1, 2 }              Nb of input channels (default: 2).\n"
     "     -r, --rate={ 24000, 32000, 48000 }   Input sample rate (default: 48000).\n"
+    "     -g, --audio-gain=dB                  Apply audio gain correction in dB to source, negative values allowed.\n"
+    "                                          Use this as a workaround to correct the gain for streams that are\n"
+    "                                          much too loud.\n"
     "   DAB specific options\n"
     "     -a, --dab                            Encode in DAB and not in DAB+.\n"
     "         --dabmode=MODE                   Channel mode: s/d/j/m\n"
@@ -405,6 +405,7 @@ struct AudioEnc {
 public:
     int sample_rate=48000;
     int channels=2;
+    double gain_dB = 0.0;
 
     string icytext_file;
     bool icytext_dlplus = false;
@@ -420,7 +421,6 @@ public:
 
     // For the VLC input
     string vlc_uri;
-    string vlc_gain;
     string vlc_cache;
     vector<string> vlc_additional_opts;
     unsigned verbosity = 0;
@@ -1009,13 +1009,29 @@ int AudioEnc::run()
          * channels, and is formally wrong in mono, but still gives
          * numbers one can use.
          *
+         * At the same time, we apply gain correction.
+         *
          * \todo fix level measurement in mono
          */
         int16_t peak_left  = 0;
         int16_t peak_right = 0;
+
+        const double linear_gain_correction = pow(10.0, gain_dB / 20.0);
+
         for (int i = 0; i < read_bytes; i+=4) {
             int16_t l = input_buf[i] | (input_buf[i+1] << 8);
             int16_t r = input_buf[i+2] | (input_buf[i+3] << 8);
+
+            if (linear_gain_correction != 1.0) {
+                l *= linear_gain_correction;
+                r *= linear_gain_correction;
+
+                input_buf[i] = l & 0x00FF;
+                input_buf[i+1] = (l & 0xFF00) >> 8;
+                input_buf[i+2] = r & 0x00FF;
+                input_buf[i+3] = (r & 0xFF00) >> 8;
+            }
+
             peak_left  = std::max(peak_left,  l);
             peak_right = std::max(peak_right, r);
         }
@@ -1322,7 +1338,7 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
 #if HAVE_VLC
     else if (not vlc_uri.empty()) {
         input = make_shared<VLCInput>(vlc_uri, sample_rate, channels, verbosity,
-                vlc_gain, vlc_cache, vlc_additional_opts, queue);
+                vlc_cache, vlc_additional_opts, queue);
     }
 #endif
 #if HAVE_GST
@@ -1353,6 +1369,7 @@ int main(int argc, char *argv[])
     const struct option longopts[] = {
         {"bitrate",                required_argument,  0, 'b'},
         {"bandwidth",              required_argument,  0, 'B'},
+        {"audio-gain",             required_argument,  0, 'g'},
         {"channels",               required_argument,  0, 'c'},
         {"dabmode",                required_argument,  0,  4 },
         {"dabpsy",                 required_argument,  0,  5 },
@@ -1375,7 +1392,6 @@ int main(int argc, char *argv[])
         {"startup-check",          required_argument,  0,  9 },
         {"stats",                  required_argument,  0, 'S'},
         {"vlc-cache",              required_argument,  0, 'C'},
-        {"vlc-gain",               required_argument,  0, 'g'},
         {"vlc-uri",                required_argument,  0, 'v'},
         {"vlc-opt",                required_argument,  0, 'L'},
         {"write-icy-text",         required_argument,  0, 'w'},
@@ -1516,6 +1532,9 @@ int main(int argc, char *argv[])
                 return 1;
             }
             break;
+        case 'g':
+            audio_enc.gain_dB = std::stod(optarg);
+            break;
 #ifdef HAVE_GST
         case 'G':
             audio_enc.gst_uri = optarg;
@@ -1576,9 +1595,6 @@ int main(int argc, char *argv[])
 #ifdef HAVE_VLC
         case 'v':
             audio_enc.vlc_uri = optarg;
-            break;
-        case 'g':
-            audio_enc.vlc_gain = optarg;
             break;
         case 'C':
             audio_enc.vlc_cache = optarg;
