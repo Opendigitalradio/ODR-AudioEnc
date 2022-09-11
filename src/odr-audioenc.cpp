@@ -1370,6 +1370,7 @@ int main(int argc, char *argv[])
         {"bitrate",                required_argument,  0, 'b'},
         {"bandwidth",              required_argument,  0, 'B'},
         {"audio-gain",             required_argument,  0, 'g'},
+        {"vlc-gain",               required_argument,  0, 10 }, // backward-compatibility to v3
         {"channels",               required_argument,  0, 'c'},
         {"dabmode",                required_argument,  0,  4 },
         {"dabpsy",                 required_argument,  0,  5 },
@@ -1532,6 +1533,9 @@ int main(int argc, char *argv[])
                 return 1;
             }
             break;
+        case 10:
+            fprintf(stderr, "WARNING: the --vlc-gain option has been deprecated in favour of --audio-gain\n");
+            // fallthrough
         case 'g':
             audio_enc.gain_dB = std::stod(optarg);
             break;
