@@ -1,3 +1,9 @@
+2022-09-11: Matthias P. Braendli <matthias@mpb.li>
+	(v3.3.0):
+		Fix -g option so that it works for all inputs, and doesn't use the VLC compressor
+		anymore.
+		Update common code
+
 2022-03-29: Matthias P. Braendli <matthias@mpb.li>
 	(v3.2.0):
 		Changes to common mmbTools code, including
