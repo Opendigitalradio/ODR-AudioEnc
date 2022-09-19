@@ -2,7 +2,7 @@ dnl                                               -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([ODR-AudioEnc],[3.3.0],[http://opendigitalradio.org/])
+AC_INIT([ODR-AudioEnc],[3.3.1],[http://opendigitalradio.org/])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET

@@ -1,3 +1,7 @@
+2022-09-19: Matthias P. Braendli <matthias@mpb.li>
+	(v3.3.1):
+		Fix EDI output noncompliance: tag SSm was using stream index 0 instead of 1.
+
 2022-09-11: Matthias P. Braendli <matthias@mpb.li>
 	(v3.3.0):
 		Fix -g option so that it works for all inputs, and doesn't use the VLC compressor
