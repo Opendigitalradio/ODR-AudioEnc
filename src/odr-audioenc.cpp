@@ -162,6 +162,9 @@ static void usage(const char* name)
     "   For the GStreamer input:\n"
 #if HAVE_GST
     "     -G, --gst-uri=uri                    Enable GStreamer input and use the URI given as source\n"
+    "         --gst-pipeline=pipeline          Specify a GStreamer pipeline that receives your source.\n"
+    "                                          The last pipeline element is connected to a caps filter that specifies\n"
+    "                                          the audio format and sample rate.\n"
 #else
     "     The GStreamer input was disabled at compile-time\n"
 #endif
@@ -427,6 +430,7 @@ public:
 
     // For the GST input
     string gst_uri;
+    string gst_pipeline;
 
     string jack_name;
 
@@ -517,6 +521,7 @@ int AudioEnc::run()
 #endif
 #if HAVE_GST
     if (not gst_uri.empty()) num_inputs++;
+    if (not gst_pipeline.empty()) num_inputs++;
 #endif
 
     if (num_inputs == 0) {
@@ -987,7 +992,7 @@ int AudioEnc::run()
             }
 #endif
 #if HAVE_GST
-            else if (not gst_uri.empty()) {
+            else if ((not gst_uri.empty()) or (not gst_pipeline.empty())) {
                 GSTInput *gst_input = (GSTInput*)(input.get());
                 text = gst_input->get_icy_text();
             }
@@ -1342,8 +1347,8 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
     }
 #endif
 #if HAVE_GST
-    else if (not gst_uri.empty()) {
-        input = make_shared<GSTInput>(gst_uri, sample_rate, channels, queue);
+    else if ((not gst_uri.empty()) or (not gst_pipeline.empty())) {
+        input = make_shared<GSTInput>(gst_uri, gst_pipeline, sample_rate, channels, queue);
     }
 #endif
 #if HAVE_ALSA
@@ -1381,6 +1386,7 @@ int main(int argc, char *argv[])
         {"decode",                 required_argument,  0,  6 },
         {"format",                 required_argument,  0, 'f'},
         {"gst-uri",                required_argument,  0, 'G'},
+        {"gst-pipeline",           required_argument,  0, 11 },
         {"identifier",             required_argument,  0,  7 },
         {"input",                  required_argument,  0, 'i'},
         {"jack",                   required_argument,  0, 'j'},
@@ -1542,6 +1548,9 @@ int main(int argc, char *argv[])
 #ifdef HAVE_GST
         case 'G':
             audio_enc.gst_uri = optarg;
+            break;
+        case 11: // --gst-pipeline
+            audio_enc.gst_pipeline = optarg;
             break;
 #endif
         case 'i':

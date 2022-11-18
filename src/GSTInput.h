@@ -43,12 +43,16 @@
 struct GSTData {
     GSTData(SampleQueue<uint8_t>& samplequeue);
 
+    // When using URL and uridecodebin
     GstElement *pipeline = nullptr;
     GstElement *uridecodebin = nullptr;
     GstElement *audio_convert = nullptr;
     GstElement *audio_resample = nullptr;
     GstElement *caps_filter = nullptr;
     GstElement *app_sink = nullptr;
+
+    // When using pipeline
+    GstElement *custom_bin = nullptr;
 
     GstBus *bus = nullptr;
 
@@ -59,6 +63,7 @@ class GSTInput : public InputInterface
 {
     public:
         GSTInput(const std::string& uri,
+                 const std::string& pipeline,
                  int rate,
                  unsigned channels,
                  SampleQueue<uint8_t>& queue);
@@ -78,6 +83,7 @@ class GSTInput : public InputInterface
         virtual bool fault_detected(void) const override { return m_fault; };
     private:
         std::string m_uri;
+        std::string m_pipeline;
         unsigned m_channels;
         int m_rate;
 

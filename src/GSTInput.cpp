@@ -41,10 +41,12 @@ GSTData::GSTData(SampleQueue<uint8_t>& samplequeue) :
 { }
 
 GSTInput::GSTInput(const std::string& uri,
+        const std::string& pipeline,
         int rate,
         unsigned channels,
         SampleQueue<uint8_t>& queue) :
     m_uri(uri),
+    m_pipeline(pipeline),
     m_channels(channels),
     m_rate(rate),
     m_gst_data(queue)
@@ -110,25 +112,34 @@ void GSTInput::prepare()
 {
     gst_init(nullptr, nullptr);
 
-    m_gst_data.uridecodebin = gst_element_factory_make("uridecodebin", "uridecodebin");
-    assert(m_gst_data.uridecodebin != nullptr);
-    g_object_set(m_gst_data.uridecodebin, "uri", m_uri.c_str(), nullptr);
-    g_signal_connect(m_gst_data.uridecodebin, "pad-added", G_CALLBACK(cb_newpad), &m_gst_data);
+    if (not m_uri.empty()) {
+        m_gst_data.uridecodebin = gst_element_factory_make("uridecodebin", "uridecodebin");
+        assert(m_gst_data.uridecodebin != nullptr);
+        g_object_set(m_gst_data.uridecodebin, "uri", m_uri.c_str(), nullptr);
+        g_signal_connect(m_gst_data.uridecodebin, "pad-added", G_CALLBACK(cb_newpad), &m_gst_data);
 
-    m_gst_data.audio_convert = gst_element_factory_make("audioconvert", "audio_convert");
-    assert(m_gst_data.audio_convert != nullptr);
+        m_gst_data.audio_convert = gst_element_factory_make("audioconvert", "audio_convert");
+        assert(m_gst_data.audio_convert != nullptr);
 
-    m_gst_data.audio_resample = gst_element_factory_make("audioresample", "audio_resample");
-    assert(m_gst_data.audio_resample != nullptr);
-    g_object_set(m_gst_data.audio_resample,
+        m_gst_data.audio_resample = gst_element_factory_make("audioresample", "audio_resample");
+        assert(m_gst_data.audio_resample != nullptr);
+        g_object_set(m_gst_data.audio_resample,
 #if (GST_VERSION_MAJOR == 1 && GST_VERSION_MINOR >= 10) || GST_VERSION_MAJOR > 1
-            "sinc-filter-mode", GST_AUDIO_RESAMPLER_FILTER_MODE_FULL,
+                "sinc-filter-mode", GST_AUDIO_RESAMPLER_FILTER_MODE_FULL,
 #else
 #warning "GStreamer version is too old to set GST_AUDIO_RESAMPLER_FILTER_MODE_FULL" GST_VERSION_MAJOR
 #endif
-            "quality", 6, // between 0 and 10, 10 being best
-            /* default audio-resampler-method: GST_AUDIO_RESAMPLER_METHOD_KAISER */
-            NULL);
+                "quality", 6, // between 0 and 10, 10 being best
+                /* default audio-resampler-method: GST_AUDIO_RESAMPLER_METHOD_KAISER */
+                NULL);
+
+    }
+    else if (not m_pipeline.empty()) {
+        m_gst_data.custom_bin = gst_parse_bin_from_description(m_pipeline.c_str(), true, nullptr);
+        if (m_gst_data.custom_bin == nullptr) {
+            throw runtime_error("Could not instantiate pipeline");
+        }
+    }
 
     m_gst_data.caps_filter = gst_element_factory_make("capsfilter", "caps_filter");
     assert(m_gst_data.caps_filter != nullptr);
@@ -149,19 +160,34 @@ void GSTInput::prepare()
     g_signal_connect(m_gst_data.app_sink, "new-sample", G_CALLBACK(new_sample), &m_gst_data);
     gst_caps_unref(audio_caps);
 
-    gst_bin_add_many(GST_BIN(m_gst_data.pipeline),
-            m_gst_data.uridecodebin,
-            m_gst_data.audio_convert,
-            m_gst_data.audio_resample,
-            m_gst_data.caps_filter,
-            m_gst_data.app_sink, NULL);
-
-    if (gst_element_link_many(
+    if (not m_uri.empty()) {
+        gst_bin_add_many(GST_BIN(m_gst_data.pipeline),
+                m_gst_data.uridecodebin,
                 m_gst_data.audio_convert,
                 m_gst_data.audio_resample,
                 m_gst_data.caps_filter,
-                m_gst_data.app_sink, NULL) != true) {
-        throw runtime_error("Could not link GST elements");
+                m_gst_data.app_sink, NULL);
+
+        if (gst_element_link_many(
+                    m_gst_data.audio_convert,
+                    m_gst_data.audio_resample,
+                    m_gst_data.caps_filter,
+                    m_gst_data.app_sink, NULL) != true) {
+            throw runtime_error("Could not link GST elements");
+        }
+    }
+    else if (not m_pipeline.empty()) {
+        gst_bin_add_many(GST_BIN(m_gst_data.pipeline),
+                m_gst_data.custom_bin,
+                m_gst_data.caps_filter,
+                m_gst_data.app_sink, NULL);
+
+        if (gst_element_link_many(
+                    m_gst_data.custom_bin,
+                    m_gst_data.caps_filter,
+                    m_gst_data.app_sink, NULL) != true) {
+            throw runtime_error("Could not link GST elements");
+        }
     }
 
     m_gst_data.bus = gst_element_get_bus(m_gst_data.pipeline);

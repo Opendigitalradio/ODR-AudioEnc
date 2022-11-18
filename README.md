@@ -200,6 +200,15 @@ libVLC.
 If the webstream bitrate is slightly wrong (bad clock at the source), you can
 enable drift compensation with `-D`.
 
+## Scenario *Custom GStreamer pipeline*
+
+The `--gst-pipeline` option lets you run custom pipelines, using the same
+syntax as `gst-launch`, which can be necessary for sources that you cannot specify through a URI through the `-G` option.
+For example, you may use udpsrc to receive an RTP stream:
+
+    odr-audioenc --gst-pipeline 'udpsrc port=5004 caps=application/x-rtp,media=(string)audio,payload=(int)10,clock-rate=44100 ! rtpL16depay ! audioconvert ! audioresample' \
+    -e $DST -l -b $BITRATE
+
 ## Scenario *JACK input*
 JACK input: Instead of `-i (file input)` or `-d (ALSA input)`, use `-j *name*`, where *name* specifies the JACK
 name for the encoder:
