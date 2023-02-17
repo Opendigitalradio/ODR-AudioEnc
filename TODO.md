@@ -4,22 +4,6 @@ to some degree.
 
 Unless written, no activity has been started on the topics.
 
-Write ICY Text from ogg streams using libvlc
---------------------------------------------
-
-Apparently there is something wrong with this combination.
-
-
-Sample rate conversion
-----------------------
-
-It's impossible to encode from a JACK, ALSA or file source that does not carry
-audio at the desired output sample rate.
-
-Implementing libsamplerate or libsoxr integration would enable this, but maybe it'd
-be better to converge towards using GStreamer.
-
-
 Drift compenstation statistics
 ------------------------------
 
