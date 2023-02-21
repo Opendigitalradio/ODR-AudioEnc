@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2022 Matthias P. Braendli
+ * Copyright (c) 2023 Andy Mace (andy.mace@mediauk.net)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -164,6 +165,11 @@ void VLCInput::prepare()
     // VLC options
     vector<string> vlc_args;
     vlc_args.push_back("--verbose=" + to_string(m_verbosity));
+
+    //Prevent TS with Multiple Audio Streams breaking the buffer. Select the 1st Audio Stream.
+    vlc_args.push_back("--no-video");
+    vlc_args.push_back("--no-sout-all");
+
 
     if (not m_cache.empty()) {
         vlc_args.push_back("--network-caching=" + m_cache);
