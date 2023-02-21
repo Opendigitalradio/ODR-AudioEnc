@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2022 Matthias P. Braendli
+ * Copyright (C) 2023 Andy Mace (andy.mace@mediauk.net)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +57,8 @@ class VLCInput : public InputInterface
                  unsigned verbosity,
                  std::string& cache,
                  std::vector<std::string>& additional_opts,
-                 SampleQueue<uint8_t>& queue) :
+                 SampleQueue<uint8_t>& queue,
+                 int audiotrack) :
             m_uri(uri),
             m_verbosity(verbosity),
             m_channels(channels),
@@ -67,7 +69,8 @@ class VLCInput : public InputInterface
             m_mp(nullptr),
             m_fault(false),
             m_running(false),
-            m_samplequeue(queue) {}
+            m_samplequeue(queue),
+            m_audiotrack(audiotrack) {}
 
         VLCInput(const VLCInput& other) = delete;
         VLCInput& operator=(const VLCInput& other) = delete;
@@ -157,6 +160,8 @@ class VLCInput : public InputInterface
         std::thread m_thread;
 
         SampleQueue<uint8_t>& m_samplequeue;
+        int m_audiotrack;
+
 };
 
 #endif // HAVE_VLC

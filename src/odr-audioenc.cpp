@@ -1,6 +1,7 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
  * Copyright (C) 2022 Matthias P. Braendli
+ * Copyright (C) 2023 Andy Mace (andy.mace@mediauk.net)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -156,6 +157,7 @@ static void usage(const char* name)
     "                                          multiple times)\n"
     "     -L OPTION                            Give an additional options to VLC (can be given\n"
     "                                          multiple times)\n"
+    "     -T --audiotrack=track                Select specific audio track when multiple present, defaults to 1st"
 #else
     "     The VLC input was disabled at compile-time\n"
 #endif
@@ -424,6 +426,7 @@ public:
     string vlc_cache;
     vector<string> vlc_additional_opts;
     unsigned verbosity = 0;
+    int audiotrack = -1;
 
     // For the GST input
     string gst_uri;
@@ -1338,7 +1341,7 @@ shared_ptr<InputInterface> AudioEnc::initialise_input()
 #if HAVE_VLC
     else if (not vlc_uri.empty()) {
         input = make_shared<VLCInput>(vlc_uri, sample_rate, channels, verbosity,
-                vlc_cache, vlc_additional_opts, queue);
+                vlc_cache, vlc_additional_opts, queue, audiotrack);
     }
 #endif
 #if HAVE_GST
@@ -1408,6 +1411,7 @@ int main(int argc, char *argv[])
         {"restart",                no_argument,        0, 'R'},
         {"sbr",                    no_argument,        0,  1 },
         {"verbosity",              no_argument,        0, 'V'},
+        {"audiotrack",             required_argument,  0, 't'},
         {0, 0, 0, 0},
     };
 
@@ -1447,7 +1451,7 @@ int main(int argc, char *argv[])
     int ch=0;
     int index;
     while(ch != -1) {
-        ch = getopt_long(argc, argv, "aAhDlRVb:B:c:e:f:G:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
+        ch = getopt_long(argc, argv, "aAhDlRVbt:B:c:e:f:G:i:j:k:L:o:r:d:p:P:s:S:T:v:w:Wg:C:", longopts, &index);
         switch (ch) {
         case 0: // AAC-LC
             audio_enc.aot = AOT_DABPLUS_AAC_LC;
@@ -1519,6 +1523,9 @@ int main(int argc, char *argv[])
             break;
         case 'e':
             audio_enc.edi_output_uris.push_back(optarg);
+            break;
+        case 't':
+            audio_enc.audiotrack = std::stoi(optarg);
             break;
         case 'T':
             audio_enc.tist_enabled = true;

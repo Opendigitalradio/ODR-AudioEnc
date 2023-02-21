@@ -166,10 +166,15 @@ void VLCInput::prepare()
     vector<string> vlc_args;
     vlc_args.push_back("--verbose=" + to_string(m_verbosity));
 
-    //Prevent TS with Multiple Audio Streams breaking the buffer. Select the 1st Audio Stream.
+    //Prevent TS with Multiple Audio Streams breaking the buffer.
     vlc_args.push_back("--no-video");
     vlc_args.push_back("--no-sout-all");
 
+    std::stringstream cli_options_ss;
+    cli_options_ss << "--audio-track=" << m_audiotrack;
+    string cli_options = cli_options_ss.str();
+
+    vlc_args.push_back(cli_options);
 
     if (not m_cache.empty()) {
         vlc_args.push_back("--network-caching=" + m_cache);
