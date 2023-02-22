@@ -157,7 +157,7 @@ static void usage(const char* name)
     "                                          multiple times)\n"
     "     -L OPTION                            Give an additional options to VLC (can be given\n"
     "                                          multiple times)\n"
-    "     -T --audiotrack=track                Select specific audio track when multiple present, defaults to 1st"
+    "     -t --audiotrack=track                Select specific audio track when multiple present, defaults to 1st"
 #else
     "     The VLC input was disabled at compile-time\n"
 #endif
