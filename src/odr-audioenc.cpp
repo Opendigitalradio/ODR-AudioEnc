@@ -791,10 +791,6 @@ int AudioEnc::run()
         case encoder_selection_t::fdk_dabplus:
             outbuf_size = bitrate/8*120;
             outbuf.resize(24*120);
-
-            if(outbuf_size % 5 != 0) {
-                fprintf(stderr, "Warning: (outbuf_size mod 5) = %d\n", outbuf_size % 5);
-            }
             break;
         case encoder_selection_t::toolame_dab:
             outbuf_size = 4092;
@@ -1172,8 +1168,7 @@ int AudioEnc::run()
 
             // Our timing code depends on this
             if (calls != enc_calls_per_output) {
-                fprintf(stderr, "INTERNAL ERROR! calls=%d"
-                        ", expected %d\n",
+                fprintf(stderr, "INTERNAL ERROR! calls=%d, expected %d\n",
                         calls, enc_calls_per_output);
             }
             calls = 0;
