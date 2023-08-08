@@ -1185,8 +1185,7 @@ int AudioEnc::run()
                 encode_rs_char(rs_handler, buf_to_rs_enc, rs_enc);
 
                 for(col=110; col<120; col++) {
-                    outbuf[subchannel_index * col + row] = rs_enc[col-110];
-                    assert(subchannel_index * col + row < outbuf_size);
+                    outbuf.at(subchannel_index * col + row) = rs_enc[col-110];
                 }
             }
 
