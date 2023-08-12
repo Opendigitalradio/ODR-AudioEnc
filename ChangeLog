@@ -1,3 +1,9 @@
+2023-08-12: Matthias P. Braendli <matthias@mpb.li>
+	(v3.4.0):
+		Add --gst-pipeline option.
+		Improve VLC input for multi-audio stream sources.
+		Fix compilation issue.
+
 2022-09-19: Matthias P. Braendli <matthias@mpb.li>
 	(v3.3.1):
 		Fix EDI output noncompliance: tag SSm was using stream index 0 instead of 1.
