@@ -811,6 +811,7 @@ int AudioEnc::run()
     int retval = 0;
     int send_error_count = 0;
     timepoint_last_compensation = chrono::steady_clock::now();
+    auto timepoint_last_received_sample = chrono::steady_clock::now();
 
     int calls = 0; // for checking
     ssize_t read_bytes = 0;
@@ -919,6 +920,17 @@ int AudioEnc::run()
                 if (stats_publisher) {
                     stats_publisher->notify_underrun();
                 }
+
+                const auto now = chrono::steady_clock::now();
+                const auto elapsed = chrono::duration_cast<chrono::seconds>(
+                        now - timepoint_last_received_sample);
+                if (elapsed.count() > 60) {
+                    fprintf(stderr, "Underruns for 60s, aborting!\n");
+                    return 1;
+                }
+            }
+            else {
+                timepoint_last_received_sample = chrono::steady_clock::now();
             }
 
             if (overruns) {
