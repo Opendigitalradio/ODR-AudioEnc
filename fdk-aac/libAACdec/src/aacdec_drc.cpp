@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 Software License for The Fraunhofer FDK AAC Codec Library for Android
 
-© Copyright  1995 - 2019 Fraunhofer-Gesellschaft zur Förderung der angewandten
+© Copyright  1995 - 2023 Fraunhofer-Gesellschaft zur Förderung der angewandten
 Forschung e.V. All rights reserved.
 
  1.    INTRODUCTION
@@ -150,6 +150,19 @@ static INT convert_drcParam(FIXP_DBL param_dbl) {
 }
 
 /*!
+\brief  Disable DRC
+
+\self Handle of DRC info
+
+\return none
+*/
+void aacDecoder_drcDisable(HANDLE_AAC_DRC self) {
+  self->enable = 0;
+  self->applyExtGain = 0;
+  self->progRefLevelPresent = 0;
+}
+
+/*!
 \brief Reset DRC information
 
 \self Handle of DRC info
@@ -204,7 +217,6 @@ void aacDecoder_drcInit(HANDLE_AAC_DRC self) {
   self->progRefLevel = pParams->targetRefLevel;
   self->progRefLevelPresent = 0;
   self->presMode = -1;
-  self->uniDrcPrecedence = 0;
 
   aacDecoder_drcReset(self);
 }
@@ -339,12 +351,6 @@ AAC_DECODER_ERROR aacDecoder_drcSetParam(HANDLE_AAC_DRC self,
       }
       self->numOutChannels = (INT)value;
       self->update = 1;
-      break;
-    case UNIDRC_PRECEDENCE:
-      if (self == NULL) {
-        return AAC_DEC_INVALID_HANDLE;
-      }
-      self->uniDrcPrecedence = (UCHAR)value;
       break;
     default:
       return AAC_DEC_SET_PARAM_FAIL;
@@ -1245,7 +1251,6 @@ static void aacDecoder_drcParameterHandling(HANDLE_AAC_DRC self,
   /* switch on/off processing */
   self->enable = ((p->boost > (FIXP_DBL)0) || (p->cut > (FIXP_DBL)0) ||
                   (p->applyHeavyCompression == ON) || (p->targetRefLevel >= 0));
-  self->enable = (self->enable && !self->uniDrcPrecedence);
 
   self->prevAacNumChannels = aacNumChannels;
   self->update = 0;

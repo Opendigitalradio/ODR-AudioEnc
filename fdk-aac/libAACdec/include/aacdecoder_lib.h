@@ -431,12 +431,11 @@ Where N equals to CStreamInfo::frameSize .
 #include "machine_type.h"
 #include "FDK_audio.h"
 
-#include "genericStds.h"
-
 #define AACDECODER_LIB_VL0 3
 #define AACDECODER_LIB_VL1 2
 #define AACDECODER_LIB_VL2 0
 
+#include "genericStds.h"
 /**
  * \brief  AAC decoder error codes.
  */
@@ -1037,7 +1036,7 @@ LINKSPEC_H AAC_DECODER_ERROR aacDecoder_Fill(HANDLE_AACDECODER self,
  * \param self          AAC decoder handle.
  * \param pTimeData     Pointer to external output buffer where the decoded PCM
  * samples will be stored into.
- * \param timeDataSize  Size of external output buffer.
+ * \param timeDataSize  Size of external output buffer in PCM samples.
  * \param flags         Bit field with flags for the decoder: \n
  *                      (flags & AACDEC_CONCEAL) == 1: Do concealment. \n
  *                      (flags & AACDEC_FLUSH) == 2: Discard input data. Flush

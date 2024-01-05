@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------------
 Software License for The Fraunhofer FDK AAC Codec Library for Android
 
-© Copyright  1995 - 2019 Fraunhofer-Gesellschaft zur Förderung der angewandten
+© Copyright  1995 - 2021 Fraunhofer-Gesellschaft zur Förderung der angewandten
 Forschung e.V. All rights reserved.
 
  1.    INTRODUCTION
@@ -1090,7 +1090,7 @@ typedef struct {
                       write edit lists for gapless playback. The decoder may not
                       know how much delay is introdcued by SBR, since it may not
                       know if SBR is active at all (implicit signaling),
-                      therefore the deocder must take into account any delay
+                      therefore the decoder must take into account any delay
                       caused by the SBR module. */
 
   UCHAR confBuf[64]; /*!< Configuration buffer in binary format as an
@@ -1649,7 +1649,7 @@ AACENC_ERROR aacEncEncode(const HANDLE_AACENCODER hAacEncoder,
  *
  * \return
  *          - AACENC_OK, on succes.
- *          - AACENC_INIT_ERROR, on failure.
+ *          - AACENC_INVALID_HANDLE, AACENC_INIT_ERROR, on failure.
  */
 AACENC_ERROR aacEncInfo(const HANDLE_AACENCODER hAacEncoder,
                         AACENC_InfoStruct *pInfo);
