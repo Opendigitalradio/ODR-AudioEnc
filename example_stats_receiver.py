@@ -34,5 +34,5 @@ while True:
     data, addr = sock.recvfrom(256)
 
     logging.info("RX from {}". format(addr))
-    data = yaml.load(data)
+    data = yaml.safe_load(data)
     print(data)
