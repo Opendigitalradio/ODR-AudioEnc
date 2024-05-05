@@ -19,7 +19,7 @@ AC_PROG_INSTALL
 AC_PROG_RANLIB
 AM_PROG_AR
 
-AX_CXX_COMPILE_STDCXX(11,noext,mandatory)
+AX_CXX_COMPILE_STDCXX(17,noext,mandatory)
 
 # std::thread requires pthread
 AX_PTHREAD( [
