@@ -29,7 +29,7 @@
  *
  * Currently, only audio levels are collected.
  *
- * Output is formatted in YAML
+ * Output is formatted in JSON
  */
 class StatsPublisher {
     public:

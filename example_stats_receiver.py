@@ -7,7 +7,7 @@ import os
 import os.path
 import socket
 import argparse
-import yaml
+import json
 
 parser = argparse.ArgumentParser(
     description="Example Stats UNIX Datagram Socket Receiver")
@@ -34,5 +34,5 @@ while True:
     data, addr = sock.recvfrom(256)
 
     logging.info("RX from {}". format(addr))
-    data = yaml.safe_load(data)
+    data = json.loads(data)
     print(data)

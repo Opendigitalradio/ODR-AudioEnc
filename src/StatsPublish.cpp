@@ -88,28 +88,30 @@ void StatsPublisher::notify_overrun()
 
 void StatsPublisher::send_stats()
 {
-    // Manually build YAML, as it's quite easy.
-    stringstream yaml;
-    yaml << "---\n";
-    yaml << "program: " << PACKAGE_NAME << "\n";
-    yaml << "version: " <<
+    // Manually build JSON. We can be certain that
+    // our fields don't contain quotes
+    stringstream json;
+    json << "{ ";
+    json << "\"program\": \"" << PACKAGE_NAME << "\", ";
+    json << "\"version\": \"" <<
 #if defined(GITVERSION)
             GITVERSION
 #else
             PACKAGE_VERSION
 #endif
-            << "\n";
-    yaml << "audiolevels: { left: " << m_audio_left << ", right: " << m_audio_right << "}\n";
-    yaml << "driftcompensation: { underruns: " << m_num_underruns << ", overruns: " << m_num_overruns << "}\n";
+        << "\", ";
+    json << "\"audiolevels\": { \"left\": " << m_audio_left << ", \"right\": " << m_audio_right << "}, ";
+    json << "\"driftcompensation\": { \"underruns\": " << m_num_underruns << ", \"overruns\": " << m_num_overruns << "} ";
+    json << "}";
 
-    const auto yamlstr = yaml.str();
+    const auto jsonstr = json.str();
 
     struct sockaddr_un claddr;
     memset(&claddr, 0, sizeof(struct sockaddr_un));
     claddr.sun_family = AF_UNIX;
     snprintf(claddr.sun_path, sizeof(claddr.sun_path), "%s", m_socket_path.c_str());
 
-    int ret = ::sendto(m_sock, yamlstr.data(), yamlstr.size(), 0,
+    int ret = ::sendto(m_sock, jsonstr.data(), jsonstr.size(), 0,
             (struct sockaddr *) &claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {
         // This suppresses the -Wlogical-op warning
@@ -128,9 +130,9 @@ void StatsPublisher::send_stats()
             fprintf(stderr, "Statistics send failed: %s\n", strerror(errno));
         }
     }
-    else if (ret != (ssize_t)yamlstr.size()) {
+    else if (ret != (ssize_t)jsonstr.size()) {
         fprintf(stderr, "Statistics send incorrect length: %d bytes of %zu transmitted\n",
-                ret, yamlstr.size());
+                ret, jsonstr.size());
     }
     else if (not m_destination_available) {
         fprintf(stderr, "Stats destination is now available at %s\n", m_socket_path.c_str());
