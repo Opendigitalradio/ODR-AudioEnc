@@ -300,6 +300,10 @@ void GSTInput::process()
 
 GSTInput::~GSTInput()
 {
+    if (m_gst_data.pipeline) {
+        gst_element_set_state(m_gst_data.pipeline, GST_STATE_NULL);
+    }
+
     m_running = false;
 
     // Ensures push() doesn't get blocked
@@ -314,7 +318,6 @@ GSTInput::~GSTInput()
     }
 
     if (m_gst_data.pipeline) {
-        gst_element_set_state(m_gst_data.pipeline, GST_STATE_NULL);
         gst_object_unref(m_gst_data.pipeline);
     }
 }
