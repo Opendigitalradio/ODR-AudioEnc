@@ -162,9 +162,6 @@ void EDI::add_tcp_destination(const std::string& host, unsigned int port)
 {
     auto dest = make_shared<edi::tcp_client_t>();
     dest->dest_addr = host;
-    if (dest->dest_port != 0 and dest->dest_port != port) {
-        throw runtime_error("All EDI UDP outputs must be to the same destination port");
-    }
     dest->dest_port = port;
     m_edi_conf.destinations.push_back(dest);
 
