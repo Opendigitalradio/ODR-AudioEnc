@@ -1222,7 +1222,7 @@ TCPSendClient::~TCPSendClient()
     }
 }
 
-void TCPSendClient::sendall(const std::vector<uint8_t>& buffer)
+TCPSendClient::ErrorStats TCPSendClient::sendall(const std::vector<uint8_t>& buffer)
 {
     if (not m_running) {
         throw runtime_error(m_exception_data);
@@ -1234,6 +1234,17 @@ void TCPSendClient::sendall(const std::vector<uint8_t>& buffer)
         vector<uint8_t> discard;
         m_queue.try_pop(discard);
     }
+
+    TCPSendClient::ErrorStats es;
+    es.num_reconnects = m_num_reconnects.load();
+
+    es.has_seen_new_errors = es.num_reconnects != m_num_reconnects_prev;
+    m_num_reconnects_prev = es.num_reconnects;
+
+    auto lock = unique_lock<mutex>(m_error_mutex);
+    es.last_error = m_last_error;
+
+    return es;
 }
 
 void TCPSendClient::process()
@@ -1255,12 +1266,16 @@ void TCPSendClient::process()
             }
             else {
                 try {
+                    m_num_reconnects.fetch_add(1, std::memory_order_seq_cst);
                     m_sock.connect(m_hostname, m_port);
                     m_is_connected = true;
                 }
                 catch (const runtime_error& e) {
                     m_is_connected = false;
                     this_thread::sleep_for(chrono::seconds(1));
+
+                    auto lock = unique_lock<mutex>(m_error_mutex);
+                    m_last_error = e.what();
                 }
             }
         }
