@@ -1,3 +1,9 @@
+2024-12-03: Matthias P. Braendli <matthias@mpb.li>
+	(v3.6.0):
+		Make stats output JSON compatible.
+		Improve GSt teardown logic.
+		Add --edi-verbose flag with log output in case of reconnects.
+
 2024-05-07: Matthias P. Braendli <matthias@mpb.li>
 	(v3.5.0):
 		Improve ClockTAI download.
