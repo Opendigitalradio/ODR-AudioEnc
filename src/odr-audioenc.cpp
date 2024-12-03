@@ -201,6 +201,7 @@ static void usage(const char* name)
     "                                          will be connected to all listed endpoints.\n"
     "     -e, --edi=URI                        EDI output uri, (e.g. 'tcp://localhost:7000')\n"
     "         --fec=FEC                        Set EDI output FEC\n"
+    "         --edi-verbose                    Enable verbose mode for EDI output.\n"
     "     -T, --timestamp-delay=DELAY_MS       Enabled timestamps in EDI (requires TAI clock bulletin download) and\n"
     "                                          add a delay (in milliseconds) to the timestamps carried in EDI\n"
     "         --startup-check=SCRIPT_PATH      Before starting, run the given script, and only start if it returns 0.\n"
@@ -1412,6 +1413,7 @@ int main(int argc, char *argv[])
         {"aaclc",                  no_argument,        0,  0 },
         {"dab",                    no_argument,        0, 'a'},
         {"drift-comp",             no_argument,        0, 'D'},
+        {"edi-verbose",            no_argument,        0, 12 },
         {"fifo-silence",           no_argument,        0,  3 },
         {"help",                   no_argument,        0, 'h'},
         {"level",                  no_argument,        0, 'l'},
@@ -1504,6 +1506,9 @@ int main(int argc, char *argv[])
             break;
         case 8: // EDI output FEC
             audio_enc.edi_output.set_fec(std::stoi(optarg));
+            break;
+        case 12: // --edi-verbose
+            audio_enc.edi_output.set_verbose(true);
             break;
         case 9: // --startup-check
             startupcheck = optarg;

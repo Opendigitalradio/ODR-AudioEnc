@@ -195,7 +195,7 @@ void Sender::write(const AFPacket& af_packet)
             else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(dest)) {
                 const auto error_stats = tcp_senders.at(tcp_dest.get())->sendall(af_packet);
 
-                if (error_stats.has_seen_new_errors) {
+                if (m_conf.verbose and error_stats.has_seen_new_errors) {
                     fprintf(stderr, "TCP output %s:%d has %zu reconnects: most recent error: %s\n",
                             tcp_dest->dest_addr.c_str(),
                             tcp_dest->dest_port,

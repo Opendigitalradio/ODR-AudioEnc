@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2020 Matthias P. Braendli
+ * Copyright (C) 2024 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@
 
 #pragma once
 #include <vector>
-#include <chrono>
-#include <deque>
 #include <cstdint>
 #include <cstddef>
 #include <cstdio>
@@ -41,7 +39,6 @@ namespace Output {
  *
  * Declaration of all outputs
  */
-
 class Base {
     public:
         virtual ~Base() {};
@@ -132,6 +129,8 @@ class EDI: public Base {
         EDI(const EDI&) = delete;
         EDI& operator=(const EDI&) = delete;
         virtual ~EDI() override;
+
+        void set_verbose(bool verbose);
 
         void set_odr_version_tag(const std::string& odr_version_tag);
 

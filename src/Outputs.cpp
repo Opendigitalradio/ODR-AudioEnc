@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------
  * Copyright (C) 2011 Martin Storsjo
- * Copyright (C) 2020 Matthias P. Braendli
+ * Copyright (C) 2024 Matthias P. Braendli
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
  */
 
 #include "Outputs.h"
+#include <chrono>
 #include <string>
 #include <stdexcept>
 #include <cstring>
@@ -141,6 +142,11 @@ EDI::EDI() :
 { }
 
 EDI::~EDI() { }
+
+void EDI::set_verbose(bool verbose)
+{
+    m_edi_conf.verbose = verbose;
+}
 
 void EDI::set_odr_version_tag(const std::string& odr_version_tag)
 {
