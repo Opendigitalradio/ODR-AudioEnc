@@ -478,7 +478,7 @@ TCPSocket::~TCPSocket()
 
 TCPSocket::TCPSocket(TCPSocket&& other) :
     m_sock(other.m_sock),
-    m_remote_address(move(other.m_remote_address))
+    m_remote_address(std::move(other.m_remote_address))
 {
     if (other.m_sock != -1) {
         other.m_sock = -1;
@@ -967,12 +967,22 @@ ssize_t TCPClient::recv(void *buffer, size_t length, int flags, int timeout_ms)
             reconnect();
         }
 
+        m_last_received_packet_ts = chrono::steady_clock::now();
+
         return ret;
     }
     catch (const TCPSocket::Interrupted&) {
         return -1;
     }
     catch (const TCPSocket::Timeout&) {
+        const auto timeout = chrono::milliseconds(timeout_ms * 5);
+        if (m_last_received_packet_ts.has_value() and
+            chrono::steady_clock::now() - *m_last_received_packet_ts > timeout)
+        {
+            // This is to catch half-closed TCP connections
+            reconnect();
+        }
+
         return 0;
     }
 
@@ -983,6 +993,7 @@ void TCPClient::reconnect()
 {
     TCPSocket newsock;
     m_sock = std::move(newsock);
+    m_last_received_packet_ts = nullopt;
     m_sock.connect(m_hostname, m_port, true);
 }
 
@@ -990,7 +1001,7 @@ TCPConnection::TCPConnection(TCPSocket&& sock) :
             queue(),
             m_running(true),
             m_sender_thread(),
-            m_sock(move(sock))
+            m_sock(std::move(sock))
 {
 #if MISSING_OWN_ADDR
     auto own_addr = m_sock.getOwnAddress();
@@ -1109,7 +1120,7 @@ void TCPDataDispatcher::process()
             auto sock = m_listener_socket.accept(timeout_ms);
             if (sock.valid()) {
                 auto lock = unique_lock<mutex>(m_mutex);
-                m_connections.emplace(m_connections.begin(), move(sock));
+                m_connections.emplace(m_connections.begin(), std::move(sock));
 
                 if (m_buffers_to_preroll > 0) {
                     for (const auto& buf : m_preroll_queue) {
@@ -1181,7 +1192,7 @@ void TCPReceiveServer::process()
                 }
                 else {
                     buf.resize(r);
-                    m_queue.push(make_shared<TCPReceiveMessageData>(move(buf)));
+                    m_queue.push(make_shared<TCPReceiveMessageData>(std::move(buf)));
                 }
             }
             catch (const TCPSocket::Interrupted&) {

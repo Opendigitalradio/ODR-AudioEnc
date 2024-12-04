@@ -31,9 +31,11 @@
 #include "ThreadsafeQueue.h"
 #include <cstdlib>
 #include <atomic>
-#include <string>
+#include <chrono>
 #include <list>
 #include <memory>
+#include <optional>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -236,6 +238,8 @@ class TCPClient {
         TCPSocket m_sock;
         std::string m_hostname;
         int m_port;
+
+        std::optional<std::chrono::steady_clock::time_point> m_last_received_packet_ts;
 };
 
 /* Helper class for TCPDataDispatcher, contains a queue of pending data and
