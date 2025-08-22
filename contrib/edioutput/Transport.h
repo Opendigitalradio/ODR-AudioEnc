@@ -118,8 +118,13 @@ class Sender {
         struct tcp_send_client_t : public i_sender {
             tcp_send_client_t(
                     const std::string& dest_addr,
-                    uint16_t dest_port);
+                    uint16_t dest_port,
+                    bool verbose);
 
+            std::string dest_addr;
+            uint16_t dest_port;
+            bool verbose;
+            size_t m_num_reconnects_prev = 0;
             Socket::TCPSendClient sock;
             virtual void send_packet(const std::vector<uint8_t> &frame) override;
         };
