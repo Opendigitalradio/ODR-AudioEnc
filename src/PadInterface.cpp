@@ -56,7 +56,18 @@ void PadInterface::open(const std::string& pad_ident)
     struct sockaddr_un claddr;
     memset(&claddr, 0, sizeof(struct sockaddr_un));
     claddr.sun_family = AF_UNIX;
-    snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/%s.audioenc", m_pad_ident.c_str());
+    
+    // Check if pad_ident contains path separators - if so, treat as full path
+    size_t last_slash = m_pad_ident.find_last_of('/');
+    if (last_slash != std::string::npos) {
+        // It's a path - use directory and basename
+        std::string socket_dir = m_pad_ident.substr(0, last_slash);
+        std::string socket_base = m_pad_ident.substr(last_slash + 1);
+        snprintf(claddr.sun_path, sizeof(claddr.sun_path), "%s/%s.audioenc", socket_dir.c_str(), socket_base.c_str());
+    } else {
+        // It's just an identifier - use /tmp/ as before for backward compatibility
+        snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/%s.audioenc", m_pad_ident.c_str());
+    }
     if (unlink(claddr.sun_path) == -1 and errno != ENOENT) {
         fprintf(stderr, "Unlinking of socket %s failed: %s\n", claddr.sun_path, strerror(errno));
     }
@@ -84,7 +95,18 @@ vector<uint8_t> PadInterface::request(uint8_t padlen)
     struct sockaddr_un claddr;
     memset(&claddr, 0, sizeof(struct sockaddr_un));
     claddr.sun_family = AF_UNIX;
-    snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/%s.padenc", m_pad_ident.c_str());
+    
+    // Check if pad_ident contains path separators - if so, treat as full path
+    size_t last_slash = m_pad_ident.find_last_of('/');
+    if (last_slash != std::string::npos) {
+        // It's a path - use directory and basename
+        std::string socket_dir = m_pad_ident.substr(0, last_slash);
+        std::string socket_base = m_pad_ident.substr(last_slash + 1);
+        snprintf(claddr.sun_path, sizeof(claddr.sun_path), "%s/%s.padenc", socket_dir.c_str(), socket_base.c_str());
+    } else {
+        // It's just an identifier - use /tmp/ as before for backward compatibility
+        snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/%s.padenc", m_pad_ident.c_str());
+    }
 
     ssize_t ret = ::sendto(m_sock, packet, sizeof(packet), 0, (struct sockaddr*)&claddr, sizeof(struct sockaddr_un));
     if (ret == -1) {

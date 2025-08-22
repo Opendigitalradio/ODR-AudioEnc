@@ -153,7 +153,9 @@ Before starting, run the given script, and only start if it returns 0.
 Enable PAD insertion and set PAD size in bytes.
 .TP
 \fB\-P\fR, \fB\-\-pad\-socket\fR=\fI\,IDENTIFIER\/\fR
-Use the given identifier to communicate with ODR\-PadEnc.
+Use the given identifier or path to communicate with ODR\-PadEnc.
+If it contains '/', it's treated as a full path, otherwise
+it's an identifier and sockets are created in /tmp/.
 .TP
 \fB\-l\fR, \fB\-\-level\fR
 Show peak audio level indication.

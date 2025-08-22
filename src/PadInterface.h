@@ -30,8 +30,10 @@
 
 class PadInterface {
     public:
-        /*! Create a new PAD data interface that binds to /tmp/pad_ident.audioenc and
-         * communicates with ODR-PadEnc at /tmp/pad_ident.padenc
+        /*! Create a new PAD data interface. If pad_ident contains path separators,
+         * it is treated as a full path (creates pad_ident.audioenc and communicates
+         * with pad_ident.padenc). Otherwise, it is treated as an identifier and
+         * binds to /tmp/pad_ident.audioenc and communicates with /tmp/pad_ident.padenc
          */
         void open(const std::string &pad_ident);
 
