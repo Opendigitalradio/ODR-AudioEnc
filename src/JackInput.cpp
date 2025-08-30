@@ -28,6 +28,7 @@ extern "C" {
 }
 
 #include "JackInput.h"
+#include "Log.h"
 #include <sys/time.h>
 
 using namespace std;
@@ -60,7 +61,7 @@ void JackInput::prepare()
     }
 
     if (status & JackServerStarted) {
-        fprintf(stderr, "JACK server started\n");
+        etiLog.level(info) << "JACK server started";
     }
 
     if (status & JackNameNotUnique) {

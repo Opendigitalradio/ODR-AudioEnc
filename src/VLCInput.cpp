@@ -25,6 +25,7 @@
 #include <functional>
 
 #include "VLCInput.h"
+#include "Log.h"
 
 #include "config.h"
 
@@ -142,20 +143,20 @@ void VLCInput::prepare()
         throw runtime_error("Cannot start VLC input. Fault detected previously!");
     }
 
-    fprintf(stderr, "Initialising VLC...\n");
+    etiLog.level(info) << "Initialising VLC...";
 
     long long int handleStream_address;
     long long int prepareRender_address;
 
     switch (check_vlc_uses_size_t()) {
         case vlc_data_type_e::vlc_uses_unsigned_int:
-            fprintf(stderr, "You are using VLC with unsigned int size callbacks\n");
+            etiLog.level(info) << "You are using VLC with unsigned int size callbacks";
 
             handleStream_address = (long long int)(intptr_t)(void*)&handleStream;
             prepareRender_address = (long long int)(intptr_t)(void*)&prepareRender;
             break;
         case vlc_data_type_e::vlc_uses_size_t:
-            fprintf(stderr, "You are using VLC with size_t size callbacks\n");
+            etiLog.level(info) << "You are using VLC with size_t size callbacks";
 
             handleStream_address = (long long int)(intptr_t)(void*)&handleStream_size_t;
             prepareRender_address = (long long int)(intptr_t)(void*)&prepareRender_size_t;
@@ -179,9 +180,9 @@ void VLCInput::prepare()
             back_inserter(vlc_args));
 
     if (m_verbosity) {
-        fprintf(stderr, "Initialising VLC with options:\n");
+        etiLog.level(info) << "Initialising VLC with options:";
         for (const auto& arg : vlc_args) {
-            fprintf(stderr, "  %s\n", arg.c_str());
+            etiLog.level(info) << "  " << arg;
         }
     }
 
@@ -224,7 +225,7 @@ void VLCInput::prepare()
             (long long int)(intptr_t)this);
 
     if (m_verbosity) {
-        fprintf(stderr, "Setting VLC media option: %s\n", smem_options);
+        etiLog.level(debug) << "Setting VLC media option: " << smem_options;
     }
 
     libvlc_media_add_option(m, smem_options);
@@ -296,14 +297,14 @@ void VLCInput::exit_cb()
     if (m_running) {
         std::lock_guard<std::mutex> lock(m_queue_mutex);
 
-        fprintf(stderr, "VLC exit, restarting...\n");
+        etiLog.level(warn) << "VLC exit, restarting...";
 
         cleanup();
         m_current_buf.clear();
         prepare();
     }
     else {
-        fprintf(stderr, "VLC exit.\n");
+        etiLog.level(info) << "VLC exit.";
     }
 }
 
@@ -342,8 +343,7 @@ void VLCInput::postRender_cb(unsigned int channels, size_t size)
         }
     }
     else {
-        fprintf(stderr, "Got invalid number of channels back from VLC! "
-                "requested: %d, got %d\n", m_channels, channels);
+        etiLog.level(error) << "Got invalid number of channels back from VLC! requested: " << m_channels << ", got " << channels;
         m_running = false;
         m_fault = true;
     }
@@ -388,7 +388,7 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
 
         libvlc_media_t *media = libvlc_media_player_get_media(m_mp);
         if (!media) {
-            fprintf(stderr, "VLC no media\n");
+            etiLog.level(error) << "VLC no media";
             err = -1;
             break;
         }
@@ -397,7 +397,7 @@ ssize_t VLCInput::m_read(uint8_t* buf, size_t length)
         if (!(st == libvlc_Opening   ||
               st == libvlc_Buffering ||
               st == libvlc_Playing) ) {
-            fprintf(stderr, "VLC state is %d\n", st);
+            etiLog.level(warn) << "VLC state is " << st;
             err = -1;
             break;
         }
@@ -505,8 +505,8 @@ vlc_data_type_e check_vlc_uses_size_t()
         }
     }
 
-    fprintf(stderr, "Error detecting VLC version!\n");
-    fprintf(stderr, "      you are using %s\n", libvlc_get_version());
+    etiLog.level(error) << "Error detecting VLC version!";
+    etiLog.level(error) << "      you are using " << libvlc_get_version();
     throw runtime_error("Cannot identify VLC datatype!");
 }
 

@@ -210,11 +210,9 @@ void Sender::tcp_send_client_t::send_packet(const std::vector<uint8_t> &frame)
     const auto error_stats = sock.sendall(frame);
 
     if (verbose and error_stats.has_seen_new_errors) {
-        fprintf(stderr, "TCP output %s:%d has %zu reconnects: most recent error: %s\n",
-                dest_addr.c_str(),
-                dest_port,
-                error_stats.num_reconnects,
-                error_stats.last_error.c_str());
+        etiLog.level(warn) << "TCP output " << dest_addr << ":" << dest_port 
+                          << " has " << error_stats.num_reconnects 
+                          << " reconnects: most recent error: " << error_stats.last_error;
     }
 }
 
