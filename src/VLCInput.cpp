@@ -23,6 +23,7 @@
 #include <chrono>
 #include <algorithm>
 #include <functional>
+#include <cstdarg>
 
 #include "VLCInput.h"
 #include "Log.h"
@@ -123,6 +124,61 @@ void handleVLCExit(void* opaque)
     ((VLCInput*)opaque)->exit_cb();
 }
 
+/*! VLC Log callback to route VLC messages through etiLog */
+void handleVLCLog(void* data, int level, const libvlc_log_t* ctx, const char* fmt, va_list args)
+{
+    // Map VLC log levels to etiLog levels
+    log_level_t etiLogLevel;
+    switch (level) {
+        case LIBVLC_DEBUG:
+            etiLogLevel = debug;
+            break;
+        case LIBVLC_NOTICE:
+            etiLogLevel = info;
+            break;
+        case LIBVLC_WARNING:
+            etiLogLevel = warn;
+            break;
+        case LIBVLC_ERROR:
+            etiLogLevel = error;
+            break;
+        default:
+            etiLogLevel = debug; // Default to debug for unknown levels
+            break;
+    }
+
+    // Format the message using vsnprintf
+    char buffer[1024];
+    int ret = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    
+    if (ret > 0) {
+        // Get module and object information from context if available
+        const char* module = nullptr;
+        const char* file = nullptr;
+        unsigned line = 0;
+        const char* object_type = nullptr;
+        const char* header = nullptr;
+        uintptr_t object_id = 0;
+        
+        libvlc_log_get_context(ctx, &module, &file, &line);
+        libvlc_log_get_object(ctx, &object_type, &header, &object_id);
+        
+        // Use module name if available, otherwise use object type
+        const char* identifier = nullptr;
+        if (module && strlen(module) > 0) {
+            identifier = module;
+        } else if (object_type && strlen(object_type) > 0) {
+            identifier = object_type;
+        }
+        
+        if (identifier) {
+            etiLog.level(etiLogLevel) << "VLC [" << identifier << "] " << buffer;
+        } else {
+            etiLog.level(etiLogLevel) << "VLC " << buffer;
+        }
+    }
+}
+
 VLCInput::~VLCInput()
 {
     m_running = false;
@@ -197,6 +253,9 @@ void VLCInput::prepare()
     if (m_vlc == nullptr) {
         throw runtime_error("VLC initialisation failed");
     }
+
+    // Set up VLC log callback to route messages through etiLog
+    libvlc_log_set(m_vlc, handleVLCLog, this);
 
     libvlc_set_exit_handler(m_vlc, handleVLCExit, this);
 
