@@ -26,6 +26,7 @@
 #include <cstring>
 
 #include "GSTInput.h"
+#include "Log.h"
 
 #include "config.h"
 
@@ -59,8 +60,8 @@ static void error_cb(GstBus *bus, GstMessage *msg, GSTData *data)
 
     /* Print error details on the screen */
     gst_message_parse_error(msg, &err, &debug_info);
-    g_printerr("Error received from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
-    g_printerr("Debugging information: %s\n", debug_info ? debug_info : "none");
+    etiLog.level(error) << "Error received from element " << GST_OBJECT_NAME (msg->src) << ": " << err->message;
+    etiLog.level(error) << "Debugging information: " << (debug_info ? debug_info : "none");
     g_clear_error(&err);
     g_free(debug_info);
 }
@@ -282,7 +283,7 @@ void GSTInput::process()
                 {
                     GError *err = nullptr;
                     gst_message_parse_error(msg, &err, nullptr);
-                    fprintf(stderr, "GST error: %s\n", err->message);
+                    etiLog.level(error) << "GST error: " << err->message;
                     g_error_free(err);
                     m_fault = true;
                     break;

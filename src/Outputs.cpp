@@ -18,6 +18,7 @@
  */
 
 #include "Outputs.h"
+#include "Log.h"
 #include <chrono>
 #include <string>
 #include <stdexcept>
@@ -75,7 +76,7 @@ ZMQ::~ZMQ() {}
 void ZMQ::connect(const char *uri, const char *keyfile)
 {
     if (keyfile) {
-        fprintf(stderr, "Enabling encryption\n");
+        etiLog.level(info) << "Enabling encryption";
 
         int rc = readkey(keyfile, m_secretkey);
         if (rc) {
@@ -130,7 +131,7 @@ bool ZMQ::write_frame(const uint8_t *buf, size_t len)
                 zmq::send_flags::dontwait);
     }
     catch (zmq::error_t& e) {
-        fprintf(stderr, "ZeroMQ send error !\n");
+        etiLog.level(error) << "ZeroMQ send error !";
         return false;
     }
 
