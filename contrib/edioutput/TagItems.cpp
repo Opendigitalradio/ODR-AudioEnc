@@ -460,7 +460,7 @@ std::vector<uint8_t> TagAUTH::Assemble()
     packet.push_back('H');
     
     // TAG length: 4 bytes (big endian)
-    uint32_t length = m_auth_key.size();
+    uint32_t length = m_auth_key.size() * 8;
     packet.push_back((length >> 24) & 0xFF);
     packet.push_back((length >> 16) & 0xFF);
     packet.push_back((length >> 8) & 0xFF);
