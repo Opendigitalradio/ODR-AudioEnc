@@ -202,6 +202,7 @@ static void usage(const char* name)
     "     -e, --edi=URI                        EDI output uri, (e.g. 'tcp://localhost:7000')\n"
     "         --fec=FEC                        Set EDI output FEC\n"
     "         --edi-verbose                    Enable verbose mode for EDI output.\n"
+    "         --ediauthkey=KEY                 Authentication key to send to EDI TCP destinations\n"
     "     -T, --timestamp-delay=DELAY_MS       Enabled timestamps in EDI (requires TAI clock bulletin download) and\n"
     "                                          add a delay (in milliseconds) to the timestamps carried in EDI\n"
     "         --startup-check=SCRIPT_PATH      Before starting, run the given script, and only start if it returns 0.\n"
@@ -453,6 +454,8 @@ public:
     shared_ptr<Output::ZMQ> zmq_output;
     Output::EDI edi_output;
     string identifier;
+    string edi_auth_key;
+
 
     bool tist_enabled = false;
     uint32_t tist_delay_ms = 0;
@@ -631,6 +634,7 @@ int AudioEnc::run()
 
     if (not edi_output_uris.empty()) {
         edi_output.set_tist(tist_enabled, tist_delay_ms);
+        edi_output.set_auth_key(edi_auth_key);
 
         stringstream ss;
         ss << PACKAGE_NAME << " " <<
@@ -1422,6 +1426,7 @@ int main(int argc, char *argv[])
         {"restart",                no_argument,        0, 'R'},
         {"sbr",                    no_argument,        0,  1 },
         {"verbosity",              no_argument,        0, 'V'},
+        {"ediauthkey",             required_argument,  0, 13 },
         {0, 0, 0, 0},
     };
 
@@ -1638,6 +1643,9 @@ int main(int argc, char *argv[])
         case 'h':
             usage(argv[0]);
             return 1;
+        case 13: // --ediauthkey
+            audio_enc.edi_auth_key = optarg;
+            break;
         }
     }
 

@@ -153,6 +153,11 @@ void EDI::set_odr_version_tag(const std::string& odr_version_tag)
     m_odr_version_tag = odr_version_tag;
 }
 
+void Output::EDI::set_auth_key(const std::string& auth_key)
+{
+    m_edi_conf.edi_auth_key = auth_key;
+}
+
 void EDI::add_udp_destination(const std::string& host, unsigned int port)
 {
     auto dest = make_shared<edi::udp_destination_t>();

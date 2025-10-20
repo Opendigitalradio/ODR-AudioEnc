@@ -250,5 +250,16 @@ class TagODRAudioLevels : public TagItem
         int16_t m_audio_right;
 };
 
+// Custom TAG that carries authentication key
+class TagAUTH : public TagItem
+{
+    public:
+        TagAUTH(const std::string& auth_key);
+        std::vector<uint8_t> Assemble();
+
+    private:
+        std::string m_auth_key;
+};
+
 }
 

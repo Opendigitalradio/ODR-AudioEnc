@@ -76,6 +76,7 @@ struct configuration_t {
     double fragment_spreading_factor = 0.95;
     // Spread transmission of fragments in time. 1.0 = 100% means spreading over the whole duration of a frame (24ms)
     // Above 100% means that the fragments are spread over several 24ms periods, interleaving the AF packets.
+    std::string edi_auth_key = "";
 
     bool enabled() const { return destinations.size() > 0; }
 

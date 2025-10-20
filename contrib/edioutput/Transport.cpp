@@ -105,7 +105,10 @@ Sender::Sender(const configuration_t& conf) :
         m_running = true;
         m_thread = thread(&Sender::run, this);
     }
-
+    
+    // Send AUTH packet to TCP destinations
+    send_auth_packet(); 
+    
     if (m_conf.verbose) {
         etiLog.log(info, "EDI output set up");
     }
@@ -133,6 +136,9 @@ void Sender::write(const TagPacket& tagpacket)
 
 void Sender::write(const AFPacket& af_packet)
 {
+    // Check for reconnections and resend AUTH if needed
+    //check_and_send_auth_on_reconnect(); 
+    
     if (m_conf.enable_pft) {
         // Apply PFT layer to AF Packet (Reed Solomon FEC and Fragmentation)
         vector<edi::PFTFragment> edi_fragments = edi_pft.Assemble(af_packet);
@@ -195,6 +201,17 @@ void Sender::write(const AFPacket& af_packet)
             else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(dest)) {
                 const auto error_stats = tcp_senders.at(tcp_dest.get())->sendall(af_packet);
 
+                // Check if reconnection occurred
+                auto it = m_tcp_client_reconnect_count.find(tcp_dest.get());
+                if (it == m_tcp_client_reconnect_count.end()) {
+                    m_tcp_client_reconnect_count[tcp_dest.get()] = error_stats.num_reconnects;
+                }
+                else if (it->second < error_stats.num_reconnects) {
+                    // Reconnection! Resend AUTH on next frame
+                    it->second = error_stats.num_reconnects;
+                    send_auth_packet();  // This will send to all TCP destinations
+                }
+                
                 if (m_conf.verbose and error_stats.has_seen_new_errors) {
                     fprintf(stderr, "TCP output %s:%d has %zu reconnects: most recent error: %s\n",
                             tcp_dest->dest_addr.c_str(),
@@ -207,6 +224,48 @@ void Sender::write(const AFPacket& af_packet)
                 throw logic_error("EDI destination not implemented");
             }
         }
+    }
+}
+
+void Sender::check_and_send_auth_on_reconnect()
+{
+}
+
+void Sender::send_auth_packet()
+{
+    if (m_conf.edi_auth_key.empty()) {
+        return;  // No auth key configured
+    }
+    
+    // Create AUTH tag packet
+    edi::TagPacket auth_tagpacket(m_conf.tagpacket_alignment);
+    auto tag_auth = std::make_shared<edi::TagAUTH>(m_conf.edi_auth_key);
+    auth_tagpacket.tag_items.push_back(tag_auth.get());
+    
+    // Assemble and send
+    edi::AFPacket auth_af_packet = edi_afPacketiser.Assemble(auth_tagpacket);
+    
+    // Send only to TCP destinations
+    for (auto& dest : m_conf.destinations) {
+        if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(dest)) {
+            // Send immediately to this TCP client
+            const auto error_stats = tcp_senders.at(tcp_dest.get())->sendall(auth_af_packet);
+            
+            if (m_conf.verbose) {
+                fprintf(stderr, "Sent AUTH packet to TCP destination %s:%d\n",
+                        tcp_dest->dest_addr.c_str(), tcp_dest->dest_port);
+            }
+        }
+        else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_server_t>(dest)) {
+            // For TCP server, send to all connected clients
+            tcp_dispatchers.at(tcp_dest.get())->write(auth_af_packet);
+            
+            if (m_conf.verbose) {
+                fprintf(stderr, "Sent AUTH packet to TCP server on port %d\n",
+                        tcp_dest->listen_port);
+            }
+        }
+        // Don't send AUTH to UDP destinations
     }
 }
 

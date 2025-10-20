@@ -66,7 +66,12 @@ class Sender {
 
     private:
         void run();
-
+        void send_auth_packet();
+        void check_and_send_auth_on_reconnect();
+        
+        // Track reconnect counts to detect when reconnection happens
+        std::unordered_map<tcp_client_t*, size_t> m_tcp_client_reconnect_count;
+        
         bool m_udp_fragmentation_warning_printed = false;
 
         configuration_t m_conf;

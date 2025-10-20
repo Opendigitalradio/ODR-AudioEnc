@@ -444,5 +444,33 @@ std::vector<uint8_t> TagODRAudioLevels::Assemble()
     return packet;
 }
 
+TagAUTH::TagAUTH(const std::string& auth_key)
+    : m_auth_key(auth_key)
+{
+}
+
+std::vector<uint8_t> TagAUTH::Assemble()
+{
+    std::vector<uint8_t> packet;
+    
+    // TAG name: 4 bytes
+    packet.push_back('A');
+    packet.push_back('U');
+    packet.push_back('T');
+    packet.push_back('H');
+    
+    // TAG length: 4 bytes (big endian)
+    uint32_t length = m_auth_key.size();
+    packet.push_back((length >> 24) & 0xFF);
+    packet.push_back((length >> 16) & 0xFF);
+    packet.push_back((length >> 8) & 0xFF);
+    packet.push_back(length & 0xFF);
+    
+    // TAG value: auth key string
+    packet.insert(packet.end(), m_auth_key.begin(), m_auth_key.end());
+    
+    return packet;
+}
+
 }
 

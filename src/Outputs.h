@@ -141,6 +141,8 @@ class EDI: public Base {
         void set_fec(int fec);
 
         void set_tist(bool enable, uint32_t delay_ms);
+        
+        void set_auth_key(const std::string& auth_key);
 
         bool enabled() const;
 
