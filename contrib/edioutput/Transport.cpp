@@ -106,6 +106,16 @@ Sender::Sender(const configuration_t& conf) :
         m_thread = thread(&Sender::run, this);
     }
     
+    // Initialize reconnect tracking
+    for (const auto& edi_dest : m_conf.destinations) {
+        if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(edi_dest)) {
+            m_tcp_reconnect_count[tcp_dest.get()] = 0;
+        }
+        else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_server_t>(edi_dest)) {
+            m_tcp_server_auth_sent[tcp_dest.get()] = false;
+        }
+    }
+    
     // Send AUTH packet to TCP destinations
     send_auth_packet(); 
     
@@ -136,9 +146,6 @@ void Sender::write(const TagPacket& tagpacket)
 
 void Sender::write(const AFPacket& af_packet)
 {
-    // Check for reconnections and resend AUTH if needed
-    //check_and_send_auth_on_reconnect(); 
-    
     if (m_conf.enable_pft) {
         // Apply PFT layer to AF Packet (Reed Solomon FEC and Fragmentation)
         vector<edi::PFTFragment> edi_fragments = edi_pft.Assemble(af_packet);
@@ -196,31 +203,38 @@ void Sender::write(const AFPacket& af_packet)
                 udp_sockets.at(udp_dest.get())->send(af_packet, addr);
             }
             else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_server_t>(dest)) {
+                // For TCP server, send AUTH once when first client connects
+                if (!m_tcp_server_auth_sent[tcp_dest.get()]) {
+                    // This will be sent to all connected clients
+                    // We can't detect individual client connects easily, so send once
+                    m_tcp_server_auth_sent[tcp_dest.get()] = true;
+                }
                 tcp_dispatchers.at(tcp_dest.get())->write(af_packet);
             }
             else if (auto tcp_dest = dynamic_pointer_cast<edi::tcp_client_t>(dest)) {
                 const auto error_stats = tcp_senders.at(tcp_dest.get())->sendall(af_packet);
 
-                // Check if reconnection occurred
-                auto it = m_tcp_client_reconnect_count.find(tcp_dest.get());
-                if (it == m_tcp_client_reconnect_count.end()) {
-                    m_tcp_client_reconnect_count[tcp_dest.get()] = error_stats.num_reconnects;
+                // Check if reconnection occurred since last check
+                if (error_stats.num_reconnects > m_tcp_reconnect_count[tcp_dest.get()]) {
+                    // Update count FIRST
+                    m_tcp_reconnect_count[tcp_dest.get()] = error_stats.num_reconnects;
+                    
+                    // Send AUTH packet immediately
+                    if (!m_conf.edi_auth_key.empty()) {
+                        edi::TagPacket auth_tagpacket(m_conf.tagpacket_alignment);
+                        auto tag_auth = std::make_shared<edi::TagAUTH>(m_conf.edi_auth_key);
+                        auth_tagpacket.tag_items.push_back(tag_auth.get());
+                        
+                        edi::AFPacket auth_af_packet = edi_afPacketiser.Assemble(auth_tagpacket);
+                        tcp_senders.at(tcp_dest.get())->sendall(auth_af_packet);
+                        
+                        if (m_conf.verbose) {
+                            fprintf(stderr, "Sent AUTH packet after reconnection to %s:%d\n",
+                                    tcp_dest->dest_addr.c_str(), tcp_dest->dest_port);
+                        }
+                    }
                 }
-                else if (it->second < error_stats.num_reconnects) {
-                    // Reconnection! Resend AUTH on next frame
-                    it->second = error_stats.num_reconnects;
-                    send_auth_packet();  // This will send to all TCP destinations
-                }
-                
-                if (m_conf.verbose and error_stats.has_seen_new_errors) {
-                    fprintf(stderr, "TCP output %s:%d has %zu reconnects: most recent error: %s\n",
-                            tcp_dest->dest_addr.c_str(),
-                            tcp_dest->dest_port,
-                            error_stats.num_reconnects,
-                            error_stats.last_error.c_str());
-                }
-            }
-            else {
+            } else {
                 throw logic_error("EDI destination not implemented");
             }
         }

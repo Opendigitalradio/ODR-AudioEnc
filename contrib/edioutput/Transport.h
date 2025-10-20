@@ -69,6 +69,10 @@ class Sender {
         void send_auth_packet();
         void check_and_send_auth_on_reconnect();
         
+        // Track reconnect counts per TCP destination
+        std::unordered_map<tcp_client_t*, size_t> m_tcp_reconnect_count;
+        std::unordered_map<tcp_server_t*, bool> m_tcp_server_auth_sent;
+        
         // Track reconnect counts to detect when reconnection happens
         std::unordered_map<tcp_client_t*, size_t> m_tcp_client_reconnect_count;
         
