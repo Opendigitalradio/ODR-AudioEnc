@@ -67,7 +67,7 @@ sudo apt-get install --yes libjack-jackd2-dev
 sudo apt-get install --yes libvlc-dev
 
 ## gstreamer-1.0
-sudo apt-get install --yes libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+sudo apt-get install --yes libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good
 
 ## cURL to download the TAI-UTC bulletin, needed for timestamps in EDI output
 sudo apt-get install --yes libcurl4-openssl-dev
