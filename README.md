@@ -34,21 +34,15 @@ More information is available on the
 
 ## Installation
 
-You have 3 ways to install odr-audioenc on your host:
+You have 2 ways to install odr-audioenc on your host:
 
 ### Installing binary packages on some linux distributions
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/odr-audioenc.svg)](https://repology.org/project/odr-audioenc/versions)
 
-### Using installation scripts
-
-If your linux distribution is debian-based, you can install odr-audioenc
-as well as the other main components of the mmbTools set with the
-[Opendigitalradio dab-scripts](https://github.com/opendigitalradio/dab-scripts.git)
-
 ### Compiling manually
 
-Unlike the 2 previous options, this one allows you to compile odr-audioenc with the features you really need.
+Unlike the previous option, this one allows you to compile odr-audioenc with the features you really need.
 
 #### Requirements
 
