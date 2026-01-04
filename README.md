@@ -64,7 +64,7 @@ sudo apt-get install --yes libasound2-dev
 sudo apt-get install --yes libjack-jackd2-dev
 
 ## libvlc and vlc for the plugins
-sudo apt-get install --yes libvlc-dev
+sudo apt-get install --yes libvlc-dev vlc-plugin-base
 
 ## gstreamer-1.0
 sudo apt-get install --yes libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good
