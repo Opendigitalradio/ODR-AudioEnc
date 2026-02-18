@@ -45,7 +45,7 @@ void AACDecoder::decode_frame(uint8_t *data, size_t len)
     const int core_ch_config = aac_channel_mode ? 2 : 1;
     const int extension_sr_index = dac_rate ? 3 : 5;    // 48/32 kHz
 
-    int au_start[6] = {};
+    int au_start[7] = {};
 
     int num_aus = dac_rate ? (sbr_flag ? 3 : 6) : (sbr_flag ? 2 : 4);
     au_start[0] = dac_rate ? (sbr_flag ? 6 : 11) : (sbr_flag ? 5 : 8);
@@ -64,7 +64,7 @@ void AACDecoder::decode_frame(uint8_t *data, size_t len)
         au_start[5] = data[9] << 4 | data[10] >> 4;
     }
 
-	au_start[num_aus] = len; // end of the buffer
+    au_start[num_aus] = len; // end of the buffer
 
     for (int i = 0; i < num_aus; i++) {
         if (au_start[i] >= au_start[i+1]) {
