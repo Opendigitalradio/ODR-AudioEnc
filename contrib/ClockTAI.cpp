@@ -379,18 +379,31 @@ void Bulletin::clear_expiry_if_overridden()
     }
 }
 
+ClockTAI::ClockTAI()
 #if ENABLE_REMOTECONTROL
-ClockTAI::ClockTAI(const std::vector<std::string>& bulletin_urls) :
-    RemoteControllable("clocktai")
+    : RemoteControllable("clocktai")
 {
     RC_ADD_PARAMETER(tai_utc_offset, "TAI-UTC offset");
     RC_ADD_PARAMETER(expiry, "Number of seconds until TAI Bulletin expires");
     RC_ADD_PARAMETER(expires_at, "UNIX timestamp when TAI Bulletin expires");
     RC_ADD_PARAMETER(url, "URLs used to fetch the bulletin, separated by pipes");
 #else
-ClockTAI::ClockTAI(const std::vector<std::string>& bulletin_urls) {
+{
 #endif // ENABLE_REMOTECONTROL
+}
 
+void ClockTAI::init(int fixed_tai_utc_offset)
+{
+    std::unique_lock<std::mutex> lock(m_data_mutex);
+    m_bulletin = Bulletin::create_with_fixed_offset(fixed_tai_utc_offset);
+    m_state = m_bulletin.state();
+    m_state_last_updated = chrono::steady_clock::now();
+
+    etiLog.level(debug) << "ClockTAI with fixed offset: '" << fixed_tai_utc_offset << "'";
+}
+
+void ClockTAI::init(const std::vector<std::string>& bulletin_urls)
+{
     if (bulletin_urls.empty()) {
         etiLog.level(debug) << "Initialising default TAI Bulletin URLs";
         for (const auto url : default_tai_urls) {
@@ -404,6 +417,12 @@ ClockTAI::ClockTAI(const std::vector<std::string>& bulletin_urls) {
 
     etiLog.level(debug) << "ClockTAI uses bulletin URL: '" << join_string_with_pipe(m_bulletin_urls) << "'";
 }
+
+void ClockTAI::init(const std::string& bulletin_urls_pipe_separated)
+{
+    init(split_pipe_separated_string(bulletin_urls_pipe_separated));
+}
+
 
 BulletinState ClockTAI::get_valid_offset()
 {
@@ -567,6 +586,18 @@ int ClockTAI::get_offset()
     throw std::logic_error("ClockTAI: No valid m_state at end of get_offset()");
 }
 
+std::optional<time_t> ClockTAI::expires_at() const
+{
+    std::unique_lock<std::mutex> lock(m_data_mutex);
+    const auto& state = m_bulletin.state();
+    if (state.valid) {
+        return state.expires_at;
+    }
+    else {
+        return nullopt;
+    }
+}
+
 #if SUPPORT_SETTING_CLOCK_TAI
 int ClockTAI::update_local_tai_clock(int offset)
 {
@@ -710,17 +741,17 @@ const json::map_t ClockTAI::get_all_values() const
         m_state->offset << " " << m_state->expires_at << " -> " << m_state->expires_in();
 #endif
 
-    stat["tai_utc_offset"].v = state.offset;
+    stat["tai_utc_offset"] = state.offset;
 
-    stat["expiry"].v = state.expires_in(); // Might be negative when expired or 0 when invalid
+    stat["expiry"] = state.expires_in(); // Might be negative when expired or 0 when invalid
     if (state.valid) {
-        stat["expires_at"].v = state.expires_at;
+        stat["expires_at"] = state.expires_at;
     }
     else {
-        stat["expires_at"].v = nullopt;
+        stat["expires_at"] = nullopt;
     }
 
-    stat["url"].v = join_string_with_pipe(m_bulletin_urls);
+    stat["url"] = join_string_with_pipe(m_bulletin_urls);
 
     return stat;
 }

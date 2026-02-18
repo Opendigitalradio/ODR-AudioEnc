@@ -139,8 +139,10 @@ bool ZMQ::write_frame(const uint8_t *buf, size_t len)
 }
 
 EDI::EDI() :
-    m_clock_tai({})
-{ }
+    m_clock_tai()
+{
+    m_clock_tai.init("");
+}
 
 EDI::~EDI() { }
 
