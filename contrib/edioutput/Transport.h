@@ -53,7 +53,7 @@ class Sender {
 
         // Assemble the tagpacket into an AF packet, and if needed,
         // apply PFT and then schedule for transmission.
-        void write(const TagPacket& tagpacket);
+        edi::AFPacket write(const TagPacket& tagpacket);
 
         // Schedule an already assembled AF Packet for transmission,
         // applying PFT if needed.

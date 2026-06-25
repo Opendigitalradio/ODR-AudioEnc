@@ -124,12 +124,13 @@ Sender::Sender(const configuration_t& conf) :
     }
 }
 
-void Sender::write(const TagPacket& tagpacket)
+edi::AFPacket Sender::write(const TagPacket& tagpacket)
 {
     // Assemble into one AF Packet
     edi::AFPacket af_packet = edi_af_packetiser.Assemble(tagpacket);
 
     write(af_packet);
+    return af_packet;
 }
 
 void Sender::write(const AFPacket& af_packet)

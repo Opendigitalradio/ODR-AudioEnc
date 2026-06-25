@@ -136,6 +136,7 @@ class EDI: public Base {
 
         void add_udp_destination(const std::string& host, unsigned int port);
         void add_tcp_destination(const std::string& host, unsigned int port);
+        void set_file_destination(const std::string& filename);
 
         // Enables PFT layer and sets FEC
         void set_fec(int fec);
@@ -151,6 +152,7 @@ class EDI: public Base {
 
         edi::configuration_t m_edi_conf;
         std::shared_ptr<edi::Sender> m_edi_sender;
+        FILE* m_output_file = nullptr;
 
         uint32_t m_timestamp = 0;
         uint32_t m_num_seconds_sent = 0;

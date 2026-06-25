@@ -625,8 +625,11 @@ int AudioEnc::run()
                 etiLog.level(error) << "Invalid EDI URL host!";
             }
         }
+        else if (uri.compare(0, 7, "file://") == 0) {
+            edi_output.set_file_destination(uri.substr(7));
+        }
         else {
-            etiLog.level(error) << "Invalid EDI protocol!";
+            etiLog.level(error) << "Invalid EDI protocol!" << uri;
         }
     }
 

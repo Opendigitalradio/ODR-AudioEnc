@@ -144,7 +144,13 @@ EDI::EDI() :
     m_clock_tai.init("");
 }
 
-EDI::~EDI() { }
+EDI::~EDI()
+{
+    if (m_output_file != nullptr) {
+        fclose(m_output_file);
+        m_output_file = nullptr;
+    }
+}
 
 void EDI::set_verbose(bool verbose)
 {
@@ -173,6 +179,15 @@ void EDI::add_tcp_destination(const std::string& host, unsigned int port)
     m_edi_conf.destinations.push_back(dest);
 }
 
+void EDI::set_file_destination(const std::string& filename)
+{
+    etiLog.level(info) << "Open EDI file " << filename;
+    m_output_file = fopen(filename.c_str(), "wb");
+    if (m_output_file == nullptr) {
+        throw runtime_error(string("Error opening output file: ") + strerror(errno));
+    }
+}
+
 void EDI::set_fec(int fec)
 {
     for (auto& edi_dest : m_edi_conf.destinations) {
@@ -184,7 +199,7 @@ void EDI::set_fec(int fec)
 
 bool EDI::enabled() const
 {
-    return not m_edi_conf.destinations.empty();
+    return (not m_edi_conf.destinations.empty()) or m_output_file != nullptr;
 }
 
 void EDI::set_tist(bool enable, uint32_t delay_ms)
@@ -256,7 +271,15 @@ bool EDI::write_frame(const uint8_t *buf, size_t len)
         edi_tagpacket.tag_items.push_back(&edi_tagVersion);
     }
 
-    m_edi_sender->write(edi_tagpacket);
+    auto af_packet = m_edi_sender->write(edi_tagpacket);
+
+    if (m_output_file != nullptr) {
+        if (fwrite(af_packet.data(), af_packet.size(), 1, m_output_file) != 1) {
+            etiLog.level(warn) << "Failed to write to EDI output file. Closing.";
+            fclose(m_output_file);
+            m_output_file = nullptr;
+        }
+    }
 
     // TODO Handle TCP disconnect
     return true;
